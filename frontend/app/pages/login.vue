@@ -3,9 +3,9 @@
     <UCard class="w-full max-w-sm">
       <template #header>
         <div class="text-center">
-          <UIcon name="i-heroicons-lock-closed" class="w-12 h-12 text-indigo-500 mb-4 mx-auto" />
-          <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Welcome Back</h2>
-          <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Please sign in to Capacitarr</p>
+          <UIcon name="i-heroicons-lock-closed" class="w-12 h-12 text-violet-500 mb-4 mx-auto" />
+          <h2 class="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">Welcome Back</h2>
+          <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Please sign in to Capacitarr</p>
         </div>
       </template>
 
@@ -64,7 +64,12 @@ async function onSubmit(event: any) {
     })
 
     if (response.message === 'success') {
-      router.push('/')
+      // Set the JWT cookie from response so useCookie can read it
+      if (response.token) {
+        token.value = response.token
+      }
+      // Full page reload to ensure all components pick up the auth state
+      window.location.href = '/'
     } else {
        errorMsg.value = 'Authentication failed'
     }

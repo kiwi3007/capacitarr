@@ -1,0 +1,13 @@
+# Build artifacts
+backend/capacitarr
+backend/frontend/dist/
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+
+# Editor / OS files
+.DS_Store
+.vscode/
+.idea/

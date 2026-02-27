@@ -26,7 +26,7 @@ func Init(cfg *config.Config) error {
 	}
 
 	// Run migrations
-	err = db.AutoMigrate(&AuthConfig{}, &LibraryHistory{})
+	err = db.AutoMigrate(&AuthConfig{}, &LibraryHistory{}, &IntegrationConfig{}, &DiskGroup{})
 	if err != nil {
 		slog.Error("Failed to migrate database", "error", err)
 		return err

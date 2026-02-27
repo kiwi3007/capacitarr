@@ -65,13 +65,13 @@ func RegisterAPIRoutes(g *echo.Group, database *gorm.DB, cfg *config.Config) {
 			Name:     "jwt",
 			Value:    tokenString,
 			Expires:  time.Now().Add(24 * time.Hour),
-			HttpOnly: true,
+			HttpOnly: false, // SPA needs to read cookie for auth state
 			Secure:   false, // Set to true in production
 			Path:     "/",
 			SameSite: http.SameSiteLaxMode,
 		})
 
-		return c.JSON(http.StatusOK, map[string]string{"message": "success"})
+		return c.JSON(http.StatusOK, map[string]string{"message": "success", "token": tokenString})
 	})
 
 	// Protected Routes
@@ -100,11 +100,41 @@ func RegisterAPIRoutes(g *echo.Group, database *gorm.DB, cfg *config.Config) {
 			resolution = "raw"
 		}
 
+		diskGroupID := c.QueryParam("disk_group_id")
+		since := c.QueryParam("since") // e.g. "1h", "24h", "7d", "30d"
+
+		query := database.Where("resolution = ?", resolution)
+		if diskGroupID != "" {
+			query = query.Where("disk_group_id = ?", diskGroupID)
+		}
+
+		// Apply time range filter
+		if since != "" {
+			var duration time.Duration
+			switch since {
+			case "1h":
+				duration = 1 * time.Hour
+			case "24h":
+				duration = 24 * time.Hour
+			case "7d":
+				duration = 7 * 24 * time.Hour
+			case "30d":
+				duration = 30 * 24 * time.Hour
+			}
+			if duration > 0 {
+				cutoff := time.Now().Add(-duration)
+				query = query.Where("timestamp >= ?", cutoff)
+			}
+		}
+
 		var history []db.LibraryHistory
-		if err := database.Where("resolution = ?", resolution).Order("timestamp asc").Limit(1000).Find(&history).Error; err != nil {
+		if err := query.Order("timestamp asc").Limit(1000).Find(&history).Error; err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Error fetching metrics"})
 		}
 
 		return c.JSON(http.StatusOK, map[string]interface{}{"status": "success", "data": history})
 	})
+
+	// Integration management routes
+	RegisterIntegrationRoutes(protected, database)
 }

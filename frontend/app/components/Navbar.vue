@@ -1,10 +1,20 @@
 <template>
-  <header class="border-b border-slate-200 dark:border-slate-800 bg-white/75 dark:bg-slate-900/75 backdrop-blur-md sticky top-0 z-50">
+  <header class="border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50">
     <UContainer>
       <div class="flex items-center justify-between h-16">
-        <div class="flex items-center gap-2">
-          <UIcon name="i-heroicons-circle-stack" class="w-8 h-8 text-indigo-500" />
-          <span class="text-xl font-bold tracking-tight text-slate-900 dark:text-white">Capacitarr</span>
+        <div class="flex items-center gap-6">
+          <NuxtLink to="/" class="flex items-center gap-2">
+            <UIcon name="i-heroicons-circle-stack" class="w-8 h-8 text-violet-500" />
+            <span class="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">Capacitarr</span>
+          </NuxtLink>
+          <nav class="hidden sm:flex items-center gap-1">
+            <NuxtLink to="/" class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors" :class="$route.path === '/' ? 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'">
+              Dashboard
+            </NuxtLink>
+            <NuxtLink to="/settings" class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors" :class="$route.path === '/settings' ? 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'">
+              Settings
+            </NuxtLink>
+          </nav>
         </div>
         
         <div class="flex items-center gap-4">
