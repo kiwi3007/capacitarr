@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/capacitarr/capacitarr/backend/internal/db"
+	"capacitarr/internal/db"
 )
 
 // Start begins the continuous polling simulator.

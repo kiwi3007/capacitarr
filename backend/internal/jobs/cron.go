@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/capacitarr/capacitarr/backend/internal/db"
+	"capacitarr/internal/db"
 	"github.com/robfig/cron/v3"
 )
 

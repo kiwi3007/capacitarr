@@ -3,7 +3,7 @@ package db
 import (
 	"log/slog"
 
-	"github.com/capacitarr/capacitarr/backend/internal/config"
+	"capacitarr/internal/config"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
