@@ -382,7 +382,59 @@
           No items to evaluate. Connect integrations and ensure media exists.
         </div>
 
-        <div v-else class="overflow-x-auto">
+        <div v-else>
+          <!-- Search & Filters -->
+          <div class="flex flex-col sm:flex-row gap-3 mb-4">
+            <div class="relative flex-1">
+              <SearchIcon class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <UiInput
+                v-model="previewSearch"
+                placeholder="Search by title…"
+                class="pl-8"
+              />
+            </div>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <UiButton
+                v-for="mt in previewMediaTypes"
+                :key="mt"
+                :variant="previewTypeFilter === mt ? 'default' : 'outline'"
+                size="sm"
+                class="rounded-full h-7 px-3 text-xs capitalize"
+                @click="previewTypeFilter = previewTypeFilter === mt ? null : mt"
+              >
+                {{ mt }}
+              </UiButton>
+              <UiSeparator orientation="vertical" class="h-5 mx-1" />
+              <UiButton
+                :variant="previewStatusFilter === 'protected' ? 'default' : 'outline'"
+                size="sm"
+                class="rounded-full h-7 px-3 text-xs"
+                @click="previewStatusFilter = previewStatusFilter === 'protected' ? 'all' : 'protected'"
+              >
+                <ShieldCheckIcon class="w-3 h-3 mr-1" />
+                Protected
+              </UiButton>
+              <UiButton
+                :variant="previewStatusFilter === 'unprotected' ? 'default' : 'outline'"
+                size="sm"
+                class="rounded-full h-7 px-3 text-xs"
+                @click="previewStatusFilter = previewStatusFilter === 'unprotected' ? 'all' : 'unprotected'"
+              >
+                Unprotected
+              </UiButton>
+            </div>
+          </div>
+
+          <!-- Results count -->
+          <div v-if="previewSearch || previewTypeFilter || previewStatusFilter !== 'all'" class="text-xs text-muted-foreground mb-2">
+            {{ filteredGroupedPreview.length }} of {{ groupedPreview.length }} items
+          </div>
+
+          <div v-if="filteredGroupedPreview.length === 0" class="text-center py-8 text-muted-foreground text-sm">
+            No items match filters.
+          </div>
+
+          <div v-else class="overflow-x-auto">
           <UiTable>
             <UiTableHeader>
               <UiTableRow>
@@ -394,7 +446,7 @@
               </UiTableRow>
             </UiTableHeader>
             <UiTableBody>
-              <template v-for="(group, groupIdx) in groupedPreview" :key="group.key">
+              <template v-for="(group, groupIdx) in filteredGroupedPreview" :key="group.key">
                 <UiTableRow class="cursor-pointer" @click="selectPreviewItem(group.entry); group.seasons.length > 0 && togglePreviewGroup(group.key)">
                   <UiTableCell class="w-12 text-center">
                     <span class="text-xs font-mono tabular-nums text-muted-foreground">{{ groupIdx + 1 }}</span>
@@ -441,6 +493,7 @@
               </template>
             </UiTableBody>
           </UiTable>
+          </div>
         </div>
       </UiCardContent>
     </UiCard>
@@ -461,7 +514,7 @@
 </template>
 
 <script setup lang="ts">
-import { PlusIcon, XIcon, RefreshCwIcon, LoaderCircleIcon, SaveIcon, CheckIcon, ChevronRightIcon, HardDriveIcon, AlertTriangleIcon } from 'lucide-vue-next'
+import { PlusIcon, XIcon, RefreshCwIcon, LoaderCircleIcon, SaveIcon, CheckIcon, ChevronRightIcon, HardDriveIcon, AlertTriangleIcon, SearchIcon, ShieldCheckIcon, FilterIcon } from 'lucide-vue-next'
 import { formatBytes } from '~/utils/format'
 
 const api = useApi()
@@ -761,6 +814,13 @@ const previewLoading = ref(false)
 const previewFetchedAt = ref<string>('')
 const selectedPreviewItem = ref<any | null>(null)
 
+// Preview filters
+const previewSearch = ref('')
+const previewTypeFilter = ref<string | null>(null)
+const previewStatusFilter = ref<'all' | 'protected' | 'unprotected'>('all')
+
+const previewMediaTypes = ['movie', 'show', 'season', 'artist', 'book'] as const
+
 function selectPreviewItem(entry: any) {
   // Preview API returns `factors` as a JSON array; ScoreDetailModal expects `scoreDetails` as a JSON string
   let scoreDetails = ''
@@ -936,6 +996,56 @@ const groupedPreview = computed<PreviewGroup[]>(() => {
   // Filter out show-level entries with no seasons — they're only useful as grouping parents
   // A show with 0 seasons in the preview has nothing actionable to display
   return groups.filter(g => !(g.entry.item?.type === 'show' && g.seasons.length === 0))
+})
+
+// Filtered preview: applies search, type, and status filters to groupedPreview
+const filteredGroupedPreview = computed<PreviewGroup[]>(() => {
+  let groups = groupedPreview.value
+  const search = previewSearch.value.trim().toLowerCase()
+  const typeFilter = previewTypeFilter.value
+  const statusFilter = previewStatusFilter.value
+
+  if (!search && !typeFilter && statusFilter === 'all') return groups
+
+  return groups.reduce<PreviewGroup[]>((result, group) => {
+    const entry = group.entry
+    const entryType = entry.item?.type
+    const entryTitle = (entry.item?.title || '').toLowerCase()
+    const entryProtected = !!entry.isProtected
+
+    // For show groups, also check if any seasons match
+    if (group.seasons.length > 0) {
+      const filteredSeasons = group.seasons.filter((s: any) => {
+        const sTitle = (s.item?.title || '').toLowerCase()
+        const sType = s.item?.type
+        const sProtected = !!s.isProtected
+        const matchSearch = !search || sTitle.includes(search) || entryTitle.includes(search)
+        const matchType = !typeFilter || sType === typeFilter || entryType === typeFilter
+        const matchStatus = statusFilter === 'all' || (statusFilter === 'protected' ? sProtected : !sProtected)
+        return matchSearch && matchType && matchStatus
+      })
+
+      // Also check if the parent entry matches
+      const parentMatchSearch = !search || entryTitle.includes(search)
+      const parentMatchType = !typeFilter || entryType === typeFilter
+      const parentMatchStatus = statusFilter === 'all' || (statusFilter === 'protected' ? entryProtected : !entryProtected)
+
+      if (filteredSeasons.length > 0) {
+        result.push({ ...group, seasons: filteredSeasons })
+      } else if (parentMatchSearch && parentMatchType && parentMatchStatus) {
+        result.push({ ...group, seasons: [] })
+      }
+    } else {
+      // Non-grouped entries (movies, artists, books, etc.)
+      const matchSearch = !search || entryTitle.includes(search)
+      const matchType = !typeFilter || entryType === typeFilter
+      const matchStatus = statusFilter === 'all' || (statusFilter === 'protected' ? entryProtected : !entryProtected)
+      if (matchSearch && matchType && matchStatus) {
+        result.push(group)
+      }
+    }
+    return result
+  }, [])
 })
 
 // Start with all groups expanded so seasons are always visible

@@ -20,6 +20,33 @@
     </div>
 
     <UiCard v-motion :initial="{ opacity: 0, y: 8 }" :enter="{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24 } }" class="overflow-hidden">
+      <!-- Search & Action Filters -->
+      <div class="px-5 pt-5 pb-3 space-y-3 border-b border-border">
+        <div class="flex flex-col sm:flex-row gap-3">
+          <div class="relative flex-1">
+            <SearchIcon class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <UiInput
+              :model-value="auditSearch"
+              placeholder="Search by media name…"
+              class="pl-8"
+              @update:model-value="onSearchInput"
+            />
+          </div>
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <UiButton
+              v-for="action in auditActionTypes"
+              :key="action"
+              :variant="auditActionFilter === action ? 'default' : 'outline'"
+              size="sm"
+              class="rounded-full h-7 px-3 text-xs"
+              @click="toggleActionFilter(action)"
+            >
+              {{ action }}
+            </UiButton>
+          </div>
+        </div>
+      </div>
+
       <div v-if="pending && logs.length === 0" class="p-4">
         <SkeletonTable :rows="8" :column-widths="['28%', '10%', '10%', '15%', '22%', '8%']" />
       </div>
@@ -118,7 +145,7 @@
 </template>
 
 <script setup lang="ts">
-import { RefreshCwIcon, LoaderCircleIcon, ClockIcon, ChevronRightIcon } from 'lucide-vue-next'
+import { RefreshCwIcon, LoaderCircleIcon, ClockIcon, ChevronRightIcon, SearchIcon } from 'lucide-vue-next'
 
 const api = useApi()
 const { formatTimestamp } = useDisplayPrefs()
@@ -135,6 +162,12 @@ const page = ref(1)
 const limit = 50
 const selectedItem = ref<any | null>(null)
 
+// Audit filters
+const auditSearch = ref('')
+const auditActionFilter = ref<string | null>(null)
+const auditActionTypes = ['Deleted', 'Dry-Run', 'Queued for Approval', 'Queued for Deletion'] as const
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
 function selectItem(entry: any) {
   const scoreMatch = entry.reason?.match(/^Score:\s*([\d.]+)/)
   const score = scoreMatch ? parseFloat(scoreMatch[1]) : 0
@@ -146,7 +179,17 @@ const offset = computed(() => (page.value - 1) * limit)
 async function fetchLogs() {
   pending.value = true
   try {
-    const data = await api(`/api/v1/audit?limit=${limit}&offset=${offset.value}`) as any
+    const params = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset.value),
+    })
+    if (auditSearch.value.trim()) {
+      params.set('search', auditSearch.value.trim())
+    }
+    if (auditActionFilter.value) {
+      params.set('action', auditActionFilter.value)
+    }
+    const data = await api(`/api/v1/audit?${params.toString()}`) as any
     if (data?.data) {
       logs.value = data.data
       total.value = data.total
@@ -156,6 +199,21 @@ async function fetchLogs() {
   } finally {
     pending.value = false
   }
+}
+
+function onSearchInput(value: string | number) {
+  auditSearch.value = String(value)
+  if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
+  searchDebounceTimer = setTimeout(() => {
+    page.value = 1
+    fetchLogs()
+  }, 400)
+}
+
+function toggleActionFilter(action: string) {
+  auditActionFilter.value = auditActionFilter.value === action ? null : action
+  page.value = 1
+  fetchLogs()
 }
 
 watch(page, fetchLogs)

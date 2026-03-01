@@ -155,14 +155,25 @@ func RegisterAuditRoutes(g *echo.Group, database *gorm.DB) {
 			}
 		}
 
+		// Build query with optional search and action filters
+		query := database.Model(&db.AuditLog{})
+
+		if search := strings.TrimSpace(c.QueryParam("search")); search != "" {
+			query = query.Where("media_name LIKE ?", "%"+search+"%")
+		}
+
+		if action := strings.TrimSpace(c.QueryParam("action")); action != "" {
+			query = query.Where("action = ?", action)
+		}
+
 		var logs []db.AuditLog
 		var total int64
 
-		// Get total count
-		database.Model(&db.AuditLog{}).Count(&total)
+		// Get total count with filters applied
+		query.Count(&total)
 
 		// Get paginated logs, ordered by newest first
-		if err := database.Order("created_at desc").Limit(limit).Offset(offset).Find(&logs).Error; err != nil {
+		if err := query.Order("created_at desc").Limit(limit).Offset(offset).Find(&logs).Error; err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch audit logs"})
 		}
 
