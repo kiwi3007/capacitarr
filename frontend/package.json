@@ -8,8 +8,11 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "typecheck": "nuxt typecheck"
+    "format:check": "prettier --check .",
+    "typecheck": "nuxt typecheck",
+    "check": "pnpm lint && pnpm format:check"
   },
   "dependencies": {
     "@fontsource/geist-mono": "^5.2.7",
