@@ -123,7 +123,7 @@ func main() {
 	}
 
 	// Initialize background jobs
-	pollerStop := poller.Start(15 * time.Second) // Poll frequently to simulate active capacity ingestion
+	pollerStop := poller.Start() // Poll interval configured via DB preferences (default 5 min)
 	cronScheduler := jobs.Start()
 
 	// Initialize Echo instance

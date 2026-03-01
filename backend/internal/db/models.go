@@ -58,6 +58,7 @@ type PreferenceSet struct {
 	ID                    uint      `gorm:"primarykey" json:"id"`
 	LogLevel              string    `gorm:"default:'info';not null" json:"logLevel"`          // "debug", "info", "warn", "error"
 	AuditLogRetentionDays int       `gorm:"default:30;not null" json:"auditLogRetentionDays"` // 0 = forever, else days
+	PollIntervalSeconds   int       `gorm:"default:300;not null" json:"pollIntervalSeconds"`  // minimum 30, default 300 (5 min)
 	WatchHistoryWeight    int       `gorm:"default:10" json:"watchHistoryWeight"`             // High default
 	LastWatchedWeight     int       `gorm:"default:8" json:"lastWatchedWeight"`
 	FileSizeWeight        int       `gorm:"default:6" json:"fileSizeWeight"`

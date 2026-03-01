@@ -69,6 +69,11 @@ func RegisterRuleRoutes(protected *echo.Group, database *gorm.DB) {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Log level must be debug, info, warn, or error"})
 		}
 
+		// Validate poll interval (minimum 30s, default 300s)
+		if payload.PollIntervalSeconds < 30 {
+			payload.PollIntervalSeconds = 300
+		}
+
 		if err := database.Save(&payload).Error; err != nil {
 			slog.Error("Failed to update preferences", "error", err)
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update preferences"})

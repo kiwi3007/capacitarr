@@ -5,268 +5,432 @@
       <div>
         <h1 class="text-3xl font-bold tracking-tight">Settings</h1>
         <p class="text-muted-foreground mt-1.5">
-          Manage your service integrations and disk monitoring.
+          Manage integrations, general preferences, and authentication.
         </p>
       </div>
-      <UiButton @click="openAddModal">
-        <component :is="PlusIcon" class="w-4 h-4" />
-        Add Integration
-      </UiButton>
     </div>
 
-    <!-- Loading -->
-    <div v-if="loading" class="flex justify-center py-16">
-      <component :is="LoaderCircleIcon" class="w-8 h-8 text-primary animate-spin" />
-    </div>
+    <!-- Tabs -->
+    <UiTabs default-value="general" class="w-full">
+      <UiTabsList class="mb-6">
+        <UiTabsTrigger value="general">General</UiTabsTrigger>
+        <UiTabsTrigger value="integrations">Integrations</UiTabsTrigger>
+        <UiTabsTrigger value="authentication">Authentication</UiTabsTrigger>
+      </UiTabsList>
 
-    <!-- Empty state -->
-    <div
-      v-else-if="integrations.length === 0"
-      v-motion
-      :initial="{ opacity: 0, y: 8 }"
-      :enter="{ opacity: 1, y: 0 }"
-      class="text-center py-20"
-    >
-      <component :is="HardDriveIcon" class="w-16 h-16 text-muted-foreground/40 mx-auto mb-4" />
-      <h3 class="text-lg font-medium text-foreground mb-2">No integrations configured</h3>
-      <p class="text-muted-foreground mb-6">
-        Connect your Plex, Sonarr, Radarr, or Tautulli instances to get started.
-      </p>
-      <UiButton size="lg" @click="openAddModal">
-        <component :is="PlusIcon" class="w-4 h-4" />
-        Add Your First Integration
-      </UiButton>
-    </div>
-
-    <!-- Integration Cards Grid -->
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-      <div
-        v-for="(integration, idx) in integrations"
-        :key="integration.id"
-        v-motion
-        :initial="{ opacity: 0, y: 12 }"
-        :enter="{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24, delay: 80 * idx } }"
-        data-slot="integration-card"
-        class="rounded-xl border border-border bg-card shadow-sm overflow-hidden"
-      >
-        <!-- Card Header -->
-        <div class="px-5 py-4 border-b border-border flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <div :class="['w-10 h-10 rounded-lg flex items-center justify-center', typeColor(integration.type)]">
-              <component :is="typeIcon(integration.type)" class="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h3 class="font-semibold">{{ integration.name }}</h3>
-              <span class="text-xs uppercase tracking-wider font-medium" :class="typeTextColor(integration.type)">
-                {{ integration.type }}
-              </span>
-            </div>
-          </div>
-          <span
-            class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium"
-            :class="integration.enabled
-              ? 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-              : 'bg-muted text-muted-foreground'"
-          >
-            {{ integration.enabled ? 'Active' : 'Disabled' }}
-          </span>
-        </div>
-
-        <!-- Card Body -->
-        <div class="px-5 py-4 space-y-2 text-sm text-muted-foreground">
-          <div class="flex items-center gap-2">
-            <component :is="LinkIcon" class="w-3.5 h-3.5 shrink-0" />
-            <span class="truncate">{{ integration.url }}</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <component :is="KeyIcon" class="w-3.5 h-3.5 shrink-0" />
-            <span class="font-mono text-xs">{{ integration.apiKey }}</span>
-          </div>
-          <div v-if="integration.lastSync" class="flex items-center gap-2">
-            <component :is="ClockIcon" class="w-3.5 h-3.5 shrink-0" />
-            <span>Synced {{ formatRelativeTime(integration.lastSync) }}</span>
-          </div>
-          <div v-if="integration.lastError" class="flex items-center gap-2 text-red-500">
-            <component :is="AlertTriangleIcon" class="w-3.5 h-3.5 shrink-0" />
-            <span class="text-xs">{{ integration.lastError }}</span>
-          </div>
-        </div>
-
-        <!-- Card Footer -->
-        <div class="px-5 py-3 border-t border-border flex items-center justify-between">
-          <div class="flex gap-2">
-            <button
-              class="h-7 px-2.5 rounded-md text-xs font-medium border border-input bg-input hover:bg-accent transition-colors"
-              @click="testConnection(integration)"
-            >
-              Test
-            </button>
-            <button
-              class="h-7 px-2.5 rounded-md text-xs font-medium border border-input bg-input hover:bg-accent transition-colors"
-              @click="openEditModal(integration)"
-            >
-              Edit
-            </button>
-          </div>
-          <button
-            class="h-7 px-2.5 rounded-md text-xs font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-            @click="deleteIntegration(integration)"
-          >
-            Delete
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Data Management Section -->
-    <div
-      v-motion
-      :initial="{ opacity: 0, y: 12 }"
-      :enter="{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24, delay: 200 } }"
-      class="mt-10 rounded-xl border border-border bg-card shadow-sm overflow-hidden"
-    >
-      <div class="px-5 py-4 border-b border-border">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-            <component :is="DatabaseIcon" class="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h3 class="font-semibold">Data Management</h3>
-            <span class="text-xs text-muted-foreground">Configure audit log retention</span>
-          </div>
-        </div>
-      </div>
-      <div class="px-5 py-5 space-y-4">
-        <div class="space-y-1.5">
-          <label class="text-sm font-medium text-foreground">Audit Log Retention</label>
-          <select
-            v-model.number="retentionDays"
-            class="w-full max-w-xs h-9 px-3 rounded-lg border border-input bg-input text-sm text-foreground focus:outline-none focus:ring-2 focus-visible:ring-ring/50"
-          >
-            <option :value="7">7 days</option>
-            <option :value="14">14 days</option>
-            <option :value="30">30 days (default)</option>
-            <option :value="60">60 days</option>
-            <option :value="90">90 days</option>
-            <option :value="180">180 days</option>
-            <option :value="365">365 days</option>
-            <option :value="0">Indefinite</option>
-          </select>
-          <p class="text-xs text-muted-foreground/70">How long to keep audit log entries before automatic cleanup.</p>
-        </div>
-
-        <!-- Indefinite warning -->
+      <!-- ═══════════════════════════════════════════════════════
+           GENERAL TAB
+           ═══════════════════════════════════════════════════════ -->
+      <UiTabsContent value="general">
+        <!-- Poll Interval -->
         <div
-          v-if="retentionDays === 0"
-          class="rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-400"
+          v-motion
+          :initial="{ opacity: 0, y: 12 }"
+          :enter="{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24 } }"
+          class="rounded-xl border border-border bg-card shadow-sm overflow-hidden"
         >
-          ⚠️ <strong>Warning:</strong> Indefinite retention will cause the database to grow continuously. This may eventually impact performance.
+          <div class="px-5 py-4 border-b border-border">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center">
+                <component :is="TimerIcon" class="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 class="font-semibold">Poll Interval</h3>
+                <span class="text-xs text-muted-foreground">How often Capacitarr checks your integrations</span>
+              </div>
+            </div>
+          </div>
+          <div class="px-5 py-5 space-y-4">
+            <div class="space-y-1.5">
+              <label class="text-sm font-medium text-foreground">Interval</label>
+              <select
+                v-model.number="pollIntervalSeconds"
+                class="w-full max-w-xs h-9 px-3 rounded-lg border border-input bg-input text-sm text-foreground focus:outline-none focus:ring-2 focus-visible:ring-ring/50"
+              >
+                <option :value="30">30 seconds</option>
+                <option :value="60">1 minute</option>
+                <option :value="300">5 minutes (default)</option>
+                <option :value="900">15 minutes</option>
+                <option :value="1800">30 minutes</option>
+                <option :value="3600">1 hour</option>
+              </select>
+              <p class="text-xs text-muted-foreground/70">The poller adjusts dynamically — no restart required.</p>
+            </div>
+          </div>
         </div>
 
-        <!-- Save button -->
-        <div class="flex items-center gap-3">
+        <!-- Data Management Section -->
+        <div
+          v-motion
+          :initial="{ opacity: 0, y: 12 }"
+          :enter="{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24, delay: 100 } }"
+          class="mt-6 rounded-xl border border-border bg-card shadow-sm overflow-hidden"
+        >
+          <div class="px-5 py-4 border-b border-border">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
+                <component :is="DatabaseIcon" class="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 class="font-semibold">Data Management</h3>
+                <span class="text-xs text-muted-foreground">Configure audit log retention</span>
+              </div>
+            </div>
+          </div>
+          <div class="px-5 py-5 space-y-4">
+            <div class="space-y-1.5">
+              <label class="text-sm font-medium text-foreground">Audit Log Retention</label>
+              <select
+                v-model.number="retentionDays"
+                class="w-full max-w-xs h-9 px-3 rounded-lg border border-input bg-input text-sm text-foreground focus:outline-none focus:ring-2 focus-visible:ring-ring/50"
+              >
+                <option :value="7">7 days</option>
+                <option :value="14">14 days</option>
+                <option :value="30">30 days (default)</option>
+                <option :value="60">60 days</option>
+                <option :value="90">90 days</option>
+                <option :value="180">180 days</option>
+                <option :value="365">365 days</option>
+                <option :value="0">Indefinite</option>
+              </select>
+              <p class="text-xs text-muted-foreground/70">How long to keep audit log entries before automatic cleanup.</p>
+            </div>
+
+            <!-- Indefinite warning -->
+            <div
+              v-if="retentionDays === 0"
+              class="rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-400"
+            >
+              ⚠️ <strong>Warning:</strong> Indefinite retention will cause the database to grow continuously. This may eventually impact performance.
+            </div>
+          </div>
+        </div>
+
+        <!-- Display Preferences Section -->
+        <div
+          v-motion
+          :initial="{ opacity: 0, y: 12 }"
+          :enter="{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24, delay: 200 } }"
+          class="mt-6 rounded-xl border border-border bg-card shadow-sm overflow-hidden"
+        >
+          <div class="px-5 py-4 border-b border-border">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-purple-500 flex items-center justify-center">
+                <component :is="MonitorIcon" class="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 class="font-semibold">Display</h3>
+                <span class="text-xs text-muted-foreground">Timezone and clock format preferences (saved locally)</span>
+              </div>
+            </div>
+          </div>
+          <div class="px-5 py-5 space-y-5">
+            <!-- Timezone -->
+            <div class="space-y-1.5">
+              <label class="text-sm font-medium text-foreground">Timezone</label>
+              <select
+                :value="displayTimezone"
+                class="w-full max-w-xs h-9 px-3 rounded-lg border border-input bg-input text-sm text-foreground focus:outline-none focus:ring-2 focus-visible:ring-ring/50"
+                @change="setTimezone(($event.target as HTMLSelectElement).value)"
+              >
+                <option value="local">Local (Browser)</option>
+                <option value="UTC">UTC</option>
+                <option value="America/New_York">America/New_York (Eastern)</option>
+                <option value="America/Chicago">America/Chicago (Central)</option>
+                <option value="America/Denver">America/Denver (Mountain)</option>
+                <option value="America/Los_Angeles">America/Los_Angeles (Pacific)</option>
+                <option value="Europe/London">Europe/London</option>
+                <option value="Europe/Paris">Europe/Paris</option>
+                <option value="Asia/Tokyo">Asia/Tokyo</option>
+                <option value="Australia/Sydney">Australia/Sydney</option>
+              </select>
+            </div>
+
+            <!-- Clock Format -->
+            <div class="space-y-1.5">
+              <label class="text-sm font-medium text-foreground">Clock Format</label>
+              <div class="flex gap-2">
+                <button
+                  class="h-9 px-4 rounded-lg text-sm font-medium border transition-colors"
+                  :class="displayClockFormat === '12h'
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-input text-muted-foreground hover:bg-accent'"
+                  @click="setClockFormat('12h')"
+                >
+                  12-hour
+                </button>
+                <button
+                  class="h-9 px-4 rounded-lg text-sm font-medium border transition-colors"
+                  :class="displayClockFormat === '24h'
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-input text-muted-foreground hover:bg-accent'"
+                  @click="setClockFormat('24h')"
+                >
+                  24-hour
+                </button>
+              </div>
+            </div>
+
+            <!-- Theme -->
+            <div class="space-y-2">
+              <label class="text-sm font-medium text-foreground">Theme</label>
+              <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                <button
+                  v-for="t in themeList"
+                  :key="t.id"
+                  class="flex flex-col items-center gap-1.5 rounded-lg border-2 px-3 py-2.5 transition-colors"
+                  :class="currentTheme === t.id ? 'border-primary bg-primary/5' : 'border-transparent hover:bg-accent'"
+                  @click="setTheme(t.id)"
+                >
+                  <span
+                    class="w-6 h-6 rounded-full"
+                    :style="{ backgroundColor: `oklch(0.6 0.2 ${t.hue})` }"
+                  />
+                  <span class="text-xs font-medium">{{ t.label }}</span>
+                </button>
+              </div>
+            </div>
+
+            <p class="text-xs text-muted-foreground/70">Changes apply immediately and are stored in your browser.</p>
+          </div>
+        </div>
+
+        <!-- Save General Settings -->
+        <div class="mt-6 mb-8 flex items-center gap-3">
           <button
             class="h-9 px-4 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-medium shadow-sm transition-colors disabled:opacity-50"
-            :disabled="savingRetention"
-            @click="saveRetention"
+            :disabled="savingGeneral"
+            @click="saveGeneralSettings"
           >
-            {{ savingRetention ? 'Saving…' : 'Save Retention' }}
+            {{ savingGeneral ? 'Saving…' : 'Save Settings' }}
           </button>
-          <span v-if="retentionSaved" class="text-sm text-emerald-500 font-medium">✓ Saved</span>
+          <span v-if="generalSaved" class="text-sm text-emerald-500 font-medium">✓ Saved</span>
         </div>
-      </div>
-    </div>
+      </UiTabsContent>
 
-    <!-- Display Preferences Section -->
-    <div
-      v-motion
-      :initial="{ opacity: 0, y: 12 }"
-      :enter="{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24, delay: 280 } }"
-      class="mt-6 mb-8 rounded-xl border border-border bg-card shadow-sm overflow-hidden"
-    >
-      <div class="px-5 py-4 border-b border-border">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-purple-500 flex items-center justify-center">
-            <component :is="MonitorIcon" class="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h3 class="font-semibold">Display</h3>
-            <span class="text-xs text-muted-foreground">Timezone and clock format preferences (saved locally)</span>
-          </div>
+      <!-- ═══════════════════════════════════════════════════════
+           INTEGRATIONS TAB
+           ═══════════════════════════════════════════════════════ -->
+      <UiTabsContent value="integrations">
+        <div class="flex justify-end mb-6">
+          <UiButton @click="openAddModal">
+            <component :is="PlusIcon" class="w-4 h-4" />
+            Add Integration
+          </UiButton>
         </div>
-      </div>
-      <div class="px-5 py-5 space-y-5">
-        <!-- Timezone -->
-        <div class="space-y-1.5">
-          <label class="text-sm font-medium text-foreground">Timezone</label>
-          <select
-            :value="displayTimezone"
-            class="w-full max-w-xs h-9 px-3 rounded-lg border border-input bg-input text-sm text-foreground focus:outline-none focus:ring-2 focus-visible:ring-ring/50"
-            @change="setTimezone(($event.target as HTMLSelectElement).value)"
+
+        <!-- Loading -->
+        <div v-if="loading" class="flex justify-center py-16">
+          <component :is="LoaderCircleIcon" class="w-8 h-8 text-primary animate-spin" />
+        </div>
+
+        <!-- Empty state -->
+        <div
+          v-else-if="integrations.length === 0"
+          v-motion
+          :initial="{ opacity: 0, y: 8 }"
+          :enter="{ opacity: 1, y: 0 }"
+          class="text-center py-20"
+        >
+          <component :is="HardDriveIcon" class="w-16 h-16 text-muted-foreground/40 mx-auto mb-4" />
+          <h3 class="text-lg font-medium text-foreground mb-2">No integrations configured</h3>
+          <p class="text-muted-foreground mb-6">
+            Connect your Plex, Sonarr, Radarr, or Tautulli instances to get started.
+          </p>
+          <UiButton size="lg" @click="openAddModal">
+            <component :is="PlusIcon" class="w-4 h-4" />
+            Add Your First Integration
+          </UiButton>
+        </div>
+
+        <!-- Integration Cards Grid -->
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div
+            v-for="(integration, idx) in integrations"
+            :key="integration.id"
+            v-motion
+            :initial="{ opacity: 0, y: 12 }"
+            :enter="{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24, delay: 80 * idx } }"
+            data-slot="integration-card"
+            class="rounded-xl border border-border bg-card shadow-sm overflow-hidden"
           >
-            <option value="local">Local (Browser)</option>
-            <option value="UTC">UTC</option>
-            <option value="America/New_York">America/New_York (Eastern)</option>
-            <option value="America/Chicago">America/Chicago (Central)</option>
-            <option value="America/Denver">America/Denver (Mountain)</option>
-            <option value="America/Los_Angeles">America/Los_Angeles (Pacific)</option>
-            <option value="Europe/London">Europe/London</option>
-            <option value="Europe/Paris">Europe/Paris</option>
-            <option value="Asia/Tokyo">Asia/Tokyo</option>
-            <option value="Australia/Sydney">Australia/Sydney</option>
-          </select>
-        </div>
-
-        <!-- Clock Format -->
-        <div class="space-y-1.5">
-          <label class="text-sm font-medium text-foreground">Clock Format</label>
-          <div class="flex gap-2">
-            <button
-              class="h-9 px-4 rounded-lg text-sm font-medium border transition-colors"
-              :class="displayClockFormat === '12h'
-                ? 'border-primary bg-primary/10 text-primary'
-                : 'border-input text-muted-foreground hover:bg-accent'"
-              @click="setClockFormat('12h')"
-            >
-              12-hour
-            </button>
-            <button
-              class="h-9 px-4 rounded-lg text-sm font-medium border transition-colors"
-              :class="displayClockFormat === '24h'
-                ? 'border-primary bg-primary/10 text-primary'
-                : 'border-input text-muted-foreground hover:bg-accent'"
-              @click="setClockFormat('24h')"
-            >
-              24-hour
-            </button>
-          </div>
-        </div>
-
-        <!-- Theme -->
-        <div class="space-y-2">
-          <label class="text-sm font-medium text-foreground">Theme</label>
-          <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
-            <button
-              v-for="t in themeList"
-              :key="t.id"
-              class="flex flex-col items-center gap-1.5 rounded-lg border-2 px-3 py-2.5 transition-colors"
-              :class="currentTheme === t.id ? 'border-primary bg-primary/5' : 'border-transparent hover:bg-accent'"
-              @click="setTheme(t.id)"
-            >
+            <!-- Card Header -->
+            <div class="px-5 py-4 border-b border-border flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div :class="['w-10 h-10 rounded-lg flex items-center justify-center', typeColor(integration.type)]">
+                  <component :is="typeIcon(integration.type)" class="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 class="font-semibold">{{ integration.name }}</h3>
+                  <span class="text-xs uppercase tracking-wider font-medium" :class="typeTextColor(integration.type)">
+                    {{ integration.type }}
+                  </span>
+                </div>
+              </div>
               <span
-                class="w-6 h-6 rounded-full"
-                :style="{ backgroundColor: `oklch(0.6 0.2 ${t.hue})` }"
+                class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium"
+                :class="integration.enabled
+                  ? 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                  : 'bg-muted text-muted-foreground'"
+              >
+                {{ integration.enabled ? 'Active' : 'Disabled' }}
+              </span>
+            </div>
+
+            <!-- Card Body -->
+            <div class="px-5 py-4 space-y-2 text-sm text-muted-foreground">
+              <div class="flex items-center gap-2">
+                <component :is="LinkIcon" class="w-3.5 h-3.5 shrink-0" />
+                <span class="truncate">{{ integration.url }}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <component :is="KeyIcon" class="w-3.5 h-3.5 shrink-0" />
+                <span class="font-mono text-xs">{{ integration.apiKey }}</span>
+              </div>
+              <div v-if="integration.lastSync" class="flex items-center gap-2">
+                <component :is="ClockIcon" class="w-3.5 h-3.5 shrink-0" />
+                <span>Synced {{ formatRelativeTime(integration.lastSync) }}</span>
+              </div>
+              <div v-if="integration.lastError" class="flex items-center gap-2 text-red-500">
+                <component :is="AlertTriangleIcon" class="w-3.5 h-3.5 shrink-0" />
+                <span class="text-xs">{{ integration.lastError }}</span>
+              </div>
+            </div>
+
+            <!-- Card Footer -->
+            <div class="px-5 py-3 border-t border-border flex items-center justify-between">
+              <div class="flex gap-2">
+                <button
+                  class="h-7 px-2.5 rounded-md text-xs font-medium border border-input bg-input hover:bg-accent transition-colors"
+                  @click="testConnection(integration)"
+                >
+                  Test
+                </button>
+                <button
+                  class="h-7 px-2.5 rounded-md text-xs font-medium border border-input bg-input hover:bg-accent transition-colors"
+                  @click="openEditModal(integration)"
+                >
+                  Edit
+                </button>
+              </div>
+              <button
+                class="h-7 px-2.5 rounded-md text-xs font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                @click="deleteIntegration(integration)"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      </UiTabsContent>
+
+      <!-- ═══════════════════════════════════════════════════════
+           AUTHENTICATION TAB
+           ═══════════════════════════════════════════════════════ -->
+      <UiTabsContent value="authentication">
+        <!-- Password Change -->
+        <div
+          v-motion
+          :initial="{ opacity: 0, y: 12 }"
+          :enter="{ opacity: 1, y: 0 }"
+          class="rounded-xl border border-border bg-card shadow-sm overflow-hidden"
+        >
+          <div class="px-5 py-4 border-b border-border">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-red-500 flex items-center justify-center">
+                <component :is="ShieldIcon" class="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 class="font-semibold">Change Password</h3>
+                <span class="text-xs text-muted-foreground">Update your admin password</span>
+              </div>
+            </div>
+          </div>
+          <div class="px-5 py-5 space-y-4">
+            <div class="space-y-1.5">
+              <label class="text-sm font-medium text-foreground">Current Password</label>
+              <input
+                v-model="passwordForm.currentPassword"
+                type="password"
+                placeholder="Enter current password"
+                class="w-full max-w-sm h-9 px-3 rounded-lg border border-input bg-input text-sm focus:outline-none focus:ring-2 focus-visible:ring-ring/50"
               />
-              <span class="text-xs font-medium">{{ t.label }}</span>
-            </button>
+            </div>
+            <div class="space-y-1.5">
+              <label class="text-sm font-medium text-foreground">New Password</label>
+              <input
+                v-model="passwordForm.newPassword"
+                type="password"
+                placeholder="Enter new password"
+                class="w-full max-w-sm h-9 px-3 rounded-lg border border-input bg-input text-sm focus:outline-none focus:ring-2 focus-visible:ring-ring/50"
+              />
+            </div>
+            <div class="space-y-1.5">
+              <label class="text-sm font-medium text-foreground">Confirm New Password</label>
+              <input
+                v-model="passwordForm.confirmPassword"
+                type="password"
+                placeholder="Confirm new password"
+                class="w-full max-w-sm h-9 px-3 rounded-lg border border-input bg-input text-sm focus:outline-none focus:ring-2 focus-visible:ring-ring/50"
+              />
+            </div>
+            <div v-if="passwordError" class="rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 px-3 py-2 text-sm text-red-600 dark:text-red-400">
+              {{ passwordError }}
+            </div>
+            <div class="flex items-center gap-3">
+              <button
+                class="h-9 px-4 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-medium shadow-sm transition-colors disabled:opacity-50"
+                :disabled="savingPassword"
+                @click="changePassword"
+              >
+                {{ savingPassword ? 'Changing…' : 'Change Password' }}
+              </button>
+            </div>
           </div>
         </div>
 
-        <p class="text-xs text-muted-foreground/70">Changes apply immediately and are stored in your browser.</p>
-      </div>
-    </div>
+        <!-- API Key -->
+        <div
+          v-motion
+          :initial="{ opacity: 0, y: 12 }"
+          :enter="{ opacity: 1, y: 0, transition: { delay: 100 } }"
+          class="mt-6 mb-8 rounded-xl border border-border bg-card shadow-sm overflow-hidden"
+        >
+          <div class="px-5 py-4 border-b border-border">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-amber-500 flex items-center justify-center">
+                <component :is="KeyIcon" class="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 class="font-semibold">API Key</h3>
+                <span class="text-xs text-muted-foreground">For external tool integration</span>
+              </div>
+            </div>
+          </div>
+          <div class="px-5 py-5 space-y-4">
+            <div v-if="apiKey" class="flex items-center gap-2">
+              <code class="flex-1 px-3 py-2 bg-muted rounded-lg text-sm font-mono break-all">{{ apiKey }}</code>
+              <button
+                class="h-9 px-3 rounded-lg border border-input text-sm font-medium hover:bg-accent transition-colors shrink-0"
+                @click="copyApiKey"
+              >
+                Copy
+              </button>
+            </div>
+            <div v-else class="text-sm text-muted-foreground">No API key generated yet.</div>
+            <button
+              class="h-9 px-4 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-medium shadow-sm transition-colors disabled:opacity-50"
+              :disabled="generatingApiKey"
+              @click="generateApiKey"
+            >
+              {{ apiKey ? 'Regenerate API Key' : 'Generate API Key' }}
+            </button>
+          </div>
+        </div>
+      </UiTabsContent>
+    </UiTabs>
 
-    <!-- Modal (simple overlay) -->
+    <!-- Integration Modal (shared across tabs) -->
     <Teleport to="body">
       <div
         v-if="showModal"
@@ -375,7 +539,7 @@ import {
   LinkIcon, KeyIcon, ClockIcon, AlertTriangleIcon,
   TvIcon, FilmIcon, PlayCircleIcon, ServerIcon,
   DatabaseIcon, MonitorIcon, ActivityIcon,
-  InboxIcon, MusicIcon
+  InboxIcon, MusicIcon, TimerIcon, ShieldIcon
 } from 'lucide-vue-next'
 import { formatRelativeTime } from '~/utils/format'
 
@@ -391,10 +555,24 @@ const saving = ref(false)
 const formError = ref('')
 const { addToast } = useToast()
 
-// Data Management state
+// General settings state
 const retentionDays = ref(30)
-const savingRetention = ref(false)
-const retentionSaved = ref(false)
+const pollIntervalSeconds = ref(300)
+const savingGeneral = ref(false)
+const generalSaved = ref(false)
+
+// Password change state
+const passwordForm = reactive({
+  currentPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+})
+const passwordError = ref('')
+const savingPassword = ref(false)
+
+// API Key state
+const apiKey = ref('')
+const generatingApiKey = ref(false)
 
 const formState = reactive({
   type: 'sonarr',
@@ -447,6 +625,7 @@ function typeTextColor(type: string) {
   }
 }
 
+// ─── Integrations ────────────────────────────────────────────────────────────
 async function fetchIntegrations() {
   loading.value = true
   try {
@@ -548,41 +727,117 @@ async function testFormConnection() {
   }
 }
 
-// ─── Data Management (Retention) ─────────────────────────────────────────────
+// ─── General Settings ────────────────────────────────────────────────────────
 async function fetchPreferences() {
   try {
     const prefs = await api('/api/v1/preferences') as any
     if (prefs?.auditLogRetentionDays !== undefined) {
       retentionDays.value = prefs.auditLogRetentionDays
     }
+    if (prefs?.pollIntervalSeconds !== undefined && prefs.pollIntervalSeconds >= 30) {
+      pollIntervalSeconds.value = prefs.pollIntervalSeconds
+    }
   } catch (e) {
     console.error('Failed to fetch preferences:', e)
   }
 }
 
-async function saveRetention() {
-  savingRetention.value = true
-  retentionSaved.value = false
+async function saveGeneralSettings() {
+  savingGeneral.value = true
+  generalSaved.value = false
   try {
-    // Fetch current prefs, merge retention, and save
     const currentPrefs = await api('/api/v1/preferences') as any
     await api('/api/v1/preferences', {
       method: 'PUT',
-      body: { ...currentPrefs, auditLogRetentionDays: retentionDays.value }
+      body: {
+        ...currentPrefs,
+        auditLogRetentionDays: retentionDays.value,
+        pollIntervalSeconds: pollIntervalSeconds.value
+      }
     })
-    retentionSaved.value = true
+    generalSaved.value = true
     addToast('Settings saved', 'success')
-    setTimeout(() => { retentionSaved.value = false }, 3000)
+    setTimeout(() => { generalSaved.value = false }, 3000)
   } catch (e) {
-    console.error('Failed to save retention:', e)
-    addToast('Failed to save retention settings', 'error')
+    console.error('Failed to save settings:', e)
+    addToast('Failed to save settings', 'error')
   } finally {
-    savingRetention.value = false
+    savingGeneral.value = false
   }
+}
+
+// ─── Password Change ─────────────────────────────────────────────────────────
+async function changePassword() {
+  passwordError.value = ''
+
+  if (!passwordForm.currentPassword || !passwordForm.newPassword) {
+    passwordError.value = 'All fields are required'
+    return
+  }
+  if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+    passwordError.value = 'New passwords do not match'
+    return
+  }
+  if (passwordForm.newPassword.length < 8) {
+    passwordError.value = 'New password must be at least 8 characters'
+    return
+  }
+
+  savingPassword.value = true
+  try {
+    await api('/api/v1/auth/password', {
+      method: 'PUT',
+      body: {
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword
+      }
+    })
+    addToast('Password changed — please log in again', 'success')
+    passwordForm.currentPassword = ''
+    passwordForm.newPassword = ''
+    passwordForm.confirmPassword = ''
+    // Redirect to login after short delay
+    setTimeout(() => { navigateTo('/login') }, 1500)
+  } catch (e: any) {
+    passwordError.value = e?.data?.error || 'Failed to change password'
+    addToast(passwordError.value, 'error')
+  } finally {
+    savingPassword.value = false
+  }
+}
+
+// ─── API Key ─────────────────────────────────────────────────────────────────
+async function generateApiKey() {
+  generatingApiKey.value = true
+  try {
+    const result = await api('/api/v1/auth/apikey', { method: 'POST' }) as any
+    apiKey.value = result.api_key
+    addToast('API key generated', 'success')
+  } catch (e) {
+    console.error('Failed to generate API key:', e)
+    addToast('Failed to generate API key', 'error')
+  } finally {
+    generatingApiKey.value = false
+  }
+}
+
+async function fetchApiKey() {
+  try {
+    const prefs = await api('/api/v1/preferences') as any
+    // API key is fetched from the auth endpoint — stub for now
+  } catch {
+    // Silently fail — no API key yet
+  }
+}
+
+function copyApiKey() {
+  navigator.clipboard.writeText(apiKey.value)
+  addToast('API key copied to clipboard', 'success')
 }
 
 onMounted(() => {
   fetchIntegrations()
   fetchPreferences()
+  fetchApiKey()
 })
 </script>

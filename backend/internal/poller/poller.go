@@ -27,19 +27,23 @@ var pollRunning atomic.Bool
 // Start begins the continuous polling loop and returns a stop function.
 // It queries all enabled integrations, fetches disk space for media root folders only,
 // updates DiskGroups, and records a LibraryHistory snapshot per disk group.
-func Start(interval time.Duration) func() {
-	ticker := time.NewTicker(interval)
+// The poll interval is read from the database on each cycle, allowing dynamic
+// reconfiguration without restart.
+func Start() func() {
 	done := make(chan struct{})
 	go func() {
+		timer := time.NewTimer(getPollInterval())
+		defer timer.Stop()
 		for {
 			select {
-			case <-ticker.C:
+			case <-timer.C:
 				poll()
+				timer.Reset(getPollInterval())
 			case <-RunNowCh:
 				slog.Info("Poller: manual run triggered via API")
 				poll()
+				// Don't reset the timer — let the next scheduled tick proceed normally
 			case <-done:
-				ticker.Stop()
 				return
 			}
 		}
@@ -47,6 +51,20 @@ func Start(interval time.Duration) func() {
 	return func() {
 		close(done)
 	}
+}
+
+// getPollInterval reads PollIntervalSeconds from the database preference set.
+// Falls back to 300s (5 min) if not set, and enforces a 30s minimum.
+func getPollInterval() time.Duration {
+	var prefs db.PreferenceSet
+	if err := db.DB.First(&prefs, 1).Error; err != nil {
+		return 5 * time.Minute
+	}
+	secs := prefs.PollIntervalSeconds
+	if secs < 30 {
+		secs = 300
+	}
+	return time.Duration(secs) * time.Second
 }
 
 // StopWorker closes the delete queue channel so the deletion worker can drain and exit.
