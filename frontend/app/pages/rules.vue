@@ -215,13 +215,13 @@
             <span class="font-medium text-foreground">{{ slider.label }}</span>
             <span class="text-muted-foreground font-mono tabular-nums">{{ prefs[slider.key as keyof typeof prefs] }} / 10</span>
           </div>
-          <input
-            type="range"
-            :value="prefs[slider.key as keyof typeof prefs]"
-            min="0"
-            max="10"
-            class="w-full h-2 bg-muted rounded-full appearance-none cursor-pointer accent-primary"
-            @input="(e: Event) => { prefs[slider.key as keyof typeof prefs] = Number((e.target as HTMLInputElement).value) }"
+          <UiSlider
+            :model-value="[Number(prefs[slider.key as keyof typeof prefs])]"
+            :min="0"
+            :max="10"
+            :step="1"
+            class="w-full"
+            @update:model-value="(v: number[]) => { (prefs as any)[slider.key] = v[0] }"
           />
           <p class="text-xs text-muted-foreground">{{ slider.description }}</p>
         </div>
@@ -394,15 +394,19 @@
                   </button>
                 </td>
                 <td class="px-4 py-2">
-                  <div class="flex items-center gap-2">
-                    <div class="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-24 h-2.5 rounded-full bg-muted/50 overflow-hidden">
                       <div
-                        class="h-full rounded-full"
-                        :class="group.entry.isProtected ? 'bg-emerald-500' : scoreColor(group.entry.score)"
-                        :style="{ width: (group.entry.isProtected ? 0 : group.entry.score * 100) + '%' }"
+                        data-slot="score-bar"
+                        class="h-full rounded-full transition-all duration-300"
+                        :class="group.entry.isProtected ? 'bg-emerald-500' : ''"
+                        :style="{
+                          width: (group.entry.isProtected ? 0 : group.entry.score * 100) + '%',
+                          ...(!group.entry.isProtected ? { background: `linear-gradient(90deg, var(--color-primary), oklch(from var(--color-primary) calc(l + 0.1) c h))` } : {})
+                        }"
                       />
                     </div>
-                    <span class="text-xs font-mono tabular-nums" :class="group.entry.isProtected ? 'text-emerald-500' : ''">
+                    <span class="text-xs font-mono tabular-nums font-semibold" :class="group.entry.isProtected ? 'text-emerald-500' : 'text-primary'">
                       {{ group.entry.isProtected ? 'Protected' : group.entry.score.toFixed(2) }}
                     </span>
                   </div>
@@ -420,15 +424,19 @@
                 <tr v-for="(season, sIdx) in group.seasons" :key="`${group.key}-s${sIdx}`" class="border-b border-border bg-muted/30 transition-colors cursor-pointer" @click.stop="selectPreviewItem(season)">
                   <td class="px-3 py-2 w-8"></td>
                   <td class="px-4 py-2">
-                    <div class="flex items-center gap-2">
-                      <div class="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div class="flex items-center gap-2.5">
+                      <div class="w-20 h-2 rounded-full bg-muted/50 overflow-hidden">
                         <div
-                          class="h-full rounded-full"
-                          :class="season.isProtected ? 'bg-emerald-500' : scoreColor(season.score)"
-                          :style="{ width: (season.isProtected ? 0 : season.score * 100) + '%' }"
+                          data-slot="score-bar"
+                          class="h-full rounded-full transition-all duration-300"
+                          :class="season.isProtected ? 'bg-emerald-500' : ''"
+                          :style="{
+                            width: (season.isProtected ? 0 : season.score * 100) + '%',
+                            ...(!season.isProtected ? { background: `linear-gradient(90deg, var(--color-primary), oklch(from var(--color-primary) calc(l + 0.1) c h))` } : {})
+                          }"
                         />
                       </div>
-                      <span class="text-xs font-mono tabular-nums" :class="season.isProtected ? 'text-emerald-500' : ''">
+                      <span class="text-xs font-mono tabular-nums font-semibold" :class="season.isProtected ? 'text-emerald-500' : 'text-primary'">
                         {{ season.isProtected ? 'Protected' : season.score.toFixed(2) }}
                       </span>
                     </div>

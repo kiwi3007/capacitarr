@@ -291,6 +291,7 @@ import { ServerIcon, ChartPieIcon, HardDriveIcon, LoaderCircleIcon, RefreshCwIco
 import { formatBytes, formatRelativeTime } from '~/utils/format'
 
 const api = useApi()
+const { primaryColor, destructiveColor } = useThemeColors()
 
 const chartModeOptions = [
   { label: 'Percentage', value: 'percentage' },
@@ -446,10 +447,7 @@ const sparklineOptions = computed(() => ({
     animations: { enabled: true, easing: 'easeinout', speed: 400 }
   },
   stroke: { curve: 'smooth' as const, width: 2 },
-  colors: [
-    typeof document !== 'undefined' ? getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#8b5cf6' : '#8b5cf6',
-    typeof document !== 'undefined' ? getComputedStyle(document.documentElement).getPropertyValue('--color-destructive').trim() || '#ef4444' : '#ef4444',
-  ],
+  colors: [primaryColor.value, destructiveColor.value],
   fill: {
     type: 'gradient',
     gradient: {

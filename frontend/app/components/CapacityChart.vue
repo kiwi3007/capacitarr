@@ -40,6 +40,7 @@ const error = ref(false)
 const noData = ref(false)
 
 const { isDark } = useAppColorMode()
+const { primaryColor, successColor } = useThemeColors()
 
 interface ChartSeries {
   name: string
@@ -66,8 +67,8 @@ const chartOptions = computed(() => {
     },
     // Theme-aware colors: primary for used, success green for total
     colors: isPercent
-      ? [getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#8b5cf6']
-      : [getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#8b5cf6', '#10b981'],
+      ? [primaryColor.value]
+      : [primaryColor.value, successColor.value],
     fill: {
       type: 'gradient',
       gradient: { shadeIntensity: 1, opacityFrom: 0.35, opacityTo: 0.05, stops: [0, 90, 100] }
