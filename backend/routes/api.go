@@ -21,10 +21,19 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
-func RegisterAPIRoutes(g *echo.Group, database *gorm.DB, cfg *config.Config) {
+func RegisterAPIRoutes(g *echo.Group, database *gorm.DB, cfg *config.Config, appVersion, appCommit, appBuildDate string) {
 	// Health check
 	g.GET("/health", func(c echo.Context) error {
 		return c.String(http.StatusOK, "OK")
+	})
+
+	// Version info (public — no auth required)
+	g.GET("/version", func(c echo.Context) error {
+		return c.JSON(http.StatusOK, map[string]string{
+			"version":   appVersion,
+			"commit":    appCommit,
+			"buildDate": appBuildDate,
+		})
 	})
 
 	// Public Auth

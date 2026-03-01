@@ -20,7 +20,12 @@ COPY backend/ ./backend/
 COPY --from=frontend-builder /app/frontend/.output/public ./backend/frontend/dist
 
 WORKDIR /app/backend
-RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-w -s" -o capacitarr main.go
+ARG APP_VERSION=dev
+ARG BUILD_DATE=unknown
+ARG COMMIT_SHA=unknown
+RUN CGO_ENABLED=1 GOOS=linux go build \
+    -ldflags="-w -s -X main.version=${APP_VERSION} -X main.commit=${COMMIT_SHA} -X main.buildDate=${BUILD_DATE}" \
+    -o capacitarr main.go
 
 FROM alpine:latest
 WORKDIR /app

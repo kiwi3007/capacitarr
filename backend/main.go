@@ -111,6 +111,13 @@ func spaHandler(fsys fs.FS, stripPrefix string) echo.HandlerFunc {
 	}
 }
 
+// Build-time injected via -ldflags
+var (
+	version   = "dev"
+	commit    = "unknown"
+	buildDate = "unknown"
+)
+
 func main() {
 	cfg := config.Load()
 	logger.Init(cfg.Debug)
@@ -160,7 +167,7 @@ func main() {
 	// Remove trailing slash from prefix for clean route joining
 	prefix = strings.TrimRight(prefix, "/")
 	apiGroup := e.Group(prefix + "/api/v1")
-	routes.RegisterAPIRoutes(apiGroup, db.DB, cfg)
+	routes.RegisterAPIRoutes(apiGroup, db.DB, cfg, version, commit, buildDate)
 
 	// Serve the embedded Nuxt static frontend with SPA fallback
 	fsys := getSubFS()

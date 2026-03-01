@@ -1,4 +1,5 @@
 import tailwindcss from '@tailwindcss/vite'
+import pkg from './package.json'
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
@@ -65,7 +66,8 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL ?? ''
+      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL ?? '',
+      appVersion: pkg.version || '0.0.0'
     }
   },
 

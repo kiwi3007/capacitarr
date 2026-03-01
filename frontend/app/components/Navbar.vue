@@ -11,9 +11,14 @@
             <div data-slot="brand-icon" class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
               <component :is="DatabaseIcon" class="w-4.5 h-4.5 text-primary-foreground" />
             </div>
-            <span class="text-lg font-bold tracking-tight text-foreground">
-              Capacitarr
-            </span>
+            <div class="flex flex-col">
+              <span class="text-lg font-bold tracking-tight text-foreground leading-tight">
+                Capacitarr
+              </span>
+              <span class="text-[10px] text-muted-foreground/50 leading-none font-mono">
+                UI v{{ uiVersion }} · API {{ apiVersion || '···' }}
+              </span>
+            </div>
           </NuxtLink>
 
           <!-- Nav Links -->
@@ -107,6 +112,7 @@ import type { ThemeMeta } from '~/composables/useTheme'
 
 const { isDark, toggle } = useAppColorMode()
 const { theme, setTheme, themes } = useTheme()
+const { uiVersion, apiVersion } = useVersion()
 const router = useRouter()
 const authenticated = useCookie('authenticated')
 
