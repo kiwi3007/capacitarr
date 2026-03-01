@@ -446,7 +446,10 @@ const sparklineOptions = computed(() => ({
     animations: { enabled: true, easing: 'easeinout', speed: 400 }
   },
   stroke: { curve: 'smooth' as const, width: 2 },
-  colors: ['var(--color-primary)', 'var(--color-destructive)'],
+  colors: [
+    typeof document !== 'undefined' ? getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#8b5cf6' : '#8b5cf6',
+    typeof document !== 'undefined' ? getComputedStyle(document.documentElement).getPropertyValue('--color-destructive').trim() || '#ef4444' : '#ef4444',
+  ],
   fill: {
     type: 'gradient',
     gradient: {

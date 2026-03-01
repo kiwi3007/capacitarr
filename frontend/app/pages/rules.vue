@@ -746,9 +746,9 @@ async function fetchPreview() {
 }
 
 function scoreColor(score: number) {
-  if (score >= 0.7) return 'bg-red-500'
-  if (score >= 0.4) return 'bg-amber-500'
-  return 'bg-emerald-500'
+  if (score >= 0.7) return 'bg-primary'
+  if (score >= 0.4) return 'bg-primary/70'
+  return 'bg-primary/40'
 }
 
 // ─── Preview Show/Season Grouping ─────────────────────────────────────────────
