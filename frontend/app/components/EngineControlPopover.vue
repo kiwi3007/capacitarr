@@ -1,0 +1,143 @@
+<template>
+  <UiPopover>
+    <UiPopoverTrigger as-child>
+      <UiButton variant="ghost" size="icon" aria-label="Engine controls" class="relative">
+        <component :is="ZapIcon" class="w-5 h-5" />
+        <!-- Mode indicator dot -->
+        <span
+          class="absolute top-1 right-1 w-2.5 h-2.5 rounded-full border-2 border-background"
+          :class="modeDotColor"
+        />
+      </UiButton>
+    </UiPopoverTrigger>
+    <UiPopoverContent align="end" class="w-72">
+      <div class="space-y-4">
+        <!-- Header -->
+        <div class="flex items-center justify-between">
+          <h4 class="font-semibold text-sm">Engine Control</h4>
+          <UiBadge
+            :variant="executionMode === 'auto' ? 'destructive' : executionMode === 'approval' ? 'outline' : 'secondary'"
+          >
+            {{ modeLabel(executionMode) }}
+          </UiBadge>
+        </div>
+
+        <!-- Mode Toggle -->
+        <div class="space-y-1.5">
+          <span class="text-xs text-muted-foreground font-medium">Execution Mode</span>
+          <div class="flex gap-1">
+            <UiButton
+              v-for="mode in modes"
+              :key="mode.value"
+              :variant="executionMode === mode.value ? 'default' : 'outline'"
+              size="sm"
+              class="flex-1 text-xs"
+              :disabled="changingMode"
+              @click="handleModeChange(mode.value)"
+            >
+              {{ mode.label }}
+            </UiButton>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div class="rounded-lg bg-muted px-2.5 py-1.5">
+            <div class="text-muted-foreground">Last Run</div>
+            <div class="font-medium">{{ lastRunText }}</div>
+          </div>
+          <div class="rounded-lg bg-muted px-2.5 py-1.5">
+            <div class="text-muted-foreground">Queue</div>
+            <div class="font-medium">{{ queueDepth }} items</div>
+          </div>
+          <div class="rounded-lg bg-muted px-2.5 py-1.5">
+            <div class="text-muted-foreground">Evaluated</div>
+            <div class="font-medium">{{ lastRunEvaluated }}</div>
+          </div>
+          <div class="rounded-lg bg-muted px-2.5 py-1.5">
+            <div class="text-muted-foreground">Flagged</div>
+            <div class="font-medium">{{ lastRunFlagged }}</div>
+          </div>
+        </div>
+
+        <!-- Run Now -->
+        <UiButton
+          class="w-full"
+          :disabled="runNowLoading"
+          @click="triggerRunNow"
+        >
+          <LoaderCircleIcon v-if="runNowLoading" class="w-4 h-4 animate-spin" />
+          <PlayIcon v-else class="w-4 h-4" />
+          {{ executionMode === 'dry_run' || executionMode === 'dry-run' ? 'Dry Run' : 'Run Now' }}
+        </UiButton>
+      </div>
+    </UiPopoverContent>
+  </UiPopover>
+
+  <!-- Auto mode confirmation dialog -->
+  <UiDialog :open="showAutoConfirm" @update:open="(v: boolean) => showAutoConfirm = v">
+    <UiDialogContent class="max-w-sm">
+      <UiDialogHeader>
+        <UiDialogTitle class="text-destructive">Enable Auto Mode?</UiDialogTitle>
+      </UiDialogHeader>
+      <p class="text-sm text-muted-foreground">
+        Auto mode will <strong class="text-foreground">automatically delete</strong> media items that exceed the threshold.
+        This action cannot be undone. Are you sure?
+      </p>
+      <UiDialogFooter>
+        <UiButton variant="ghost" @click="showAutoConfirm = false">Cancel</UiButton>
+        <UiButton variant="destructive" @click="confirmAutoMode">Enable Auto Mode</UiButton>
+      </UiDialogFooter>
+    </UiDialogContent>
+  </UiDialog>
+</template>
+
+<script setup lang="ts">
+import { ZapIcon, PlayIcon, LoaderCircleIcon } from 'lucide-vue-next'
+import { formatRelativeTime } from '~/utils/format'
+
+const {
+  executionMode, lastRunEpoch, lastRunEvaluated, lastRunFlagged,
+  queueDepth, runNowLoading, changingMode,
+  modeLabel, fetchStats, setMode, triggerRunNow
+} = useEngineControl()
+
+const showAutoConfirm = ref(false)
+
+const modes = [
+  { value: 'dry_run', label: 'Dry-Run' },
+  { value: 'approval', label: 'Approval' },
+  { value: 'auto', label: 'Auto' }
+]
+
+const modeDotColor = computed(() => {
+  switch (executionMode.value) {
+    case 'auto': return 'bg-red-500'
+    case 'approval': return 'bg-amber-500'
+    default: return 'bg-green-500'
+  }
+})
+
+const lastRunText = computed(() => {
+  if (!lastRunEpoch.value) return 'Never'
+  return formatRelativeTime(new Date(lastRunEpoch.value * 1000).toISOString())
+})
+
+function handleModeChange(mode: string) {
+  if (mode === 'auto') {
+    showAutoConfirm.value = true
+  } else {
+    setMode(mode)
+  }
+}
+
+async function confirmAutoMode() {
+  showAutoConfirm.value = false
+  await setMode('auto')
+}
+
+// Fetch stats on mount
+onMounted(() => {
+  fetchStats()
+})
+</script>

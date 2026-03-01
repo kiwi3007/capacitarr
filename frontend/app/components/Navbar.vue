@@ -42,6 +42,9 @@
 
         <!-- Right side -->
         <div class="flex items-center gap-1">
+          <!-- Engine Control -->
+          <EngineControlPopover />
+
           <!-- Theme selector -->
           <UiDropdownMenu>
             <UiDropdownMenuTrigger as-child>
