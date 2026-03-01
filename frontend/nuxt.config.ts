@@ -45,8 +45,13 @@ export default defineNuxtConfig({
   },
 
   css: [
-    'geist/dist/geist-sans/style.css',
-    'geist/dist/geist-mono/style.css',
+    '@fontsource/geist-sans/400.css',
+    '@fontsource/geist-sans/500.css',
+    '@fontsource/geist-sans/600.css',
+    '@fontsource/geist-sans/700.css',
+    '@fontsource/geist-mono/400.css',
+    '@fontsource/geist-mono/500.css',
+    '@fontsource/geist-mono/600.css',
     '~/assets/css/main.css',
   ],
 
