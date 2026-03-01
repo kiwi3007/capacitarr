@@ -64,6 +64,82 @@ func RegisterAuditRoutes(g *echo.Group, database *gorm.DB) {
 		return c.JSON(http.StatusOK, result)
 	})
 
+	// Grouped audit: show-level and season-level entries grouped into a tree
+	g.GET("/audit/grouped", func(c echo.Context) error {
+		limit := 200
+		if l := c.QueryParam("limit"); l != "" {
+			if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+				limit = parsed
+			}
+		}
+
+		var logs []db.AuditLog
+		if err := database.Order("created_at desc").Limit(limit).Find(&logs).Error; err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch audit logs"})
+		}
+
+		// Group by show title for TV content (seasons/episodes)
+		type AuditGroup struct {
+			ShowTitle string        `json:"showTitle"`
+			Children  []db.AuditLog `json:"children"`
+			// Summary fields
+			TotalSize int64  `json:"totalSize"`
+			Action    string `json:"action"`
+			CreatedAt string `json:"createdAt"`
+		}
+
+		groups := make(map[string]*AuditGroup)
+		var standalone []db.AuditLog
+		var orderedGroupKeys []string
+
+		for _, log := range logs {
+			if log.MediaType == "season" || log.MediaType == "episode" {
+				// Extract show title: "Show - Season X" → "Show"
+				showTitle := log.MediaName
+				if idx := strings.Index(log.MediaName, " - Season"); idx > 0 {
+					showTitle = log.MediaName[:idx]
+				} else if idx := strings.Index(log.MediaName, " - S"); idx > 0 {
+					showTitle = log.MediaName[:idx]
+				}
+
+				if grp, ok := groups[showTitle]; ok {
+					grp.Children = append(grp.Children, log)
+					grp.TotalSize += log.SizeBytes
+				} else {
+					groups[showTitle] = &AuditGroup{
+						ShowTitle: showTitle,
+						Children:  []db.AuditLog{log},
+						TotalSize: log.SizeBytes,
+						Action:    log.Action,
+						CreatedAt: log.CreatedAt.Format(time.RFC3339),
+					}
+					orderedGroupKeys = append(orderedGroupKeys, showTitle)
+				}
+			} else {
+				standalone = append(standalone, log)
+			}
+		}
+
+		// Build result: interleave groups and standalone items by time
+		type GroupedResult struct {
+			Type      string        `json:"type"` // "group" or "single"
+			Group     *AuditGroup   `json:"group,omitempty"`
+			Entry     *db.AuditLog  `json:"entry,omitempty"`
+		}
+
+		var result []GroupedResult
+		for _, key := range orderedGroupKeys {
+			grp := groups[key]
+			result = append(result, GroupedResult{Type: "group", Group: grp})
+		}
+		for _, log := range standalone {
+			entry := log
+			result = append(result, GroupedResult{Type: "single", Entry: &entry})
+		}
+
+		return c.JSON(http.StatusOK, result)
+	})
+
 	g.GET("/audit", func(c echo.Context) error {
 		limit := 50
 		if l := c.QueryParam("limit"); l != "" {

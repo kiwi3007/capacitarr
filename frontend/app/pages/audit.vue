@@ -161,6 +161,7 @@ const groupedLogs = computed<AuditGroup[]>(() => {
   const showMap = new Map<string, number>()
 
   for (const log of logs.value) {
+    // Try to group season entries under their parent show
     if (log.mediaType === 'season' && log.mediaName.includes(' - Season ')) {
       const showName = log.mediaName.split(' - Season ')[0]
       const groupIdx = showMap.get(showName)
@@ -168,6 +169,14 @@ const groupedLogs = computed<AuditGroup[]>(() => {
         groups[groupIdx].seasons.push(log)
         continue
       }
+      // Orphan season — create a virtual show group for it
+      showMap.set(showName, groups.length)
+      groups.push({
+        key: `show-${showName}`,
+        entry: { ...log, mediaName: showName, mediaType: 'show' },
+        seasons: [log]
+      })
+      continue
     }
 
     const key = `${log.id}-${log.mediaName}`
