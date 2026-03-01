@@ -43,7 +43,7 @@ func DoAPIRequest(url, headerKey, headerValue string) ([]byte, error) {
 
 	// Detect HTML responses (indicates reverse proxy login page, wrong URL, etc.)
 	if len(body) > 0 && (body[0] == '<' || string(body[:min(len(body), 15)]) == "<!DOCTYPE html>" || string(body[:min(len(body), 6)]) == "<html>") {
-		return nil, fmt.Errorf("received HTML instead of JSON — the URL may be incorrect, or a reverse proxy login page is intercepting the request. Verify the URL points directly to the service API")
+		return nil, fmt.Errorf("couldn't connect — got a web page instead of data. Double-check the URL is correct and that the service is reachable from the Capacitarr server. If you're using a reverse proxy, make sure it isn't blocking API requests")
 	}
 
 	return body, nil

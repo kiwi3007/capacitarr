@@ -68,7 +68,7 @@
         >
           <LoaderCircleIcon v-if="runNowLoading" class="w-4 h-4 animate-spin" />
           <PlayIcon v-else class="w-4 h-4" />
-          {{ executionMode === 'dry_run' || executionMode === 'dry-run' ? 'Dry Run' : 'Run Now' }}
+          {{ executionMode === 'dry-run' ? 'Dry Run' : 'Run Now' }}
         </UiButton>
       </div>
     </UiPopoverContent>
@@ -105,7 +105,7 @@ const {
 const showAutoConfirm = ref(false)
 
 const modes = [
-  { value: 'dry_run', label: 'Dry-Run' },
+  { value: 'dry-run', label: 'Dry-Run' },
   { value: 'approval', label: 'Approval' },
   { value: 'auto', label: 'Auto' }
 ]
