@@ -76,7 +76,7 @@ func RegisterAPIRoutes(g *echo.Group, database *gorm.DB, cfg *config.Config) {
 			Expires:  time.Now().Add(24 * time.Hour),
 			HttpOnly: true,
 			Secure:   cfg.SecureCookies,
-			Path:     "/",
+			Path:     cfg.BaseURL,
 			SameSite: http.SameSiteLaxMode,
 		})
 
@@ -87,7 +87,7 @@ func RegisterAPIRoutes(g *echo.Group, database *gorm.DB, cfg *config.Config) {
 			Expires:  time.Now().Add(24 * time.Hour),
 			HttpOnly: false,
 			Secure:   cfg.SecureCookies,
-			Path:     "/",
+			Path:     cfg.BaseURL,
 			SameSite: http.SameSiteLaxMode,
 		})
 

@@ -9,13 +9,14 @@ import (
 )
 
 type Config struct {
-	Port        string
-	BaseURL     string
-	Database    string
-	Debug       bool
-	JWTSecret   string
-	CORSOrigins []string
+	Port          string
+	BaseURL       string
+	Database      string
+	Debug         bool
+	JWTSecret     string
+	CORSOrigins   []string
 	SecureCookies bool
+	AuthHeader    string // Trusted reverse proxy auth header (e.g. "Remote-User", "X-authentik-username")
 }
 
 func Load() *Config {
@@ -76,6 +77,11 @@ func Load() *Config {
 
 	secureCookies := strings.ToLower(os.Getenv("SECURE_COOKIES")) == "true"
 
+	authHeader := strings.TrimSpace(os.Getenv("AUTH_HEADER"))
+	if authHeader != "" {
+		slog.Info("Trusted reverse proxy auth header configured", "header", authHeader)
+	}
+
 	return &Config{
 		Port:          port,
 		BaseURL:       baseURL,
@@ -84,5 +90,6 @@ func Load() *Config {
 		JWTSecret:     jwtSecret,
 		CORSOrigins:   corsOrigins,
 		SecureCookies: secureCookies,
+		AuthHeader:    authHeader,
 	}
 }
