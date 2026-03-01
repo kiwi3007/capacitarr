@@ -36,5 +36,15 @@ func DoAPIRequest(url, headerKey, headerValue string) ([]byte, error) {
 		return nil, fmt.Errorf("unexpected status: %d", resp.StatusCode)
 	}
 
-	return io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// Detect HTML responses (indicates reverse proxy login page, wrong URL, etc.)
+	if len(body) > 0 && (body[0] == '<' || string(body[:min(len(body), 15)]) == "<!DOCTYPE html>" || string(body[:min(len(body), 6)]) == "<html>") {
+		return nil, fmt.Errorf("received HTML instead of JSON — the URL may be incorrect, or a reverse proxy login page is intercepting the request. Verify the URL points directly to the service API")
+	}
+
+	return body, nil
 }

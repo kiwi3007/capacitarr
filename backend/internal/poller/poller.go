@@ -497,6 +497,32 @@ func deletionWorker() {
 
 		currentlyDeletingVal.Store(job.item.Title)
 
+		// ╔══════════════════════════════════════════════════════════╗
+		// ║  SAFETY GUARD: Deletions are disabled until testing     ║
+		// ║  Remove this block when ready for production testing.   ║
+		// ╚══════════════════════════════════════════════════════════╝
+		slog.Warn("SAFETY GUARD: Delete skipped (deletions disabled in codebase)",
+			"item", job.item.Title,
+			"type", job.item.Type,
+			"size", job.item.SizeBytes,
+			"score", job.score,
+		)
+		currentlyDeletingVal.Store("")
+		atomic.AddInt64(&metricsProcessed, 1)
+
+		// Still log to audit as "Dry-Delete" so the UI shows activity
+		factorsJSON, _ := json.Marshal(job.factors)
+		logEntry := db.AuditLog{
+			MediaName:    job.item.Title,
+			MediaType:    string(job.item.Type),
+			Reason:       fmt.Sprintf("Score: %.2f (%s)", job.score, job.reason),
+			ScoreDetails: string(factorsJSON),
+			Action:       "Dry-Delete",
+			SizeBytes:    job.item.SizeBytes,
+			CreatedAt:    time.Now(),
+		}
+
+		/* DISABLED: Actual deletion — uncomment when ready for production testing
 		if err := job.client.DeleteMediaItem(job.item); err != nil {
 			slog.Error("Background deletion failed", "item", job.item.Title, "error", err)
 			atomic.AddInt64(&metricsFailed, 1)
@@ -507,7 +533,6 @@ func deletionWorker() {
 		currentlyDeletingVal.Store("")
 		atomic.AddInt64(&metricsProcessed, 1)
 
-		// Log the successful deletion to the audit table
 		factorsJSON, _ := json.Marshal(job.factors)
 		logEntry := db.AuditLog{
 			MediaName:    job.item.Title,
@@ -518,6 +543,7 @@ func deletionWorker() {
 			SizeBytes:    job.item.SizeBytes,
 			CreatedAt:    time.Now(),
 		}
+		*/
 		db.DB.Create(&logEntry)
 
 		slog.Info("Background engine action completed", "media", job.item.Title, "action", "Deleted", "freed", job.item.SizeBytes)

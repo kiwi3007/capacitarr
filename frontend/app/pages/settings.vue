@@ -51,15 +51,7 @@
                 </UiSelectTrigger>
                 <UiSelectContent>
                   <UiSelectItem value="local">Local (Browser)</UiSelectItem>
-                  <UiSelectItem value="UTC">UTC</UiSelectItem>
-                  <UiSelectItem value="America/New_York">America/New_York (Eastern)</UiSelectItem>
-                  <UiSelectItem value="America/Chicago">America/Chicago (Central)</UiSelectItem>
-                  <UiSelectItem value="America/Denver">America/Denver (Mountain)</UiSelectItem>
-                  <UiSelectItem value="America/Los_Angeles">America/Los_Angeles (Pacific)</UiSelectItem>
-                  <UiSelectItem value="Europe/London">Europe/London</UiSelectItem>
-                  <UiSelectItem value="Europe/Paris">Europe/Paris</UiSelectItem>
-                  <UiSelectItem value="Asia/Tokyo">Asia/Tokyo</UiSelectItem>
-                  <UiSelectItem value="Australia/Sydney">Australia/Sydney</UiSelectItem>
+                  <UiSelectItem value="UTC">Remote (Server / UTC)</UiSelectItem>
                 </UiSelectContent>
               </UiSelect>
             </div>
