@@ -502,12 +502,7 @@ func RegisterRuleRoutes(protected *echo.Group, database *gorm.DB) {
 		// Sort by score descending with tiebreaker
 		engine.SortEvaluated(evaluated, prefs.TiebreakerMethod)
 
-		limit := 100
-		if len(evaluated) < limit {
-			limit = len(evaluated)
-		}
-
-		// Build disk context from disk groups
+		// Build disk context from disk groups (needed for dynamic limit)
 		var diskGroups []db.DiskGroup
 		database.Find(&diskGroups)
 
@@ -520,6 +515,7 @@ func RegisterRuleRoutes(protected *echo.Group, database *gorm.DB) {
 		}
 
 		var diskCtx *diskContextPayload
+		var bytesToFree int64
 		if len(diskGroups) > 0 {
 			// Pick the disk group that is over threshold with the most bytes to free.
 			// If none are over threshold, pick the one with the most potential bytes to free.
@@ -543,6 +539,7 @@ func RegisterRuleRoutes(protected *echo.Group, database *gorm.DB) {
 			}
 
 			if bestGroup != nil {
+				bytesToFree = bestBytesToFree
 				diskCtx = &diskContextPayload{
 					TotalBytes:   bestGroup.TotalBytes,
 					UsedBytes:    bestGroup.UsedBytes,
@@ -551,6 +548,31 @@ func RegisterRuleRoutes(protected *echo.Group, database *gorm.DB) {
 					BytesToFree:  bestBytesToFree,
 				}
 			}
+		}
+
+		// Dynamic limit: return items until cumulative size exceeds 1.5× bytesToFree
+		// so the user can see items well beyond the deletion cutoff line.
+		limit := 100 // default / minimum
+		if bytesToFree > 0 {
+			targetBytes := bytesToFree * 3 / 2 // 1.5× buffer
+			cumulative := int64(0)
+			dynamicLimit := 0
+			for i, ev := range evaluated {
+				cumulative += ev.Item.SizeBytes
+				dynamicLimit = i + 1
+				if cumulative >= targetBytes && dynamicLimit >= 20 {
+					break
+				}
+			}
+			if dynamicLimit > limit {
+				limit = dynamicLimit
+			}
+		}
+		if limit > 500 {
+			limit = 500 // absolute maximum to prevent unbounded responses
+		}
+		if len(evaluated) < limit {
+			limit = len(evaluated)
 		}
 
 		return c.JSON(http.StatusOK, map[string]interface{}{
