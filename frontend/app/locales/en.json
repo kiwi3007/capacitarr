@@ -266,7 +266,7 @@
   "help.factor.ratingDesc": "Lower-rated content scores higher.",
   "help.factor.timeInLibrary": "Time in Library",
   "help.factor.timeInLibraryDesc": "Older library items score higher.",
-  "help.factor.availability": "Availability",
+  "help.factor.availability": "Series Status",
   "help.factor.availabilityDesc": "For TV shows: ended series score higher than continuing ones. Movies and other types use a neutral default.",
 
   "help.readingScoreDetail": "Reading a Score Detail",
