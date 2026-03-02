@@ -1111,8 +1111,9 @@ function ruleEffectDirection(rule: ProtectionRule): 'keep' | 'remove' | 'unknown
  * Returns true if the rules' conditions could overlap, false if they're mutually exclusive.
  */
 function rulesCouldOverlap(a: ProtectionRule, b: ProtectionRule): boolean {
-  // Different fields never overlap by definition
-  if (a.field !== b.field) return true // conservative: different fields = assume overlap
+  // Different fields target independent dimensions — a single media item can
+  // match both (e.g., old AND well-rated), so they're not in conflict.
+  if (a.field !== b.field) return false
 
   const field = a.field
 
