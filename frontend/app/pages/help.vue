@@ -11,6 +11,46 @@
     </div>
 
     <div class="space-y-4">
+      <!-- What's New -->
+      <details
+        v-motion
+        :initial="{ opacity: 0, y: 12 }"
+        :enter="{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24, delay: 20 } }"
+        open
+        data-slot="card"
+        class="group rounded-xl border border-violet-500/30 bg-gradient-to-r from-violet-500/5 via-fuchsia-500/5 to-pink-500/5 shadow-sm overflow-hidden"
+      >
+        <summary class="flex items-center gap-3 px-5 py-4 cursor-pointer select-none hover:bg-accent/50 transition-colors">
+          <ChevronRightIcon class="w-4 h-4 text-violet-400 transition-transform group-open:rotate-90" />
+          <div class="flex items-center gap-2">
+            <SparklesIcon class="w-4 h-4 text-violet-400" />
+            <h3 class="font-semibold bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
+              {{ $t('help.whatsNew') }}
+            </h3>
+          </div>
+        </summary>
+        <div class="px-5 pb-5 text-sm text-muted-foreground leading-relaxed space-y-3">
+          <ul class="space-y-2 pl-1">
+            <li class="flex items-start gap-2">
+              <span class="mt-1 w-1.5 h-1.5 rounded-full bg-violet-400 shrink-0" />
+              <span><strong class="text-foreground">{{ $t('help.whatsNew.notifications') }}</strong> — {{ $t('help.whatsNew.notificationsDesc') }}</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="mt-1 w-1.5 h-1.5 rounded-full bg-fuchsia-400 shrink-0" />
+              <span><strong class="text-foreground">{{ $t('help.whatsNew.i18n') }}</strong> — {{ $t('help.whatsNew.i18nDesc') }}</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="mt-1 w-1.5 h-1.5 rounded-full bg-pink-400 shrink-0" />
+              <span><strong class="text-foreground">{{ $t('help.whatsNew.plexOAuth') }}</strong> — {{ $t('help.whatsNew.plexOAuthDesc') }}</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="mt-1 w-1.5 h-1.5 rounded-full bg-violet-400 shrink-0" />
+              <span><strong class="text-foreground">{{ $t('help.whatsNew.cascadingRules') }}</strong> — {{ $t('help.whatsNew.cascadingRulesDesc') }}</span>
+            </li>
+          </ul>
+        </div>
+      </details>
+
       <!-- How Scoring Works -->
       <details
         v-motion
@@ -27,12 +67,10 @@
         </summary>
         <div class="px-5 pb-5 text-sm text-muted-foreground leading-relaxed space-y-3">
           <p>
-            Capacitarr scores each media item from <strong class="text-foreground">0 to 1</strong> based on weighted factors.
-            Higher scores mean the item is a better candidate for removal.
+            {{ $t('help.howScoringWorks.intro') }}
           </p>
           <p>
-            When disk usage exceeds your threshold, items are evaluated and the highest-scoring ones
-            are removed first — freeing space efficiently while preserving the content you care about most.
+            {{ $t('help.howScoringWorks.behavior') }}
           </p>
         </div>
       </details>
@@ -53,17 +91,16 @@
         </summary>
         <div class="px-5 pb-5 text-sm text-muted-foreground leading-relaxed space-y-3">
           <p>
-            Each factor has a weight from <strong class="text-foreground">0–10</strong>. Higher weight = more influence on the final score.
-            The six factors are:
+            {{ $t('help.understandingSliders.intro') }}
           </p>
           <ul class="space-y-2 pl-1">
             <li
               v-for="factor in scoringFactors"
-              :key="factor.name"
+              :key="factor.nameKey"
               class="flex items-start gap-2"
             >
               <span class="mt-1 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-              <span><strong class="text-foreground">{{ factor.name }}</strong> — {{ factor.desc }}</span>
+              <span><strong class="text-foreground">{{ $t(factor.nameKey) }}</strong> — {{ $t(factor.descKey) }}</span>
             </li>
           </ul>
         </div>
@@ -85,49 +122,44 @@
         </summary>
         <div class="px-5 pb-5 text-sm text-muted-foreground leading-relaxed space-y-4">
           <p>
-            Click any row in the Audit History to open its <strong class="text-foreground">Score Detail</strong> modal. It breaks down exactly
-            how the final score was calculated using three columns: <strong class="text-foreground">Raw</strong>, <strong class="text-foreground">Weight</strong>, and <strong class="text-foreground">Contribution</strong>.
+            {{ $t('help.readingScoreDetail.intro') }}
           </p>
 
           <div>
             <p class="font-medium text-foreground mb-1">
-              Raw Score (0.0 – 1.0)
+              {{ $t('help.readingScoreDetail.rawTitle') }}
             </p>
             <p>
-              Represents how strongly this factor suggests the media should be cleaned up.
-              <strong class="text-foreground">1.0</strong> = maximum cleanup signal; <strong class="text-foreground">0.0</strong> = minimum cleanup signal.
+              {{ $t('help.readingScoreDetail.rawDesc') }}
             </p>
             <ul class="space-y-1 pl-4 list-disc mt-2">
-              <li><strong class="text-foreground">Watch History</strong> — 1.0 if never watched by any user, 0.0 if watched by all users</li>
-              <li><strong class="text-foreground">Last Watched</strong> — 1.0 if watched very long ago or never, lower if watched recently</li>
-              <li><strong class="text-foreground">File Size</strong> — 1.0 for the largest files in your library, scaled relative to the largest item</li>
-              <li><strong class="text-foreground">Rating</strong> — 1.0 for lowest-rated content (rating 10/10 → raw 0.0, rating 1/10 → raw 0.9)</li>
-              <li><strong class="text-foreground">Time in Library</strong> — 1.0 for content that has been in the library the longest</li>
-              <li><strong class="text-foreground">Availability</strong> — 1.0 if available on many streaming services, 0.0 if not available elsewhere</li>
+              <li
+                v-for="factor in rawScoreExamples"
+                :key="factor.nameKey"
+              >
+                <strong class="text-foreground">{{ $t(factor.nameKey) }}</strong> — {{ $t(factor.descKey) }}
+              </li>
             </ul>
           </div>
 
           <div>
             <p class="font-medium text-foreground mb-1">
-              Weight (0 – 10)
+              {{ $t('help.readingScoreDetail.weightTitle') }}
             </p>
             <p>
-              Set by you on the <strong class="text-foreground">Scoring Engine</strong> page. Higher weight = more influence on the final score.
-              Each factor's contribution = <code class="px-1 py-0.5 rounded bg-muted text-xs">(rawScore × weight) / totalWeightSum</code>.
+              {{ $t('help.readingScoreDetail.weightDesc') }}
             </p>
             <p class="mt-1">
-              <strong class="text-foreground">Example:</strong> If Watch History has weight 7 and raw score 1.0, and total weights sum to 30,
-              its contribution = 7 / 30 = 0.23.
+              {{ $t('help.readingScoreDetail.weightExample') }}
             </p>
           </div>
 
           <div>
             <p class="font-medium text-foreground mb-1">
-              Contribution
+              {{ $t('help.readingScoreDetail.contributionTitle') }}
             </p>
             <p>
-              The actual portion of the final score this factor is responsible for. All contributions sum to the total score.
-              These are shown as the colored segments in the stacked bar at the top of the modal.
+              {{ $t('help.readingScoreDetail.contributionDesc') }}
             </p>
           </div>
         </div>
@@ -144,17 +176,15 @@
         <summary class="flex items-center gap-3 px-5 py-4 cursor-pointer select-none hover:bg-accent transition-colors">
           <ChevronRightIcon class="w-4 h-4 text-muted-foreground transition-transform group-open:rotate-90" />
           <h3 class="font-semibold text-primary">
-            Threshold &amp; Target
+            {{ $t('help.thresholdAndTarget') }}
           </h3>
         </summary>
         <div class="px-5 pb-5 text-sm text-muted-foreground leading-relaxed space-y-3">
           <p>
-            The <strong class="text-foreground">threshold</strong> is the disk usage percentage that triggers cleanup.
-            The <strong class="text-foreground">target</strong> is where cleanup stops.
+            {{ $t('help.thresholdAndTarget.desc') }}
           </p>
           <p>
-            <strong class="text-foreground">Example:</strong> threshold 85%, target 75% means cleanup starts at 85% full and
-            continues removing items until usage drops to 75%.
+            {{ $t('help.thresholdAndTarget.example') }}
           </p>
         </div>
       </details>
@@ -170,20 +200,35 @@
         <summary class="flex items-center gap-3 px-5 py-4 cursor-pointer select-none hover:bg-accent transition-colors">
           <ChevronRightIcon class="w-4 h-4 text-muted-foreground transition-transform group-open:rotate-90" />
           <h3 class="font-semibold text-primary">
-            Custom Rules
+            {{ $t('help.customRulesHelp') }}
           </h3>
         </summary>
         <div class="px-5 pb-5 text-sm text-muted-foreground leading-relaxed space-y-3">
           <p>
-            Rules let you protect or target specific content. <strong class="text-foreground">Protect</strong> rules lower an item's score
-            (less likely to be removed). <strong class="text-foreground">Target</strong> rules raise it (more likely to be removed).
+            {{ $t('help.customRules.intro') }}
           </p>
-          <p>Intensity levels:</p>
-          <ul class="space-y-1 pl-4 list-disc">
-            <li><strong class="text-foreground">Slight</strong> — Small adjustment to the score</li>
-            <li><strong class="text-foreground">Strong</strong> — Significant adjustment</li>
-            <li><strong class="text-foreground">Absolute</strong> — Completely prevents or forces removal</li>
+          <p class="font-medium text-foreground">
+            {{ $t('help.customRules.effectLevels') }}
+          </p>
+          <ul class="space-y-2 pl-1">
+            <li
+              v-for="effect in effectLevels"
+              :key="effect.nameKey"
+              class="flex items-start gap-2"
+            >
+              <span class="mt-1 w-1.5 h-1.5 rounded-full shrink-0" :class="effect.colorClass" />
+              <span><strong class="text-foreground">{{ $t(effect.nameKey) }}</strong> — {{ $t(effect.descKey) }}</span>
+            </li>
           </ul>
+          <p class="font-medium text-foreground mt-4">
+            {{ $t('help.customRules.conflictTitle') }}
+          </p>
+          <p>
+            {{ $t('help.customRules.conflictDesc') }}
+          </p>
+          <p>
+            {{ $t('help.customRules.scopingDesc') }}
+          </p>
         </div>
       </details>
 
@@ -198,20 +243,19 @@
         <summary class="flex items-center gap-3 px-5 py-4 cursor-pointer select-none hover:bg-accent transition-colors">
           <ChevronRightIcon class="w-4 h-4 text-muted-foreground transition-transform group-open:rotate-90" />
           <h3 class="font-semibold text-primary">
-            Score Tiebreaker
+            {{ $t('help.scoreTiebreaker') }}
           </h3>
         </summary>
         <div class="px-5 pb-5 text-sm text-muted-foreground leading-relaxed space-y-3">
           <p>
-            When two or more items have the <strong class="text-foreground">same score</strong>, the tiebreaker determines which is deleted first.
-            Configure this on the <strong class="text-foreground">Scoring Engine</strong> page under Preference Weights.
+            {{ $t('help.tiebreaker.intro') }}
           </p>
           <ul class="space-y-1 pl-4 list-disc">
-            <li><strong class="text-foreground">Largest first</strong> — Prefer deleting bigger files to free more space (default)</li>
-            <li><strong class="text-foreground">Smallest first</strong> — Prefer deleting smaller files</li>
-            <li><strong class="text-foreground">Alphabetical</strong> — Sort tied items A → Z by title</li>
-            <li><strong class="text-foreground">Oldest in library</strong> — Items added to the library longest ago are deleted first</li>
-            <li><strong class="text-foreground">Newest in library</strong> — Most recently added items are deleted first</li>
+            <li><strong class="text-foreground">{{ $t('help.tiebreaker.largestFirst') }}</strong> — {{ $t('help.tiebreaker.largestFirstDesc') }}</li>
+            <li><strong class="text-foreground">{{ $t('help.tiebreaker.smallestFirst') }}</strong> — {{ $t('help.tiebreaker.smallestFirstDesc') }}</li>
+            <li><strong class="text-foreground">{{ $t('help.tiebreaker.alphabetical') }}</strong> — {{ $t('help.tiebreaker.alphabeticalDesc') }}</li>
+            <li><strong class="text-foreground">{{ $t('help.tiebreaker.oldestFirst') }}</strong> — {{ $t('help.tiebreaker.oldestFirstDesc') }}</li>
+            <li><strong class="text-foreground">{{ $t('help.tiebreaker.newestFirst') }}</strong> — {{ $t('help.tiebreaker.newestFirstDesc') }}</li>
           </ul>
         </div>
       </details>
@@ -227,19 +271,18 @@
         <summary class="flex items-center gap-3 px-5 py-4 cursor-pointer select-none hover:bg-accent transition-colors">
           <ChevronRightIcon class="w-4 h-4 text-muted-foreground transition-transform group-open:rotate-90" />
           <h3 class="font-semibold text-primary">
-            Reading the Audit Log
+            {{ $t('help.readingAuditLog') }}
           </h3>
         </summary>
         <div class="px-5 pb-5 text-sm text-muted-foreground leading-relaxed space-y-3">
           <p>
-            The audit log shows every item the engine evaluated. Each entry shows the score breakdown —
-            hover over the colored bar to see individual factor contributions.
+            {{ $t('help.auditLog.intro') }}
           </p>
-          <p>Actions:</p>
+          <p>{{ $t('help.auditLog.actionsTitle') }}</p>
           <ul class="space-y-1 pl-4 list-disc">
-            <li><strong class="text-foreground">Dry-Run</strong> — Simulated only; no files were deleted</li>
-            <li><strong class="text-foreground">Queued for Approval</strong> — Flagged for manual review before deletion</li>
-            <li><strong class="text-foreground">Deleted</strong> — Actually removed from disk</li>
+            <li><strong class="text-foreground">{{ $t('help.auditLog.dryRun') }}</strong> — {{ $t('help.auditLog.dryRunDesc') }}</li>
+            <li><strong class="text-foreground">{{ $t('help.auditLog.queued') }}</strong> — {{ $t('help.auditLog.queuedDesc') }}</li>
+            <li><strong class="text-foreground">{{ $t('help.auditLog.deleted') }}</strong> — {{ $t('help.auditLog.deletedDesc') }}</li>
           </ul>
         </div>
       </details>
@@ -255,28 +298,37 @@
         <summary class="flex items-center gap-3 px-5 py-4 cursor-pointer select-none hover:bg-accent transition-colors">
           <ChevronRightIcon class="w-4 h-4 text-muted-foreground transition-transform group-open:rotate-90" />
           <h3 class="font-semibold text-primary">
-            Execution Modes
+            {{ $t('help.executionModes') }}
           </h3>
         </summary>
         <div class="px-5 pb-5 text-sm text-muted-foreground leading-relaxed space-y-3">
           <ul class="space-y-2 pl-1">
             <li class="flex items-start gap-2">
               <span class="mt-1 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-              <span><strong class="text-foreground">Dry-Run</strong> — No files are deleted; the engine only logs what it would do. Safe for testing and tuning your weights.</span>
+              <span><strong class="text-foreground">{{ $t('help.executionModes.dryRun') }}</strong> — {{ $t('help.executionModes.dryRunDesc') }}</span>
             </li>
             <li class="flex items-start gap-2">
               <span class="mt-1 w-1.5 h-1.5 rounded-full bg-warning shrink-0" />
-              <span><strong class="text-foreground">Approval</strong> — Items are flagged for manual approval before deletion. You review and confirm each removal.</span>
+              <span><strong class="text-foreground">{{ $t('help.executionModes.approval') }}</strong> — {{ $t('help.executionModes.approvalDesc') }}</span>
             </li>
             <li class="flex items-start gap-2">
               <span class="mt-1 w-1.5 h-1.5 rounded-full bg-destructive shrink-0" />
-              <span><strong class="text-foreground">Auto</strong> — Items are automatically deleted when thresholds are breached. Use with caution.</span>
+              <span><strong class="text-foreground">{{ $t('help.executionModes.auto') }}</strong> — {{ $t('help.executionModes.autoDesc') }}</span>
             </li>
           </ul>
+          <div class="mt-2 rounded-lg border border-border bg-muted/50 p-3">
+            <p class="flex items-start gap-2">
+              <ShieldIcon class="w-4 h-4 text-warning mt-0.5 shrink-0" />
+              <span>
+                <strong class="text-foreground">{{ $t('help.executionModes.safetyGuardTitle') }}</strong> —
+                {{ $t('help.executionModes.safetyGuardDesc') }}
+              </span>
+            </p>
+          </div>
         </div>
       </details>
 
-      <!-- About Capacitarr -->
+      <!-- FAQ -->
       <details
         v-motion
         :initial="{ opacity: 0, y: 12 }"
@@ -286,9 +338,35 @@
       >
         <summary class="flex items-center gap-3 px-5 py-4 cursor-pointer select-none hover:bg-accent transition-colors">
           <ChevronRightIcon class="w-4 h-4 text-muted-foreground transition-transform group-open:rotate-90" />
-          <InfoIcon class="w-4 h-4 text-muted-foreground" />
           <h3 class="font-semibold text-primary">
-            About Capacitarr
+            {{ $t('help.faq') }}
+          </h3>
+        </summary>
+        <div class="px-5 pb-5 text-sm text-muted-foreground leading-relaxed space-y-4">
+          <div
+            v-for="item in faqItems"
+            :key="item.qKey"
+          >
+            <p class="font-medium text-foreground mb-1">
+              {{ $t(item.qKey) }}
+            </p>
+            <p>{{ $t(item.aKey) }}</p>
+          </div>
+        </div>
+      </details>
+
+      <!-- About Capacitarr -->
+      <details
+        v-motion
+        :initial="{ opacity: 0, y: 12 }"
+        :enter="{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24, delay: 560 } }"
+        data-slot="card"
+        class="group rounded-xl border border-border bg-card shadow-sm overflow-hidden"
+      >
+        <summary class="flex items-center gap-3 px-5 py-4 cursor-pointer select-none hover:bg-accent transition-colors">
+          <ChevronRightIcon class="w-4 h-4 text-muted-foreground transition-transform group-open:rotate-90" />
+          <h3 class="font-semibold text-primary">
+            {{ $t('help.aboutCapacitarr') }}
           </h3>
         </summary>
         <div class="px-5 pb-5 text-sm text-muted-foreground leading-relaxed space-y-6">
@@ -349,6 +427,20 @@
 
               <span class="text-muted-foreground">License</span>
               <span class="text-foreground">PolyForm Noncommercial 1.0.0</span>
+
+              <span class="text-muted-foreground">Author</span>
+              <span class="text-foreground font-medium">Starshadow</span>
+
+              <span class="text-muted-foreground">Contributors</span>
+              <a
+                href="https://gitlab.com/starshadow/software/capacitarr/-/blob/main/CONTRIBUTING.md"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-1 text-primary hover:underline"
+              >
+                See CONTRIBUTING.md
+                <ExternalLinkIcon class="w-3 h-3" />
+              </a>
             </div>
           </div>
 
@@ -427,23 +519,50 @@
 </template>
 
 <script setup lang="ts">
-import { ChevronRightIcon, InfoIcon, ExternalLinkIcon } from 'lucide-vue-next'
+import { ChevronRightIcon, ExternalLinkIcon, ShieldIcon, SparklesIcon } from 'lucide-vue-next'
 
 const { uiVersion, uiBuildDate, apiVersion, apiBuildDate } = useVersion()
 
 const scoringFactors = [
-  { name: 'Watch History', desc: 'Has anyone watched this? Unwatched content scores higher (more likely to be removed).' },
-  { name: 'Last Watched', desc: 'How recently was it watched? Content watched long ago scores higher.' },
-  { name: 'File Size', desc: 'Larger files score higher, freeing more space per deletion.' },
-  { name: 'Rating', desc: 'Lower-rated content scores higher.' },
-  { name: 'Time in Library', desc: 'Older library items score higher.' },
-  { name: 'Availability', desc: 'Content available on fewer platforms scores higher.' }
+  { nameKey: 'help.factor.watchHistory', descKey: 'help.factor.watchHistoryDesc' },
+  { nameKey: 'help.factor.lastWatched', descKey: 'help.factor.lastWatchedDesc' },
+  { nameKey: 'help.factor.fileSize', descKey: 'help.factor.fileSizeDesc' },
+  { nameKey: 'help.factor.rating', descKey: 'help.factor.ratingDesc' },
+  { nameKey: 'help.factor.timeInLibrary', descKey: 'help.factor.timeInLibraryDesc' },
+  { nameKey: 'help.factor.availability', descKey: 'help.factor.availabilityDesc' }
+]
+
+const rawScoreExamples = [
+  { nameKey: 'help.factor.watchHistory', descKey: 'help.rawScore.watchHistoryDesc' },
+  { nameKey: 'help.factor.lastWatched', descKey: 'help.rawScore.lastWatchedDesc' },
+  { nameKey: 'help.factor.fileSize', descKey: 'help.rawScore.fileSizeDesc' },
+  { nameKey: 'help.factor.rating', descKey: 'help.rawScore.ratingDesc' },
+  { nameKey: 'help.factor.timeInLibrary', descKey: 'help.rawScore.timeInLibraryDesc' },
+  { nameKey: 'help.factor.availability', descKey: 'help.rawScore.availabilityDesc' }
+]
+
+const effectLevels = [
+  { nameKey: 'help.effect.alwaysKeep', descKey: 'help.effect.alwaysKeepDesc', colorClass: 'bg-emerald-500' },
+  { nameKey: 'help.effect.preferKeep', descKey: 'help.effect.preferKeepDesc', colorClass: 'bg-teal-400' },
+  { nameKey: 'help.effect.leanKeep', descKey: 'help.effect.leanKeepDesc', colorClass: 'bg-sky-400' },
+  { nameKey: 'help.effect.leanRemove', descKey: 'help.effect.leanRemoveDesc', colorClass: 'bg-amber-400' },
+  { nameKey: 'help.effect.preferRemove', descKey: 'help.effect.preferRemoveDesc', colorClass: 'bg-orange-500' },
+  { nameKey: 'help.effect.alwaysRemove', descKey: 'help.effect.alwaysRemoveDesc', colorClass: 'bg-red-500' }
+]
+
+const faqItems = [
+  { qKey: 'help.faq.engineFrequencyQ', aKey: 'help.faq.engineFrequencyA' },
+  { qKey: 'help.faq.integrationsQ', aKey: 'help.faq.integrationsA' },
+  { qKey: 'help.faq.deleteHappensQ', aKey: 'help.faq.deleteHappensA' },
+  { qKey: 'help.faq.notificationsQ', aKey: 'help.faq.notificationsA' },
+  { qKey: 'help.faq.languageQ', aKey: 'help.faq.languageA' },
+  { qKey: 'help.faq.safeToTestQ', aKey: 'help.faq.safeToTestA' }
 ]
 
 const techStack = {
   frontend: ['Vue 3', 'Nuxt 3', 'Tailwind CSS v4', 'shadcn-vue', 'ApexCharts', 'Lucide Icons'],
   backend: ['Go 1.25', 'Echo HTTP', 'GORM + SQLite', 'Goose Migrations'],
-  auth: ['JWT', 'bcrypt', 'API Key', 'Proxy Header'],
+  auth: ['JWT', 'bcrypt', 'API Key', 'Plex OAuth', 'Proxy Header'],
   infrastructure: ['Docker', 'Alpine Linux']
 }
 
@@ -452,7 +571,6 @@ const credits = [
   { name: 'Tailwind CSS', desc: 'Utility-first CSS framework' },
   { name: 'Nuxt', desc: 'Vue meta-framework' },
   { name: 'Geist', desc: 'Typography (Vercel)' },
-  { name: 'Lucide', desc: 'Icon system' },
   { name: 'The *arr community', desc: 'Inspiration and ecosystem' }
 ]
 </script>
