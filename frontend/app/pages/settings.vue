@@ -956,13 +956,13 @@
                       v-if="deletionsEnabled"
                       class="text-xs font-medium text-red-600 dark:text-red-400"
                     >
-                      Deletions are active!
+                      Current status: Deletions are active!
                     </p>
                     <p
                       v-else
                       class="text-xs font-medium text-amber-600 dark:text-amber-400"
                     >
-                      All deletions are logged and simulated
+                      Current status: All deletions are logged and simulated
                     </p>
                   </div>
                 </div>
