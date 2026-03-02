@@ -72,6 +72,9 @@ func RegisterAuditRoutes(g *echo.Group, database *gorm.DB) {
 				limit = parsed
 			}
 		}
+		if limit > 2000 {
+			limit = 2000
+		}
 
 		var logs []db.AuditLog
 		if err := database.Order("created_at desc").Limit(limit).Find(&logs).Error; err != nil {
@@ -146,6 +149,10 @@ func RegisterAuditRoutes(g *echo.Group, database *gorm.DB) {
 			if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
 				limit = parsed
 			}
+		}
+		// Cap limit to prevent excessively large queries
+		if limit > 1000 {
+			limit = 1000
 		}
 
 		offset := 0

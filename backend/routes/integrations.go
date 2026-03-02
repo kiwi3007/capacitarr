@@ -2,6 +2,7 @@ package routes
 
 import (
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -67,10 +68,20 @@ func RegisterIntegrationRoutes(g *echo.Group, database *gorm.DB) {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "type, name, url, and apiKey are required"})
 		}
 
+		// Validate URL scheme (must be http or https to prevent SSRF via exotic schemes)
+		parsedURL, err := url.Parse(config.URL)
+		if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") || parsedURL.Host == "" {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "url must be a valid HTTP or HTTPS URL"})
+		}
+
 		// Validate type
-		validTypes := map[string]bool{"plex": true, "sonarr": true, "radarr": true, "tautulli": true, "overseerr": true, "lidarr": true}
+		validTypes := map[string]bool{
+			"plex": true, "sonarr": true, "radarr": true, "lidarr": true,
+			"readarr": true, "tautulli": true, "overseerr": true,
+			"jellyfin": true, "emby": true,
+		}
 		if !validTypes[config.Type] {
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": "type must be plex, sonarr, radarr, lidarr, tautulli, or overseerr"})
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "type must be one of: plex, sonarr, radarr, lidarr, readarr, tautulli, overseerr, jellyfin, emby"})
 		}
 
 		config.ID = 0 // Ensure auto-increment
@@ -104,6 +115,11 @@ func RegisterIntegrationRoutes(g *echo.Group, database *gorm.DB) {
 			existing.Name = update.Name
 		}
 		if update.URL != "" {
+			// Validate URL scheme on update as well
+			parsedURL, urlErr := url.Parse(update.URL)
+			if urlErr != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") || parsedURL.Host == "" {
+				return c.JSON(http.StatusBadRequest, map[string]string{"error": "url must be a valid HTTP or HTTPS URL"})
+			}
 			existing.URL = update.URL
 		}
 		if update.APIKey != "" && !ismasked(update.APIKey) {

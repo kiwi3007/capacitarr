@@ -28,7 +28,15 @@ type LibraryHistory struct {
 	CreatedAt     time.Time
 }
 
-// IntegrationConfig stores a configured service connection
+// IntegrationConfig stores a configured service connection.
+//
+// SECURITY NOTE: Integration API keys (e.g. Sonarr, Radarr, Plex tokens) are
+// stored in plaintext in SQLite. This is an accepted trade-off for a
+// self-hosted home-lab tool: full encryption-at-rest would require a master
+// key, which adds significant complexity and key-management burden with
+// minimal practical benefit when the SQLite file is already on a user-owned
+// machine. If the database file is compromised, the attacker already has
+// access to the host. Ensure the DB file permissions are restrictive (0600).
 type IntegrationConfig struct {
 	ID             uint       `gorm:"primarykey" json:"id"`
 	Type           string     `gorm:"not null;index" json:"type"` // plex, sonarr, radarr
