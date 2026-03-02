@@ -954,15 +954,15 @@
                     </span>
                     <p
                       v-if="deletionsEnabled"
-                      class="text-xs font-medium text-amber-600 dark:text-amber-400"
+                      class="text-xs font-medium text-red-600 dark:text-red-400"
                     >
-                      ⚠️ Actual deletions are active
+                      Deletions are active!
                     </p>
                     <p
                       v-else
-                      class="text-xs text-muted-foreground"
+                      class="text-xs font-medium text-amber-600 dark:text-amber-400"
                     >
-                      All deletions are simulated
+                      All deletions are logged and simulated
                     </p>
                   </div>
                 </div>
