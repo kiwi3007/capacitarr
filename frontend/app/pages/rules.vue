@@ -953,7 +953,6 @@ async function fetchDiskGroups() {
   try {
     diskGroups.value = await api('/api/v1/disk-groups') as DiskGroup[]
   } catch (e) {
-    console.error('Failed to fetch disk groups', e)
   }
 }
 
@@ -961,7 +960,6 @@ async function fetchIntegrations() {
   try {
     allIntegrations.value = await api('/api/v1/integrations') as IntegrationConfig[]
   } catch (e) {
-    console.error('Failed to fetch integrations', e)
   }
 }
 
@@ -972,7 +970,6 @@ async function fetchPreferences() {
       Object.assign(prefs, data)
     }
   } catch (e) {
-    console.error('Failed to fetch preferences', e)
   }
 }
 
@@ -981,7 +978,6 @@ async function savePreferences() {
     await api('/api/v1/preferences', { method: 'PUT', body: { ...prefs, id: 1 } })
     addToast('Settings saved', 'success')
   } catch (e) {
-    console.error('Failed to save preferences', e)
     addToast('Failed to save preferences', 'error')
   }
 }
@@ -995,7 +991,6 @@ async function fetchRules() {
   try {
     rules.value = await api('/api/v1/protections') as ProtectionRule[]
   } catch (e) {
-    console.error('Failed to fetch rules', e)
   }
 }
 
@@ -1007,7 +1002,6 @@ async function addRule(rule: { integrationId: number; field: string; operator: s
     await fetchRules()
     await fetchPreview()
   } catch (e) {
-    console.error('Failed to add rule', e)
     addToast('Failed to add rule', 'error')
   }
 }
@@ -1019,7 +1013,6 @@ async function deleteRule(id: number) {
     await fetchRules()
     await fetchPreview()
   } catch (e) {
-    console.error('Failed to delete rule', e)
     addToast('Failed to delete rule', 'error')
   }
 }
@@ -1032,7 +1025,6 @@ async function fetchPreview() {
     diskContext.value = data.diskContext || null
     previewFetchedAt.value = new Date().toISOString()
   } catch (e) {
-    console.error('Failed to fetch preview', e)
   } finally {
     previewLoading.value = false
   }

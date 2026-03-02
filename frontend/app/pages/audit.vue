@@ -273,7 +273,6 @@ async function fetchLogs(append = false) {
       total.value = data.total
     }
   } catch (err) {
-    console.error(err)
   } finally {
     pending.value = false
     loadingMore.value = false

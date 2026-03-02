@@ -579,7 +579,6 @@ async function fetchDashboardData(silent = false) {
     if (dStats) dashboardStats.value = dStats as DashboardStats
     lastUpdated.value = new Date()
   } catch (e) {
-    console.error('Failed to fetch dashboard data:', e)
   } finally {
     if (!silent) loading.value = false
   }

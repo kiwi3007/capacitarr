@@ -932,7 +932,6 @@ async function autoSavePreference(field: string, key: string, value: string | nu
     })
     showSaveStatus(field, 'saved')
   } catch (e) {
-    console.error(`Failed to save ${key}:`, e)
     showSaveStatus(field, 'error')
     addToast(`Failed to save ${field} setting`, 'error')
   }
@@ -958,7 +957,6 @@ async function fetchIntegrations() {
   try {
     integrations.value = await api('/api/v1/integrations') as IntegrationConfig[]
   } catch (e) {
-    console.error('Failed to fetch integrations:', e)
     addToast('Failed to load integrations', 'error')
   } finally {
     loading.value = false
@@ -1018,7 +1016,6 @@ async function deleteIntegration(integration: IntegrationConfig) {
     addToast('Integration deleted', 'success')
     await fetchIntegrations()
   } catch (e) {
-    console.error('Failed to delete:', e)
     addToast('Failed to delete integration', 'error')
   }
 }
@@ -1071,7 +1068,6 @@ async function fetchPreferences() {
       engineTiebreakerMethod.value = prefs.tiebreakerMethod
     }
   } catch (e) {
-    console.error('Failed to fetch preferences:', e)
   }
 }
 
@@ -1173,7 +1169,6 @@ async function generateApiKey() {
     apiKey.value = result.api_key
     addToast('API key generated', 'success')
   } catch (e) {
-    console.error('Failed to generate API key:', e)
     addToast('Failed to generate API key', 'error')
   } finally {
     generatingApiKey.value = false
