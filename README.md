@@ -1,158 +1,257 @@
-# Capacitarr - Premium Capacity Monitoring Dashboard
+# Capacitarr
 
-Capacitarr is an enterprise-grade capacity aggregation and visualization platform. Engineered for speed and distributed environments, it pairs a lightning-fast Go (Golang) backend with a beautifully modern Vue 3 (Nuxt 3) frontend, seamlessly packaged into a single binary deployment.
+**Intelligent media library capacity manager for the *arr ecosystem.**
 
-## Key Features
+Capacitarr integrates with your *arr apps, media servers, and request managers to automatically manage disk capacity. When disk space runs low, it scores every media item across multiple dimensions — watch history, recency, file size, ratings, age, and availability — then removes the least-valuable items first. A visual rule builder lets you protect specific content from ever being deleted.
 
-- **Blazing Fast**: Backend purely written in Go utilizing Echo framework.
-- **Single Binary Deployable**: The entire Vue 3 application is statically generated and embedded utilizing `go:embed` inside the Golang binary.
-- **Zero Config Storage**: Embedded high-performance `SQLite` database utilizing GORM, negating the need for complex database infrastructure tracking.
-- **Unified Authentication**: Clean JWT login for Web UI management paired with rapid API Key provisioning for programmatic telemetry ingestion.
-- **Intelligent Base-Path Routing**: Deploy Capacitarr at the root domain (`http://app.com`) or seamlessly behind a load balancer subdirectory proxy (`http://app.com/capacitarr/`).
-- **Premium Visualization**: Implements Nuxt UI (Tailwind CSS) paired with sophisticated Apexcharts capacity trend analysis.
-- **Time-Series Rollups**: An automated background chron scheduler strictly maintains your metric timeframes, intelligently rolling up real-time pings into hourly, daily, and weekly historical plots before forcefully pruning old edge data. 
+## Features
 
-## Technology Architecture
+- **Intelligent Scoring Engine** — Six weighted factors rank every media item for deletion priority
+- **Cascading Rule Builder** — Visual rule builder with `always_keep`, `prefer_keep`, `prefer_delete`, and `always_delete` actions
+- **Multi-Integration Support** — Connects to Sonarr, Radarr, Lidarr, Readarr, Plex, Jellyfin, Emby, Overseerr, and Tautulli
+- **Disk Group Monitoring** — Tracks capacity across multiple disk groups with configurable thresholds
+- **Score Transparency** — Full per-item score breakdowns showing each factor's contribution
+- **Audit Trail** — Complete history of every engine action (deletions, evaluations, errors)
+- **Themeable UI** — Light/dark mode with customizable accent colors
+- **Reverse Proxy Ready** — Subdirectory deployments, proxy authentication (Authelia, Authentik, Organizr)
+- **Single Container** — Go backend + Nuxt 3 frontend + SQLite database in one Docker image
+- **PUID/PGID Support** — Runs as any user/group for proper volume permissions
 
-### Backend (Go / SQLite)
-The engine of Capacitarr runs atop Go 1.23 using Echo. Core components include:
-- `db`: Contains the Gorm SQLite data models and bootstrapping process.
-- `api`: Protected REST routes utilizing strict JWT or API-Key based context injection.
-- `scheduler`: Background CRON jobs processing time-series aggregations to prevent unmanaged SQLite database bloat.
-- `config`: Handles environment-variable injected bootstrapping logic targeting standard properties like ports and DB routing. 
-- `engine`: The rule and scoring engine that evaluates media based on User Preferences and Protection Rules. (See `docs/plans/scoring_design.md`)
+## Quick Start (Docker Compose)
 
-### Frontend (Vue 3 / Nuxt / Tailwind / ApexCharts)
-Designed to drop jaws, the Dashboard heavily utilizes high-end pre-compiled Slate and Indigo palettes spanning responsive desktop/mobile environments and providing completely reactive dark/light mode toggling out of the box. Nuxt routes respect `NUXT_APP_BASE_URL` aligning symmetrically with Go's pathing prefix parameters logic allowing true dynamic hosting locations.
+Create a `docker-compose.yml` file:
 
----
-
-## Getting Started
-
-### Prerequisites
-
-- Go `1.23+`
-- Node.js `20.x+` (for local frontend development)
-- Docker (for containerized deployments)
-
-### Running Locally (Development Mode)
-
-If you are developing against Capacitarr, it is best to run the two servers separately:
-
-**1. Start the Backend API**
-```bash
-cd backend
-go run main.go
-```
-*Note: The backend defaults to `http://localhost:2187` if not overridden.*
-
-**2. Start the Frontend Dev environment**
-```bash
-cd frontend
-pnpm install
-pnpm run dev
-```
-
-### Production Deployment (Single Static Binary)
-
-Capacitarr's super-power is condensing the node-based frontend application into the backend compilation tree utilizing `go:embed`. 
-
-**1. Build the Nuxt Frontend**
-```bash
-cd frontend
-pnpm run build 
-```
-
-**2. Copy the Frontend assets to the Backend tree**
-```bash
-# Our backend main.go natively expects to embed from a 'frontend/dist' path relative to itself.
-mkdir -p backend/frontend/dist
-cp -R frontend/.output/public/* backend/frontend/dist/
-```
-
-**3. Build the Backend**
-```bash
-cd backend
-go build -o capacitarr main.go
-
-# Start the application
-./capacitarr
-```
-
-## Docker Deployment
-
-We've provided a highly optimized multi-stage `Dockerfile` that executes the Nuxt generation task automatically right before constructing the Go executable, generating a final Alpine container that only houses runtime dependencies and the resulting binary.
-
-**Docker Compose (recommended):**
 ```yaml
 services:
   capacitarr:
-    build: .
+    image: capacitarr:latest
     container_name: capacitarr
     ports:
       - "2187:2187"
     environment:
       - PUID=1000
       - PGID=1000
+      - JWT_SECRET=change-me-to-a-random-string
     volumes:
       - capacitarr-config:/config
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:2187/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
     restart: unless-stopped
 
 volumes:
   capacitarr-config:
 ```
 
-**Docker CLI:**
+Start the container:
+
 ```bash
-docker build -t capacitarr .
-docker run -p 2187:2187 -v capacitarr-config:/config capacitarr
+docker compose up -d
 ```
 
----
+Open `http://localhost:2187` in your browser. On first launch, you will be prompted to create an admin account.
 
-## Environment Variables
+## Configuration
+
+All configuration is done via environment variables. Every variable is optional — sensible defaults are used when not set.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PORT` | `2187` | HTTP server listen port |
-| `BASE_URL` | `/` | Base URL path for reverse proxy subdirectory deployments |
+| `PORT` | `2187` | HTTP listen port |
+| `BASE_URL` | `/` | Base URL path for subdirectory reverse proxy deployments |
 | `DB_PATH` | `/config/capacitarr.db` | SQLite database file path |
-| `DEBUG` | `false` | Enable debug logging and permissive CORS (`*`) |
+| `DEBUG` | `false` | Enable debug logging and permissive CORS |
 | `JWT_SECRET` | *(auto-generated)* | Secret for signing JWT tokens. Set for persistent sessions across restarts |
-| `CORS_ORIGINS` | *(none)* | Comma-separated list of allowed CORS origins (e.g. `http://localhost:3000,https://app.example.com`) |
-| `SECURE_COOKIES` | `false` | Enable the `Secure` flag on cookies. Set to `true` when serving over HTTPS |
-| `AUTH_HEADER` | *(none)* | Trusted reverse proxy authentication header name (e.g. `Remote-User`) |
+| `SECURE_COOKIES` | `false` | Enable the `Secure` flag on cookies (set `true` for HTTPS) |
+| `AUTH_HEADER` | *(none)* | Trusted reverse proxy auth header (e.g. `Remote-User`, `X-authentik-username`) |
+| `CORS_ORIGINS` | *(none)* | Comma-separated allowed CORS origins |
 | `PUID` | `1000` | User ID for the container process *(Docker only)* |
 | `PGID` | `1000` | Group ID for the container process *(Docker only)* |
-| `NUXT_APP_BASE_URL` | `/` | Frontend base URL path *(build-time; must match `BASE_URL`)* |
 
-> **Note:** `PUID` and `PGID` are handled by the container entrypoint, not the Go application. `NUXT_APP_BASE_URL` is a build-time variable baked into the frontend at Docker image build time.
+> **⚠️ AUTH_HEADER Security:** Only enable `AUTH_HEADER` when Capacitarr is exclusively accessible through your reverse proxy. If the server is directly reachable, any client can forge this header and bypass authentication.
 
----
+For the complete configuration reference including subdirectory deployment and proxy authentication examples, see the [Configuration Guide](docs/configuration.md).
 
-### Advanced Reverse Proxying (Subdirectory Deployment)
+## Supported Integrations
 
-If deploying behind Nginx or similar to intercept traffic towards a specific application route (e.g. `/system/metrics`), you must notify both Nuxt (via ENV) and Go (via ENV) to offset their routing architecture globally.
+### *arr Apps (Library Managers)
 
-**Docker Execution Example:**
+| Service | Type | Capabilities |
+|---------|------|-------------|
+| **Sonarr** | TV Shows | Disk space, media items, quality profiles, tags, deletion |
+| **Radarr** | Movies | Disk space, media items, quality profiles, tags, deletion |
+| **Lidarr** | Music | Disk space, media items, quality profiles, tags, deletion |
+| **Readarr** | Books | Disk space, media items, quality profiles, tags, deletion |
+
+### Media Servers (Watch Data)
+
+| Service | Capabilities |
+|---------|-------------|
+| **Plex** | Play count, last played date, library metadata |
+| **Jellyfin** | Play count, last played date, library metadata |
+| **Emby** | Play count, last played date, library metadata |
+
+### Enrichment Services
+
+| Service | Capabilities |
+|---------|-------------|
+| **Tautulli** | Detailed play history and watch statistics for Plex |
+| **Overseerr** | Request status, requester info, request counts |
+
+## Architecture Overview
+
+Capacitarr is a single-container application that bundles a Go backend, a Nuxt 3 (Vue 3) frontend, and a SQLite database. The frontend is statically generated at build time and embedded into the Go binary via `go:embed`, producing a single self-contained executable.
+
+```mermaid
+flowchart TD
+    subgraph CONTAINER["Docker Container"]
+        FRONTEND["Nuxt 3 Frontend<br/>Vue 3 + Tailwind CSS + shadcn-vue"]
+        BACKEND["Go Backend<br/>Echo framework + GORM"]
+        DB["SQLite Database<br/>/config/capacitarr.db"]
+        ENGINE["Scoring Engine<br/>Weighted factors + protection rules"]
+        POLLER["Capacity Poller<br/>Scheduled disk monitoring"]
+
+        FRONTEND -->|"REST API"| BACKEND
+        BACKEND --> DB
+        BACKEND --> ENGINE
+        BACKEND --> POLLER
+    end
+
+    subgraph ARR_APPS["*arr Apps"]
+        SONARR["Sonarr"]
+        RADARR["Radarr"]
+        LIDARR["Lidarr"]
+        READARR["Readarr"]
+    end
+
+    subgraph MEDIA_SERVERS["Media Servers"]
+        PLEX["Plex"]
+        JELLYFIN["Jellyfin"]
+        EMBY["Emby"]
+    end
+
+    subgraph ENRICHMENT["Enrichment"]
+        TAUTULLI["Tautulli"]
+        OVERSEERR["Overseerr"]
+    end
+
+    POLLER -->|"Fetch media + disk space"| ARR_APPS
+    POLLER -->|"Fetch watch data"| MEDIA_SERVERS
+    POLLER -->|"Fetch requests + history"| ENRICHMENT
+    ENGINE -->|"Delete lowest-scored items"| ARR_APPS
+```
+
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| **Frontend** | Nuxt 3, Vue 3, Tailwind CSS 4, shadcn-vue, ApexCharts | Dashboard UI, rule builder, score visualization |
+| **Backend** | Go, Echo, GORM | REST API, authentication, integration clients, scheduling |
+| **Database** | SQLite | Configuration, audit logs, engine statistics |
+| **Container** | Alpine Linux, multi-stage Docker build | Minimal runtime image (~30 MB) |
+
+## Scoring Algorithm
+
+Capacitarr uses a two-layer system to decide which items to remove:
+
+1. **Preference-based scoring** — Each item is scored across six weighted factors (0–10 weight per factor). Higher score = more likely to be deleted.
+2. **Protection rules** — Override scores with `always_keep`, `prefer_keep`, `prefer_delete`, or `always_delete` actions based on conditions like genre, tag, quality profile, or rating.
+
+### Scoring Factors
+
+| Factor | What It Measures | High Score Means |
+|--------|-----------------|-----------------|
+| **Watch History** | Play count | Unwatched → delete first |
+| **Last Watched** | Time since last play | Watched long ago → delete first |
+| **File Size** | Disk space consumed | Larger files → delete first |
+| **Rating** | Community/critic rating | Low-rated → delete first |
+| **Time in Library** | How long the item has been in the library | Older items → delete first |
+| **Availability** | Show status (continuing vs. ended) | Ended shows → delete first |
+
+Each factor's contribution is normalized against the total configured weight, producing a final score between 0.0 (keep) and 1.0 (delete). Protection rules then apply modifiers or absolute overrides to the calculated score.
+
+For the complete scoring algorithm documentation, see the [Scoring Guide](docs/scoring.md).
+
+## Development Setup
+
+Development uses Docker Compose to build and run the application in a container that mirrors production:
+
 ```bash
-docker run -e NUXT_APP_BASE_URL=/system/metrics/ -e BASE_URL=/system/metrics -p 2187:2187 capacitarr
+# Clone the repository
+git clone https://gitlab.com/starshadow/software/capacitarr.git
+cd capacitarr
+
+# Build and start the container
+docker compose up --build
+
+# Or run in detached mode
+docker compose up -d --build
+
+# View logs
+docker compose logs -f
+
+# Tear down
+docker compose down
 ```
 
-**Nginx Configuration Mapping Example:**
-```nginx
-location /system/metrics/ {
-    proxy_pass http://localhost:2187/;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-}
+The container exposes port **2187** and serves both the Go backend API and the Nuxt 3 frontend.
+
+### Project Structure
+
+```
+capacitarr/
+├── backend/                  # Go backend
+│   ├── main.go               # Application entrypoint
+│   ├── internal/
+│   │   ├── config/           # Environment variable loading
+│   │   ├── db/               # SQLite models, migrations
+│   │   ├── engine/           # Scoring + rule evaluation
+│   │   ├── integrations/     # *arr, Plex, Jellyfin, Emby, Overseerr clients
+│   │   ├── jobs/             # Cron scheduling
+│   │   ├── poller/           # Capacity polling + deletion logic
+│   │   └── logger/           # Structured logging
+│   └── routes/               # REST API handlers + middleware
+├── frontend/                 # Nuxt 3 frontend
+│   ├── app/
+│   │   ├── components/       # Vue components (shadcn-vue based)
+│   │   ├── composables/      # Vue composables
+│   │   ├── pages/            # Nuxt pages (dashboard, rules, settings, audit)
+│   │   └── assets/css/       # Tailwind CSS + theme variables
+│   └── nuxt.config.ts        # Nuxt configuration
+├── docs/                     # Documentation (MkDocs)
+├── docker-compose.yml        # Development/deployment compose file
+├── Dockerfile                # Multi-stage build (Node → Go → Alpine)
+└── entrypoint.sh             # Container entrypoint (PUID/PGID handling)
 ```
 
-For extensive deployment and reverse proxy examples (Traefik, Caddy, nginx, proxy authentication), see the [Deployment Guide](docs/deployment.md).
+## Contributing
 
-## Licensing
+Contributions are welcome! Please read the [Contributing Guide](CONTRIBUTING.md) before submitting merge requests. All contributions are subject to the [Contributor License Agreement](CONTRIBUTING.md#contributor-license-agreement-cla).
 
-Capacitarr source code is currently licensed strictly under the [PolyForm Noncommercial 1.0.0](LICENSE). 
-Review our [Contributing Guidelines](CONTRIBUTING.md) for information regarding accepted PR signatures.
+### Quick Guidelines
+
+- Follow [Conventional Commits](https://www.conventionalcommits.org/) for all commit messages
+- Create feature branches from `main` (e.g. `feature/my-feature`, `fix/my-fix`)
+- Ensure all tests pass before submitting
+
+## Documentation
+
+Full documentation is available on the [Capacitarr documentation site](https://starshadow.gitlab.io/software/capacitarr/), powered by MkDocs.
+
+Key documentation pages:
+
+- [Configuration Reference](docs/configuration.md) — All environment variables and examples
+- [Deployment Guide](docs/deployment.md) — Reverse proxy, subdirectory, and proxy auth setup
+- [Scoring Algorithm](docs/scoring.md) — Detailed scoring factor documentation
+- [Releasing](docs/releasing.md) — Release process and versioning
+
+## License
+
+Capacitarr is licensed under the [PolyForm Noncommercial 1.0.0](LICENSE) license.
+
+You are free to use, modify, and distribute Capacitarr for any **noncommercial** purpose. See the [LICENSE](LICENSE) file for full terms.
+
+## Author
+
+**Ghent Starshadow** — [gitlab.com/starshadow](https://gitlab.com/starshadow)
