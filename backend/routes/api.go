@@ -16,6 +16,11 @@ import (
 	"capacitarr/internal/poller"
 )
 
+// bcryptCost is the cost factor for bcrypt password hashing across all auth
+// operations. The Go default is 10; we use 12 for stronger brute-force
+// resistance while keeping hashing under ~250ms on typical hardware.
+const bcryptCost = 12
+
 type LoginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -53,7 +58,7 @@ func RegisterAPIRoutes(g *echo.Group, database *gorm.DB, cfg *config.Config, app
 			var count int64
 			database.Model(&db.AuthConfig{}).Count(&count)
 			if count == 0 {
-				hashed, hashErr := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+				hashed, hashErr := bcrypt.GenerateFromPassword([]byte(req.Password), bcryptCost)
 				if hashErr != nil {
 					return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to hash password"})
 				}
@@ -137,7 +142,7 @@ func RegisterAPIRoutes(g *echo.Group, database *gorm.DB, cfg *config.Config, app
 			return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Current password is incorrect"})
 		}
 
-		hashed, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+		hashed, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcryptCost)
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to hash password"})
 		}

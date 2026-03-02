@@ -24,7 +24,7 @@ func RequireAuth(database *gorm.DB, cfg *config.Config) echo.MiddlewareFunc {
 					var auth db.AuthConfig
 					if err := database.Where("username = ?", headerUser).First(&auth).Error; err != nil {
 						// Generate a random unusable password hash for proxy-auth users
-						placeholder, _ := bcrypt.GenerateFromPassword([]byte("proxy-auth-placeholder"), bcrypt.DefaultCost)
+						placeholder, _ := bcrypt.GenerateFromPassword([]byte("proxy-auth-placeholder"), bcryptCost)
 						auth = db.AuthConfig{
 							Username: headerUser,
 							Password: string(placeholder),
