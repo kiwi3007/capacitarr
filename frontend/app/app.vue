@@ -12,6 +12,7 @@
     </main>
   </div>
   <ClientOnly>
+    <ConnectionBanner />
     <ToastContainer />
   </ClientOnly>
 </template>

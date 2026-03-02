@@ -27,14 +27,17 @@
         <UiTabsTrigger value="integrations">
           {{ $t('settings.integrations') }}
         </UiTabsTrigger>
+        <UiTabsTrigger value="notifications">
+          {{ $t('settings.notifications') }}
+        </UiTabsTrigger>
         <UiTabsTrigger value="security">
           {{ $t('settings.security') }}
         </UiTabsTrigger>
-        <UiTabsTrigger value="advanced">
+        <UiTabsTrigger
+          value="advanced"
+          class="text-destructive data-[state=active]:text-destructive"
+        >
           {{ $t('settings.advanced') }}
-        </UiTabsTrigger>
-        <UiTabsTrigger value="notifications">
-          {{ $t('settings.notifications') }}
         </UiTabsTrigger>
       </UiTabsList>
 
@@ -2000,7 +2003,7 @@ function confirmEnableDeletions() {
   deletionsEnabled.value = true
   showDeletionConfirmDialog.value = false
   autoSavePreference('deletionsEnabled', 'deletionsEnabled', true)
-  addToast('File deletions enabled — flagged items will be permanently removed', 'warning')
+  addToast('File deletions enabled — flagged items will be permanently removed', 'error')
 }
 
 function cancelEnableDeletions() {

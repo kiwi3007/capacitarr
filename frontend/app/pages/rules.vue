@@ -1088,15 +1088,81 @@ function legacyEffect(type: string, intensity: string): string {
 
 // ─── Conflict Detection (Phase 3) ──────────────────────────────────────────────
 // Determines if a rule has opposing-direction rules on the same integration instance.
+// Uses value-aware overlap analysis to avoid false positives (e.g., non-overlapping
+// numeric ranges on the same field are not flagged as conflicts).
 // Returns an array of conflict description strings for the tooltip.
 const keepEffects = new Set(['always_keep', 'prefer_keep', 'lean_keep'])
 const removeEffects = new Set(['lean_remove', 'prefer_remove', 'always_remove'])
+
+// Fields that use numeric values
+const numericFields = new Set(['rating', 'sizebytes', 'timeinlibrary', 'year', 'seasoncount', 'episodecount', 'playcount', 'requestcount'])
+// Fields that use boolean values
+const booleanFields = new Set(['monitored', 'requested'])
 
 function ruleEffectDirection(rule: ProtectionRule): 'keep' | 'remove' | 'unknown' {
   const eff = rule.effect || legacyEffect(rule.type, rule.intensity)
   if (keepEffects.has(eff)) return 'keep'
   if (removeEffects.has(eff)) return 'remove'
   return 'unknown'
+}
+
+/**
+ * Check if two rules targeting the same field could ever match the same item.
+ * Returns true if the rules' conditions could overlap, false if they're mutually exclusive.
+ */
+function rulesCouldOverlap(a: ProtectionRule, b: ProtectionRule): boolean {
+  // Different fields never overlap by definition
+  if (a.field !== b.field) return true // conservative: different fields = assume overlap
+
+  const field = a.field
+
+  // Boolean fields: same value = overlap, different values = no overlap
+  if (booleanFields.has(field)) {
+    return a.value === b.value
+  }
+
+  // Numeric fields: check range intersection
+  if (numericFields.has(field)) {
+    return numericRangesOverlap(a.operator, Number(a.value), b.operator, Number(b.value))
+  }
+
+  // String fields with exact match operators and different values = no overlap
+  if (a.operator === '==' && b.operator === '==') {
+    return a.value === b.value
+  }
+
+  // For contains/!contains and mixed operators, conservatively assume overlap
+  return true
+}
+
+/**
+ * Determine if two numeric operator+value pairs describe overlapping ranges.
+ * Each rule defines a half-open range. We check if the intersection is non-empty.
+ */
+function numericRangesOverlap(opA: string, valA: number, opB: string, valB: number): boolean {
+  if (isNaN(valA) || isNaN(valB)) return true // can't determine — assume overlap
+
+  // Convert operator+value into [min, max] ranges (inclusive)
+  const rangeA = numericToRange(opA, valA)
+  const rangeB = numericToRange(opB, valB)
+
+  // Two ranges overlap if rangeA.min <= rangeB.max AND rangeA.max >= rangeB.min
+  return rangeA[0] <= rangeB[1] && rangeA[1] >= rangeB[0]
+}
+
+/** Convert an operator+value into a [min, max] range tuple. */
+function numericToRange(op: string, val: number): [number, number] {
+  const INF = Number.MAX_SAFE_INTEGER
+  const NEG_INF = Number.MIN_SAFE_INTEGER
+  switch (op) {
+    case '==': return [val, val]
+    case '!=': return [NEG_INF, INF] // matches everything except val — conservatively full range
+    case '>': return [val + 0.001, INF] // exclusive: just above val
+    case '>=': return [val, INF]
+    case '<': return [NEG_INF, val - 0.001] // exclusive: just below val
+    case '<=': return [NEG_INF, val]
+    default: return [NEG_INF, INF]
+  }
 }
 
 function ruleConflicts(rule: ProtectionRule): string[] {
@@ -1117,6 +1183,9 @@ function ruleConflicts(rule: ProtectionRule): string[] {
         || (rule.integrationId === other.integrationId)
 
     if (!sameScope) continue
+
+    // Check if the rules' conditions could ever match the same item
+    if (!rulesCouldOverlap(rule, other)) continue
 
     const otherEff = other.effect || legacyEffect(other.type, other.intensity)
     const otherName = `${fieldLabel(other.field)} ${operatorLabel(other.operator)} "${other.value}" → ${effectLabel(otherEff)}`

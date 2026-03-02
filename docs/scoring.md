@@ -196,6 +196,8 @@ Rules match media items by comparing a **field** against a **value** using an **
 
 Rules can optionally be scoped to a specific integration — a rule scoped to one Sonarr instance will not affect items from Radarr or another Sonarr instance.
 
+> **Note:** The rule builder's service dropdown only shows *arr integrations (Sonarr, Radarr, Lidarr, Readarr) because rules operate on *arr library items. Enrichment services like Plex, Jellyfin, Emby, Tautulli, and Overseerr are not shown as selectable services. Instead, when an enrichment service is active, its fields (e.g., "Play Count" from Plex/Tautulli, "Is Requested" from Overseerr) are automatically available in the rule builder for any *arr integration. This means you write a rule scoped to Sonarr using the "Play Count" field, and Capacitarr enriches the Sonarr items with play data from Plex/Tautulli behind the scenes.
+
 ## Tiebreaker Methods
 
 When two items have the same score (within a tolerance of 0.0001), a tiebreaker determines the order:
