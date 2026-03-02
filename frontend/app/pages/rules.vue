@@ -6,10 +6,10 @@
       class="mb-8"
     >
       <h1 class="text-3xl font-bold tracking-tight">
-        Scoring Engine
+        {{ $t('rules.title') }}
       </h1>
       <p class="text-muted-foreground mt-1.5">
-        Adjust preference weights and set custom rules.
+        {{ $t('rules.subtitle') }}
       </p>
     </div>
 
@@ -22,9 +22,9 @@
       class="mb-6"
     >
       <UiCardHeader>
-        <UiCardTitle>Disk Thresholds</UiCardTitle>
+        <UiCardTitle>{{ $t('rules.diskThresholds') }}</UiCardTitle>
         <UiCardDescription>
-          Set when cleanup begins (threshold) and when it stops (target) for each disk.
+          {{ $t('rules.diskThresholdsDesc') }}
         </UiCardDescription>
       </UiCardHeader>
       <UiCardContent class="space-y-5">
@@ -128,7 +128,7 @@
           <!-- Editable inputs -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div class="space-y-1.5">
-              <UiLabel>Cleanup Threshold %</UiLabel>
+              <UiLabel>{{ $t('rules.cleanupThreshold') }}</UiLabel>
               <div class="flex items-center gap-2">
                 <UiInput
                   :model-value="String(thresholdEdits[dg.id]?.threshold ?? dg.thresholdPct)"
@@ -140,11 +140,11 @@
                 <span class="w-2 h-2 rounded-full bg-red-400 shrink-0" />
               </div>
               <p class="text-[11px] text-muted-foreground">
-                Begin cleanup when usage exceeds this %
+                {{ $t('rules.cleanupThresholdDesc') }}
               </p>
             </div>
             <div class="space-y-1.5">
-              <UiLabel>Cleanup Target %</UiLabel>
+              <UiLabel>{{ $t('rules.cleanupTarget') }}</UiLabel>
               <div class="flex items-center gap-2">
                 <UiInput
                   :model-value="String(thresholdEdits[dg.id]?.target ?? dg.targetPct)"
@@ -156,7 +156,7 @@
                 <span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
               </div>
               <p class="text-[11px] text-muted-foreground">
-                Stop cleanup when usage drops to this %
+                {{ $t('rules.cleanupTargetDesc') }}
               </p>
             </div>
           </div>
@@ -187,7 +187,7 @@
                   :is="LoaderCircleIcon"
                   class="w-3.5 h-3.5 animate-spin"
                 />
-                Saving…
+                {{ $t('common.saving') }}
               </span>
               <span
                 v-else-if="thresholdEdits[dg.id]?.success && thresholdEdits[dg.id]?.message"
@@ -197,7 +197,7 @@
                   :is="CheckIcon"
                   class="w-3.5 h-3.5"
                 />
-                Saved
+                {{ $t('common.saved') }}
               </span>
               <span
                 v-else-if="thresholdEdits[dg.id]?.message && !thresholdEdits[dg.id]?.success"
@@ -221,16 +221,16 @@
       <UiCardHeader>
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <UiCardTitle>Preference Weights</UiCardTitle>
+            <UiCardTitle>{{ $t('rules.preferenceWeights') }}</UiCardTitle>
             <UiCardDescription>
-              Higher weights increase the attribute's influence on deletion score.
+              {{ $t('rules.preferenceWeightsDesc') }}
             </UiCardDescription>
           </div>
           <UiButton
             size="sm"
             @click="savePreferences"
           >
-            Save Weights
+            {{ $t('rules.saveWeights') }}
           </UiButton>
         </div>
       </UiCardHeader>
@@ -304,12 +304,13 @@
       <UiCardHeader>
         <div class="flex items-center justify-between">
           <div>
-            <UiCardTitle>Custom Rules</UiCardTitle>
+            <UiCardTitle>{{ $t('rules.customRules') }}</UiCardTitle>
             <UiCardDescription class="mt-1">
-              Rules take effect on the next engine run, not immediately.
-              When multiple rules match an item, their effects multiply together.
-              "Always keep" is an absolute override and cannot be outweighed by any other rule.
+              {{ $t('rules.customRulesDesc') }}
             </UiCardDescription>
+            <p class="text-xs text-muted-foreground mt-1">
+              {{ $t('rules.orderDisclaimer') }}
+            </p>
           </div>
           <UiButton
             size="sm"
@@ -319,7 +320,7 @@
               :is="PlusIcon"
               class="w-3.5 h-3.5"
             />
-            Add Rule
+            {{ $t('rules.addRule') }}
           </UiButton>
         </div>
       </UiCardHeader>
@@ -338,7 +339,7 @@
           v-if="rules.length === 0 && !showAddRule"
           class="text-center py-6 text-muted-foreground text-sm"
         >
-          No rules configured. Media will be ranked purely by preference weights.
+          {{ $t('rules.noRules') }}
         </div>
         <div
           v-else
@@ -452,9 +453,9 @@
       <UiCardHeader>
         <div class="flex items-center justify-between">
           <div>
-            <UiCardTitle>Deletion Priority</UiCardTitle>
+            <UiCardTitle>{{ $t('rules.deletionPriority') }}</UiCardTitle>
             <UiCardDescription class="mt-1">
-              Items ranked by deletion priority. Only enough items are removed to reach the target disk threshold.
+              {{ $t('rules.deletionPriorityDesc') }}
             </UiCardDescription>
           </div>
           <UiButton
@@ -467,7 +468,7 @@
               :class="{ 'animate-spin': previewLoading }"
               class="w-3.5 h-3.5"
             />
-            Refresh
+            {{ $t('common.refresh') }}
           </UiButton>
         </div>
       </UiCardHeader>
@@ -478,7 +479,7 @@
           class="mb-4 rounded-md border border-emerald-500/30 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-600 dark:text-emerald-400 flex items-center gap-2"
         >
           <CheckIcon class="w-4 h-4 shrink-0" />
-          Disk usage is below threshold. No items would be removed.
+          {{ $t('rules.diskBelowThreshold') }}
         </div>
 
         <div
@@ -495,7 +496,7 @@
           v-else-if="preview.length === 0"
           class="text-center py-8 text-muted-foreground text-sm"
         >
-          No items to evaluate. Connect integrations and ensure media exists.
+          {{ $t('rules.noItemsToEvaluate') }}
         </div>
 
         <div v-else>

@@ -60,6 +60,95 @@
           <!-- Engine Control -->
           <EngineControlPopover />
 
+          <!-- Notification Bell -->
+          <UiPopover @update:open="onNotifPopoverToggle">
+            <UiPopoverTrigger as-child>
+              <UiButton
+                variant="ghost"
+                size="icon"
+                aria-label="Notifications"
+                class="relative"
+              >
+                <component
+                  :is="BellIcon"
+                  class="w-5 h-5"
+                />
+                <span
+                  v-if="unreadCount > 0"
+                  class="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold leading-none px-1"
+                >
+                  {{ unreadCount > 99 ? '99+' : unreadCount }}
+                </span>
+              </UiButton>
+            </UiPopoverTrigger>
+            <UiPopoverContent
+              align="end"
+              class="w-80 p-0"
+            >
+              <div class="flex items-center justify-between px-4 py-3 border-b border-border">
+                <h4 class="text-sm font-semibold">
+                  {{ $t('nav.notifications') }}
+                </h4>
+                <UiButton
+                  v-if="unreadCount > 0"
+                  variant="ghost"
+                  size="sm"
+                  class="h-auto py-1 px-2 text-xs"
+                  @click="markAllAsRead"
+                >
+                  {{ $t('nav.markAllRead') }}
+                </UiButton>
+              </div>
+              <UiScrollArea class="max-h-80">
+                <div
+                  v-if="notifLoading"
+                  class="flex justify-center py-8"
+                >
+                  <component
+                    :is="LoaderCircleIcon"
+                    class="w-5 h-5 text-primary animate-spin"
+                  />
+                </div>
+                <div
+                  v-else-if="notifications.length === 0"
+                  class="text-center py-8 text-sm text-muted-foreground"
+                >
+                  {{ $t('nav.noNotifications') }}
+                </div>
+                <div v-else>
+                  <button
+                    v-for="notif in notifications"
+                    :key="notif.id"
+                    class="flex items-start gap-3 w-full px-4 py-3 text-left transition-colors hover:bg-accent border-b border-border last:border-0"
+                    :class="notif.read ? 'opacity-60' : ''"
+                    @click="onNotifClick(notif)"
+                  >
+                    <component
+                      :is="severityIcon(notif.severity)"
+                      class="w-4 h-4 mt-0.5 shrink-0"
+                      :class="severityColor(notif.severity)"
+                    />
+                    <div class="flex-1 min-w-0">
+                      <p class="text-sm font-medium leading-tight truncate">
+                        {{ notif.title }}
+                      </p>
+                      <p class="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                        {{ notif.message }}
+                      </p>
+                      <p class="text-[10px] text-muted-foreground/60 mt-1">
+                        {{ formatRelativeTime(notif.createdAt) }}
+                      </p>
+                    </div>
+                    <span
+                      v-if="!notif.read"
+                      class="w-2 h-2 rounded-full bg-primary shrink-0 mt-1.5"
+                    />
+                  </button>
+                </div>
+              </UiScrollArea>
+            </UiPopoverContent>
+          </UiPopover>
+
           <!-- Theme selector -->
           <UiDropdownMenu>
             <UiDropdownMenuTrigger as-child>
@@ -78,7 +167,7 @@
               align="end"
               class="w-40"
             >
-              <UiDropdownMenuLabel>Theme</UiDropdownMenuLabel>
+              <UiDropdownMenuLabel>{{ $t('nav.theme') }}</UiDropdownMenuLabel>
               <UiDropdownMenuSeparator />
               <UiDropdownMenuItem
                 v-for="t in themes"
@@ -96,6 +185,42 @@
                   :is="CheckIcon"
                   v-if="theme === t.id"
                   class="w-4 h-4 ml-auto text-primary"
+                />
+              </UiDropdownMenuItem>
+            </UiDropdownMenuContent>
+          </UiDropdownMenu>
+
+          <!-- Language selector -->
+          <UiDropdownMenu>
+            <UiDropdownMenuTrigger as-child>
+              <UiButton
+                variant="ghost"
+                size="icon"
+                aria-label="Change language"
+              >
+                <component
+                  :is="GlobeIcon"
+                  class="w-5 h-5"
+                />
+              </UiButton>
+            </UiDropdownMenuTrigger>
+            <UiDropdownMenuContent
+              align="end"
+              class="w-40"
+            >
+              <UiDropdownMenuLabel>{{ $t('settings.language') }}</UiDropdownMenuLabel>
+              <UiDropdownMenuSeparator />
+              <UiDropdownMenuItem
+                v-for="loc in locales"
+                :key="typeof loc === 'string' ? loc : loc.code"
+                class="flex items-center justify-between cursor-pointer"
+                @click="setLocale(typeof loc === 'string' ? loc : loc.code)"
+              >
+                <span>{{ typeof loc === 'string' ? loc : loc.name }}</span>
+                <component
+                  :is="CheckIcon"
+                  v-if="locale === (typeof loc === 'string' ? loc : loc.code)"
+                  class="w-4 h-4 text-primary"
                 />
               </UiDropdownMenuItem>
             </UiDropdownMenuContent>
@@ -245,12 +370,72 @@
 </template>
 
 <script setup lang="ts">
-import { DatabaseIcon, MoonIcon, SunIcon, LogOutIcon, CircleHelpIcon, PaletteIcon, CheckIcon, InfoIcon, ExternalLinkIcon } from 'lucide-vue-next'
+import {
+  DatabaseIcon, MoonIcon, SunIcon, LogOutIcon, CircleHelpIcon, PaletteIcon,
+  CheckIcon, InfoIcon, ExternalLinkIcon, BellIcon, LoaderCircleIcon,
+  AlertTriangleIcon, XCircleIcon, CheckCircleIcon, GlobeIcon
+} from 'lucide-vue-next'
+import { formatRelativeTime } from '~/utils/format'
 import type { ThemeMeta } from '~/composables/useTheme'
+import type { InAppNotification } from '~/types/api'
 
 const { isDark, toggle } = useAppColorMode()
 const { theme, setTheme, themes } = useTheme()
 const { uiVersion, uiBuildDate, apiVersion, apiBuildDate } = useVersion()
+const {
+  unreadCount,
+  notifications,
+  loading: notifLoading,
+  fetchNotifications,
+  markAsRead,
+  markAllAsRead,
+  startPolling,
+  stopPolling
+} = useNotifications()
+
+/** Map severity to icon component */
+function severityIcon(severity: string) {
+  switch (severity) {
+    case 'info': return InfoIcon
+    case 'warning': return AlertTriangleIcon
+    case 'error': return XCircleIcon
+    case 'success': return CheckCircleIcon
+    default: return InfoIcon
+  }
+}
+
+/** Map severity to text color class */
+function severityColor(severity: string) {
+  switch (severity) {
+    case 'info': return 'text-blue-500'
+    case 'warning': return 'text-amber-500'
+    case 'error': return 'text-red-500'
+    case 'success': return 'text-green-500'
+    default: return 'text-muted-foreground'
+  }
+}
+
+/** When the popover opens, fetch notifications; when it closes, do nothing */
+function onNotifPopoverToggle(open: boolean) {
+  if (open) {
+    fetchNotifications()
+  }
+}
+
+/** Click a notification to mark it as read */
+function onNotifClick(notif: InAppNotification) {
+  if (!notif.read) {
+    markAsRead(notif.id)
+  }
+}
+
+onMounted(() => {
+  startPolling()
+})
+
+onUnmounted(() => {
+  stopPolling()
+})
 
 /** Format an ISO date string as a short readable date */
 function formatBuildDate(iso: string): string {
@@ -262,12 +447,14 @@ function formatBuildDate(iso: string): string {
 const router = useRouter()
 const authenticated = useCookie('authenticated')
 
-const navLinks = [
-  { to: '/', label: 'Dashboard' },
-  { to: '/rules', label: 'Scoring Engine' },
-  { to: '/audit', label: 'Audit Log' },
-  { to: '/settings', label: 'Settings' }
-]
+const { t, locale, locales, setLocale } = useI18n()
+
+const navLinks = computed(() => [
+  { to: '/', label: t('nav.dashboard') },
+  { to: '/rules', label: t('nav.scoringEngine') },
+  { to: '/audit', label: t('nav.auditLog') },
+  { to: '/settings', label: t('nav.settings') }
+])
 
 function logout() {
   authenticated.value = null
