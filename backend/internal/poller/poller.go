@@ -1,19 +1,13 @@
 package poller
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
-	"sort"
 	"strings"
 	"sync/atomic"
 	"time"
 
-	"golang.org/x/time/rate"
-
 	"capacitarr/internal/db"
-	"capacitarr/internal/engine"
 	"capacitarr/internal/integrations"
 
 	"gorm.io/gorm"
@@ -120,326 +114,18 @@ func poll() {
 		return
 	}
 
-	// Collect root folder paths and disk space from *arr integrations
-	rootFolders := make(map[string]bool)               // set of root folder paths
-	diskMap := make(map[string]integrations.DiskSpace) // all disk entries from *arr
+	// Fetch media items, disk space, and enrichment clients from all integrations
+	fetched := fetchAllIntegrations(configs)
 
-	var allItems []integrations.MediaItem
-	serviceClients := make(map[uint]integrations.Integration)
-
-	// Track enrichment-only clients separately (not full Integration implementations)
-	var tautulliClient *integrations.TautulliClient
-	var overseerrClient *integrations.OverseerrClient
-	var jellyfinClient *integrations.JellyfinClient
-	var embyClient *integrations.EmbyClient
-
-	for _, cfg := range configs {
-		fetchStart := time.Now()
-
-		// Tautulli is an enrichment-only service, not a full Integration
-		if cfg.Type == "tautulli" {
-			tautulliClient = integrations.NewTautulliClient(cfg.URL, cfg.APIKey)
-			now := time.Now()
-			if err := tautulliClient.TestConnection(); err != nil {
-				slog.Warn("Tautulli connection failed", "component", "poller", "operation", "tautulli_connect", "integration", cfg.Name, "error", err)
-				db.DB.Model(&cfg).Updates(map[string]interface{}{
-					"last_error": err.Error(),
-				})
-			} else {
-				db.DB.Model(&cfg).Updates(map[string]interface{}{
-					"last_sync":  &now,
-					"last_error": "",
-				})
-				slog.Debug("Tautulli connected", "component", "poller", "integration", cfg.Name, "duration", time.Since(fetchStart).String())
-			}
-			continue
-		}
-
-		// Overseerr is an enrichment-only service for tracking media requests
-		if cfg.Type == "overseerr" {
-			overseerrClient = integrations.NewOverseerrClient(cfg.URL, cfg.APIKey)
-			now := time.Now()
-			if err := overseerrClient.TestConnection(); err != nil {
-				slog.Warn("Overseerr connection failed", "component", "poller", "operation", "overseerr_connect", "integration", cfg.Name, "error", err)
-				db.DB.Model(&cfg).Updates(map[string]interface{}{
-					"last_error": err.Error(),
-				})
-			} else {
-				db.DB.Model(&cfg).Updates(map[string]interface{}{
-					"last_sync":  &now,
-					"last_error": "",
-				})
-				slog.Debug("Overseerr connected", "component", "poller", "integration", cfg.Name, "duration", time.Since(fetchStart).String())
-			}
-			continue
-		}
-
-		// Jellyfin is an enrichment-only service for watch history
-		if cfg.Type == "jellyfin" {
-			jellyfinClient = integrations.NewJellyfinClient(cfg.URL, cfg.APIKey)
-			now := time.Now()
-			if err := jellyfinClient.TestConnection(); err != nil {
-				slog.Warn("Jellyfin connection failed", "component", "poller", "operation", "jellyfin_connect", "integration", cfg.Name, "error", err)
-				db.DB.Model(&cfg).Updates(map[string]interface{}{
-					"last_error": err.Error(),
-				})
-			} else {
-				db.DB.Model(&cfg).Updates(map[string]interface{}{
-					"last_sync":  &now,
-					"last_error": "",
-				})
-				slog.Debug("Jellyfin connected", "component", "poller", "integration", cfg.Name, "duration", time.Since(fetchStart).String())
-			}
-			continue
-		}
-
-		// Emby is an enrichment-only service for watch history
-		if cfg.Type == "emby" {
-			embyClient = integrations.NewEmbyClient(cfg.URL, cfg.APIKey)
-			now := time.Now()
-			if err := embyClient.TestConnection(); err != nil {
-				slog.Warn("Emby connection failed", "component", "poller", "operation", "emby_connect", "integration", cfg.Name, "error", err)
-				db.DB.Model(&cfg).Updates(map[string]interface{}{
-					"last_error": err.Error(),
-				})
-			} else {
-				db.DB.Model(&cfg).Updates(map[string]interface{}{
-					"last_sync":  &now,
-					"last_error": "",
-				})
-				slog.Debug("Emby connected", "component", "poller", "integration", cfg.Name, "duration", time.Since(fetchStart).String())
-			}
-			continue
-		}
-
-		client := createClient(cfg.Type, cfg.URL, cfg.APIKey)
-		if client == nil {
-			slog.Debug("No client for integration type", "component", "poller", "type", cfg.Type, "integration", cfg.Name)
-			continue
-		}
-		serviceClients[cfg.ID] = client
-
-		if cfg.Type == "plex" {
-			// Plex is only used for protection rules, not disk usage tracking
-			now := time.Now()
-			db.DB.Model(&cfg).Updates(map[string]interface{}{
-				"last_sync":  &now,
-				"last_error": "",
-			})
-			slog.Debug("Plex synced (protection rules only)", "component", "poller", "integration", cfg.Name)
-			continue
-		}
-
-		// Fetch media items for per-integration usage tracking (Sonarr/Radarr only)
-		slog.Debug("Fetching media items", "component", "poller", "integration", cfg.Name, "type", cfg.Type)
-		items, err := client.GetMediaItems()
-		if err != nil {
-			slog.Warn("Media items fetch failed", "component", "poller", "operation", "fetch_media",
-				"integration", cfg.Name, "type", cfg.Type, "error", err)
-		} else {
-			for i := range items {
-				items[i].IntegrationID = cfg.ID
-			}
-			allItems = append(allItems, items...)
-
-			var totalSize int64
-			// For Sonarr, only count show-level items to avoid double-counting seasons
-			for _, item := range items {
-				if cfg.Type == "sonarr" && item.Type != integrations.MediaTypeShow {
-					continue
-				}
-				totalSize += item.SizeBytes
-			}
-			mediaCount := len(items)
-			if cfg.Type == "sonarr" {
-				// Count unique shows only
-				mediaCount = 0
-				for _, item := range items {
-					if item.Type == integrations.MediaTypeShow {
-						mediaCount++
-					}
-				}
-			}
-			db.DB.Model(&cfg).Updates(map[string]interface{}{
-				"media_size_bytes": totalSize,
-				"media_count":      mediaCount,
-			})
-			slog.Debug("Media items fetched", "component", "poller",
-				"integration", cfg.Name, "type", cfg.Type,
-				"itemCount", len(items), "duration", time.Since(fetchStart).String())
-		}
-
-		// Get root folders (Sonarr/Radarr only)
-		folders, err := client.GetRootFolders()
-		if err != nil {
-			slog.Warn("Root folder fetch failed", "component", "poller", "operation", "fetch_root_folders",
-				"integration", cfg.Name, "type", cfg.Type, "error", err)
-		}
-		for _, f := range folders {
-			rootFolders[f] = true
-			slog.Debug("Root folder found", "component", "poller",
-				"integration", cfg.Name, "path", f)
-		}
-
-		// Get disk space
-		disks, err := client.GetDiskSpace()
-		if err != nil {
-			slog.Warn("Disk space fetch failed", "component", "poller", "operation", "fetch_disk_space",
-				"integration", cfg.Name, "type", cfg.Type, "error", err)
-			db.DB.Model(&cfg).Updates(map[string]interface{}{
-				"last_error": err.Error(),
-			})
-			continue
-		}
-
-		// Update last sync time, clear error
-		now := time.Now()
-		db.DB.Model(&cfg).Updates(map[string]interface{}{
-			"last_sync":  &now,
-			"last_error": "",
-		})
-
-		// Collect all disk entries
-		for _, d := range disks {
-			if d.Path == "" {
-				continue
-			}
-			if existing, ok := diskMap[d.Path]; ok {
-				if d.TotalBytes > existing.TotalBytes {
-					diskMap[d.Path] = d
-				}
-			} else {
-				diskMap[d.Path] = d
-			}
-		}
-	}
-
-	// ─── Enrichment: Tautulli watch history ──────────────────────────────────
-	if tautulliClient != nil && len(allItems) > 0 {
-		slog.Info("Enriching items with Tautulli watch data", "component", "poller", "itemCount", len(allItems))
-		for i := range allItems {
-			item := &allItems[i]
-			if item.ExternalID == "" {
-				continue
-			}
-			var watchData *integrations.TautulliWatchData
-			var err error
-			if item.Type == integrations.MediaTypeShow {
-				watchData, err = tautulliClient.GetShowWatchHistory(item.ExternalID)
-			} else {
-				watchData, err = tautulliClient.GetWatchHistory(item.ExternalID)
-			}
-			if err != nil {
-				slog.Debug("Tautulli enrichment failed", "component", "poller", "title", item.Title, "error", err)
-				continue
-			}
-			if watchData != nil {
-				item.PlayCount = watchData.PlayCount
-				item.LastPlayed = watchData.LastPlayed
-			}
-		}
-	}
-
-	// ─── Enrichment: Overseerr request data ──────────────────────────────────
-	if overseerrClient != nil && len(allItems) > 0 {
-		slog.Info("Enriching items with Overseerr request data", "component", "poller", "itemCount", len(allItems))
-		requests, err := overseerrClient.GetRequestedMedia()
-		if err != nil {
-			slog.Warn("Failed to fetch Overseerr requests", "component", "poller", "operation", "fetch_overseerr", "error", err)
-		} else {
-			// Build lookup by TMDb ID
-			requestMap := make(map[int]integrations.OverseerrMediaRequest)
-			for _, req := range requests {
-				requestMap[req.TMDbID] = req
-			}
-			matched := 0
-			for i := range allItems {
-				item := &allItems[i]
-				if item.TMDbID > 0 {
-					if req, ok := requestMap[item.TMDbID]; ok {
-						item.IsRequested = true
-						item.RequestedBy = req.RequestedBy
-						item.RequestCount = 1
-						matched++
-					}
-				}
-			}
-			slog.Debug("Overseerr enrichment complete", "component", "poller", "requests", len(requests), "matched", matched)
-		}
-	}
-
-	// ─── Enrichment: Jellyfin watch history ─────────────────────────────────
-	if jellyfinClient != nil && len(allItems) > 0 {
-		slog.Info("Enriching items with Jellyfin watch data", "component", "poller", "itemCount", len(allItems))
-		userID, err := jellyfinClient.GetAdminUserID()
-		if err != nil {
-			slog.Warn("Failed to get Jellyfin admin user", "component", "poller", "operation", "jellyfin_admin_user", "error", err)
-		} else {
-			watchMap, err := jellyfinClient.GetBulkWatchData(userID)
-			if err != nil {
-				slog.Warn("Failed to fetch Jellyfin watch data", "component", "poller", "operation", "fetch_jellyfin_watch", "error", err)
-			} else {
-				matched := 0
-				for i := range allItems {
-					item := &allItems[i]
-					// Match by normalized title (show title for seasons, direct title otherwise)
-					titleKey := strings.ToLower(strings.TrimSpace(item.Title))
-					if item.ShowTitle != "" {
-						titleKey = strings.ToLower(strings.TrimSpace(item.ShowTitle))
-					}
-					if wd, ok := watchMap[titleKey]; ok {
-						// Only enrich if we don't already have watch data (Tautulli takes priority)
-						if item.PlayCount == 0 {
-							item.PlayCount = wd.PlayCount
-							item.LastPlayed = wd.LastPlayed
-							matched++
-						}
-					}
-				}
-				slog.Info("Jellyfin enrichment complete", "component", "poller", "libraryItems", len(watchMap), "matched", matched)
-			}
-		}
-	}
-
-	// ─── Enrichment: Emby watch history ─────────────────────────────────────
-	if embyClient != nil && len(allItems) > 0 {
-		slog.Info("Enriching items with Emby watch data", "component", "poller", "itemCount", len(allItems))
-		userID, err := embyClient.GetAdminUserID()
-		if err != nil {
-			slog.Warn("Failed to get Emby admin user", "component", "poller", "operation", "emby_admin_user", "error", err)
-		} else {
-			watchMap, err := embyClient.GetBulkWatchData(userID)
-			if err != nil {
-				slog.Warn("Failed to fetch Emby watch data", "component", "poller", "operation", "fetch_emby_watch", "error", err)
-			} else {
-				matched := 0
-				for i := range allItems {
-					item := &allItems[i]
-					// Match by normalized title (show title for seasons, direct title otherwise)
-					titleKey := strings.ToLower(strings.TrimSpace(item.Title))
-					if item.ShowTitle != "" {
-						titleKey = strings.ToLower(strings.TrimSpace(item.ShowTitle))
-					}
-					if wd, ok := watchMap[titleKey]; ok {
-						// Only enrich if we don't already have watch data
-						if item.PlayCount == 0 {
-							item.PlayCount = wd.PlayCount
-							item.LastPlayed = wd.LastPlayed
-							matched++
-						}
-					}
-				}
-				slog.Info("Emby enrichment complete", "component", "poller", "libraryItems", len(watchMap), "matched", matched)
-			}
-		}
-	}
+	// Enrich items with watch history and request data
+	enrichItems(fetched.allItems, fetched.enrichment)
 
 	// Find the most specific mount for each root folder
-	mediaMounts := findMediaMounts(diskMap, rootFolders)
+	mediaMounts := findMediaMounts(fetched.diskMap, fetched.rootFolders)
 
 	// Update DiskGroups and record history only for media mounts
 	for mountPath := range mediaMounts {
-		disk := diskMap[mountPath]
+		disk := fetched.diskMap[mountPath]
 		usedBytes := disk.TotalBytes - disk.FreeBytes
 
 		// Upsert DiskGroup
@@ -476,7 +162,7 @@ func poll() {
 		}
 
 		// Evaluate and trigger cleanup if threshold breached
-		evaluateAndCleanDisk(group, allItems, serviceClients)
+		evaluateAndCleanDisk(group, fetched.allItems, fetched.serviceClients)
 	}
 
 	// Clean up orphaned disk groups that are no longer media mounts
@@ -508,7 +194,7 @@ func poll() {
 
 	slog.Debug("Poll cycle complete", "component", "poller",
 		"duration", time.Since(pollStart).String(),
-		"totalItems", len(allItems),
+		"totalItems", len(fetched.allItems),
 		"evaluated", atomic.LoadInt64(&lastRunEvaluated),
 		"flagged", atomic.LoadInt64(&lastRunFlagged),
 		"protected", atomic.LoadInt64(&lastRunProtected))
@@ -580,330 +266,35 @@ func createClient(intType, url, apiKey string) integrations.Integration {
 	}
 }
 
-type deleteJob struct {
-	client  integrations.Integration
-	item    integrations.MediaItem
-	reason  string
-	score   float64
-	factors []engine.ScoreFactor
+// SetInterval is provided for potential external use but the poll interval
+// is actually managed via DB preferences. This is a no-op placeholder
+// referenced by the plan but not currently needed.
+func SetInterval(_ time.Duration) {
+	// Poll interval is managed via DB preferences; see getPollInterval()
+	slog.Debug("SetInterval called but poll interval is DB-managed", "component", "poller")
 }
 
-var deleteQueue = make(chan deleteJob, 500)
-
-var (
-	metricsProcessed int64
-	metricsFailed    int64
-
-	// Per-run metrics (reset each engine evaluation cycle, read by GetWorkerMetrics
-	// for real-time "currently running" feedback while the poll is in progress)
-	lastRunEvaluated  int64
-	lastRunFlagged    int64
-	lastRunFreedBytes int64
-	lastRunProtected  int64
-
-	// Currently-deleting item name (atomic.Value storing string)
-	currentlyDeletingVal atomic.Value
-)
-
-// GetWorkerMetrics returns the current state of the backend deletion worker.
-// Per-run stats are read from the DB (persisted across container restarts);
-// real-time values (currentlyDeleting, queueDepth) come from in-memory atomics.
-func GetWorkerMetrics() map[string]interface{} {
-	var prefs db.PreferenceSet
-	db.DB.FirstOrCreate(&prefs, db.PreferenceSet{ID: 1})
-
-	mode := prefs.ExecutionMode
-	if mode == "" {
-		mode = "dry_run"
-	}
-
-	// Safely load currentlyDeleting (may be nil on first access)
-	currentlyDeletion := ""
-	if v := currentlyDeletingVal.Load(); v != nil {
-		currentlyDeletion = v.(string)
-	}
-
-	// Read the latest persisted engine run stats from DB
-	var lastRun db.EngineRunStats
-	db.DB.Order("run_at DESC").First(&lastRun)
-
-	// Compute cumulative totals from all persisted runs
-	var totals struct {
-		TotalEvaluated int64
-		TotalFlagged   int64
-		TotalFreed     int64
-	}
-	db.DB.Model(&db.EngineRunStats{}).
-		Select("COALESCE(SUM(evaluated), 0) as total_evaluated, COALESCE(SUM(flagged), 0) as total_flagged, COALESCE(SUM(freed_bytes), 0) as total_freed").
-		Scan(&totals)
-
-	// If a poll is currently running, prefer the live in-memory atomics for real-time feedback
-	lastRunEval := int64(lastRun.Evaluated)
-	lastRunFlag := int64(lastRun.Flagged)
-	lastRunFreed := lastRun.FreedBytes
-	lastRunEpochVal := lastRun.RunAt.Unix()
-	if pollRunning.Load() {
-		lastRunEval = atomic.LoadInt64(&lastRunEvaluated)
-		lastRunFlag = atomic.LoadInt64(&lastRunFlagged)
-		lastRunFreed = atomic.LoadInt64(&lastRunFreedBytes)
-		lastRunEpochVal = time.Now().Unix()
-	}
-
-	return map[string]interface{}{
-		"executionMode":       mode,
-		"isRunning":           pollRunning.Load(),
-		"pollIntervalSeconds": prefs.PollIntervalSeconds,
-		"queueDepth":          len(deleteQueue),
-		"lastRunEvaluated":    lastRunEval,
-		"lastRunFlagged":      lastRunFlag,
-		"lastRunFreedBytes":   lastRunFreed,
-		"lastRunEpoch":        lastRunEpochVal,
-		"currentlyDeleting":   currentlyDeletion,
-		"protectedCount":      atomic.LoadInt64(&lastRunProtected),
-		// Cumulative totals from DB
-		"evaluated":  totals.TotalEvaluated,
-		"actioned":   totals.TotalFlagged,
-		"freedBytes": totals.TotalFreed,
-		"processed":  atomic.LoadInt64(&metricsProcessed),
-		"failed":     atomic.LoadInt64(&metricsFailed),
+// Trigger sends a signal to the poller to run an immediate cycle.
+// This is a convenience wrapper around RunNowCh for external callers.
+func Trigger() bool {
+	select {
+	case RunNowCh <- struct{}{}:
+		return true
+	default:
+		return false
 	}
 }
 
-// init starts the background deletion worker before anything else
-func init() {
-	go deletionWorker()
-}
-
-func deletionWorker() {
-	// Rate limit: 1 deletion every 3 seconds to protect disk I/O, burst of 1.
-	// This is much smarter than arbitrary sleeps, as it smooths out load dynamically.
-	limiter := rate.NewLimiter(rate.Every(3*time.Second), 1)
-
-	for job := range deleteQueue {
-		// Wait blocks until a token is available
-		_ = limiter.Wait(context.Background())
-
-		currentlyDeletingVal.Store(job.item.Title)
-
-		// ╔══════════════════════════════════════════════════════════╗
-		// ║  SAFETY GUARD: Deletions are disabled until testing     ║
-		// ║  Remove this block when ready for production testing.   ║
-		// ╚══════════════════════════════════════════════════════════╝
-		slog.Warn("SAFETY GUARD: Delete skipped (deletions disabled in codebase)",
-			"component", "poller",
-			"item", job.item.Title,
-			"type", job.item.Type,
-			"size", job.item.SizeBytes,
-			"score", job.score,
-		)
-		currentlyDeletingVal.Store("")
-		atomic.AddInt64(&metricsProcessed, 1)
-
-		// Still log to audit as "Dry-Delete" so the UI shows activity
-		factorsJSON, _ := json.Marshal(job.factors)
-		logEntry := db.AuditLog{
-			MediaName:    job.item.Title,
-			MediaType:    string(job.item.Type),
-			Reason:       fmt.Sprintf("Score: %.2f (%s)", job.score, job.reason),
-			ScoreDetails: string(factorsJSON),
-			Action:       "Dry-Delete",
-			SizeBytes:    job.item.SizeBytes,
-			CreatedAt:    time.Now(),
-		}
-
-		/* DISABLED: Actual deletion — uncomment when ready for production testing
-		if err := job.client.DeleteMediaItem(job.item); err != nil {
-			slog.Error("Background deletion failed", "component", "poller", "operation", "delete_media", "item", job.item.Title, "error", err)
-			atomic.AddInt64(&metricsFailed, 1)
-			currentlyDeletingVal.Store("")
-			continue
-		}
-
-		currentlyDeletingVal.Store("")
-		atomic.AddInt64(&metricsProcessed, 1)
-
-		// Increment lifetime stats (atomic DB update, not for dry-runs)
-		db.DB.Model(&db.LifetimeStats{}).Where("id = 1").
-			UpdateColumns(map[string]interface{}{
-				"total_bytes_reclaimed": gorm.Expr("total_bytes_reclaimed + ?", job.item.SizeBytes),
-				"total_items_removed":   gorm.Expr("total_items_removed + ?", 1),
-			})
-
-		factorsJSON, _ := json.Marshal(job.factors)
-		logEntry := db.AuditLog{
-			MediaName:    job.item.Title,
-			MediaType:    string(job.item.Type),
-			Reason:       fmt.Sprintf("Score: %.2f (%s)", job.score, job.reason),
-			ScoreDetails: string(factorsJSON),
-			Action:       "Deleted",
-			SizeBytes:    job.item.SizeBytes,
-			CreatedAt:    time.Now(),
-		}
-		*/
-		db.DB.Create(&logEntry)
-
-		slog.Info("Background engine action completed", "component", "poller",
-			"media", job.item.Title, "action", "Deleted", "freed", job.item.SizeBytes)
+// formatBytes returns a human-readable byte string (unused helper, kept for potential debug use).
+func formatBytes(b int64) string {
+	const unit = 1024
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
 	}
-}
-
-func evaluateAndCleanDisk(group db.DiskGroup, allItems []integrations.MediaItem, serviceClients map[uint]integrations.Integration) {
-	var prefs db.PreferenceSet
-	db.DB.FirstOrCreate(&prefs, db.PreferenceSet{ID: 1})
-
-	currentPct := float64(group.UsedBytes) / float64(group.TotalBytes) * 100
-	if currentPct < group.ThresholdPct {
-		slog.Debug("Disk within threshold, no action needed", "component", "poller",
-			"mount", group.MountPath, "usedPct", fmt.Sprintf("%.1f", currentPct),
-			"threshold", group.ThresholdPct)
-		return
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
 	}
-
-	slog.Info("Disk threshold breached, evaluating media for deletion", "component", "poller",
-		"mount", group.MountPath, "currentPct", fmt.Sprintf("%.1f", currentPct), "threshold", group.ThresholdPct)
-
-	// Filter items on this mount
-	var diskItems []integrations.MediaItem
-	for _, item := range allItems {
-		if strings.HasPrefix(item.Path, group.MountPath) {
-			diskItems = append(diskItems, item)
-		}
-	}
-
-	slog.Debug("Items on disk mount", "component", "poller",
-		"mount", group.MountPath, "itemCount", len(diskItems))
-
-	var rules []db.ProtectionRule
-	db.DB.Find(&rules)
-
-	// Evaluate
-	evaluated := engine.EvaluateMedia(diskItems, prefs, rules)
-	atomic.AddInt64(&lastRunEvaluated, int64(len(evaluated)))
-
-	// Count protected items for dashboard stats
-	protectedCount := 0
-	for _, ev := range evaluated {
-		if ev.IsProtected {
-			atomic.AddInt64(&lastRunProtected, 1)
-			protectedCount++
-		}
-	}
-
-	// Sort by score descending
-	sort.Slice(evaluated, func(i, j int) bool {
-		return evaluated[i].Score > evaluated[j].Score // highest score first
-	})
-
-	targetBytesToFree := int64((currentPct - group.TargetPct) / 100.0 * float64(group.TotalBytes))
-	if targetBytesToFree <= 0 {
-		return
-	}
-
-	slog.Debug("Evaluation summary", "component", "poller",
-		"mount", group.MountPath,
-		"evaluated", len(evaluated),
-		"protected", protectedCount,
-		"targetBytesToFree", targetBytesToFree)
-
-	var bytesFreed int64
-
-	// Pre-build set of shows that have show-level entries in the evaluation results.
-	// When a show-level item exists, its size includes all seasons, so logging
-	// individual seasons would create duplicates.
-	showsInResults := make(map[string]bool)
-	for _, ev := range evaluated {
-		if ev.Item.Type == integrations.MediaTypeShow {
-			showsInResults[ev.Item.Title] = true
-		}
-	}
-
-	for _, ev := range evaluated {
-		if bytesFreed >= targetBytesToFree {
-			break
-		}
-		if ev.IsProtected || ev.Score <= 0 {
-			continue
-		}
-
-		// Dedup: skip season entries when a show-level entry exists for the same parent.
-		// The show entry already covers all seasons in its size total.
-		if ev.Item.Type == integrations.MediaTypeSeason && ev.Item.ShowTitle != "" {
-			if showsInResults[ev.Item.ShowTitle] {
-				continue
-			}
-		}
-
-		slog.Debug("Deletion candidate", "component", "poller",
-			"media", ev.Item.Title, "score", fmt.Sprintf("%.4f", ev.Score),
-			"size", ev.Item.SizeBytes, "reason", ev.Reason)
-
-		actionName := "Dry-Run"
-		if prefs.ExecutionMode == "auto" {
-			client, ok := serviceClients[ev.Item.IntegrationID]
-			if ok && client != nil {
-				// Queue for background deletion so we don't block the poller
-				select {
-				case deleteQueue <- deleteJob{
-					client:  client,
-					item:    ev.Item,
-					reason:  ev.Reason,
-					score:   ev.Score,
-					factors: ev.Factors,
-				}:
-					actionName = "Queued for Deletion"
-					bytesFreed += ev.Item.SizeBytes
-					continue // Skip the synchronous DB insert below, worker handles it
-				default:
-					slog.Warn("Deletion queue full, skipping item", "component", "poller", "item", ev.Item.Title)
-					continue
-				}
-			} else {
-				slog.Error("Integration client not found for deletion", "component", "poller",
-					"operation", "resolve_client", "integrationId", ev.Item.IntegrationID)
-				continue
-			}
-		} else if prefs.ExecutionMode == "approval" {
-			actionName = "Queued for Approval"
-		}
-
-		factorsJSON, _ := json.Marshal(ev.Factors)
-		logEntry := db.AuditLog{
-			MediaName:    ev.Item.Title,
-			MediaType:    string(ev.Item.Type),
-			Reason:       fmt.Sprintf("Score: %.2f (%s)", ev.Score, ev.Reason),
-			ScoreDetails: string(factorsJSON),
-			Action:       actionName,
-			SizeBytes:    ev.Item.SizeBytes,
-			CreatedAt:    time.Now(),
-		}
-
-		// Dry-run dedup: upsert instead of creating duplicates. Each media item
-		// appears only once in the audit log; timestamp reflects the most recent evaluation.
-		if actionName == "Dry-Run" {
-			var existing db.AuditLog
-			result := db.DB.Where(
-				"media_name = ? AND media_type = ? AND action = ?",
-				ev.Item.Title, string(ev.Item.Type), "Dry-Run",
-			).First(&existing)
-			if result.Error == nil {
-				db.DB.Model(&existing).Updates(map[string]interface{}{
-					"reason":        logEntry.Reason,
-					"score_details": logEntry.ScoreDetails,
-					"size_bytes":    logEntry.SizeBytes,
-					"created_at":    logEntry.CreatedAt,
-				})
-			} else {
-				db.DB.Create(&logEntry)
-			}
-		} else {
-			// Auto/approval modes always create new entries (real actions)
-			db.DB.Create(&logEntry)
-		}
-
-		bytesFreed += ev.Item.SizeBytes
-		atomic.AddInt64(&lastRunFlagged, 1)
-		atomic.AddInt64(&lastRunFreedBytes, ev.Item.SizeBytes)
-		slog.Info("Engine action taken", "component", "poller",
-			"media", ev.Item.Title, "action", actionName, "score", ev.Score, "freed", ev.Item.SizeBytes)
-	}
+	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
 }
