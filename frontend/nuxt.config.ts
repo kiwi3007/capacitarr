@@ -63,7 +63,8 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL ?? '',
-      appVersion: pkg.version || '0.0.0'
+      appVersion: pkg.version || '0.0.0',
+      appBuildDate: new Date().toISOString()
     }
   },
 

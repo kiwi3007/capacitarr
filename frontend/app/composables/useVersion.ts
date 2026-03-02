@@ -7,6 +7,7 @@
 export function useVersion() {
   const config = useRuntimeConfig()
   const uiVersion = config.public.appVersion as string || '0.0.0'
+  const uiBuildDate = config.public.appBuildDate as string || ''
 
   const apiVersion = ref('')
   const apiCommit = ref('')
@@ -35,6 +36,7 @@ export function useVersion() {
 
   return {
     uiVersion,
+    uiBuildDate,
     apiVersion: readonly(apiVersion),
     apiCommit: readonly(apiCommit),
     apiBuildDate: readonly(apiBuildDate)

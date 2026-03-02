@@ -151,14 +151,30 @@
                   <h4 class="font-semibold text-sm">
                     Capacitarr
                   </h4>
-                  <span class="text-xs text-muted-foreground font-mono">v{{ uiVersion }}</span>
                 </div>
                 <p class="text-sm text-muted-foreground leading-snug">
                   Automated media library capacity management — score, rank, and clean up your *arr libraries.
                 </p>
                 <UiSeparator />
+                <div class="space-y-1.5 text-xs text-muted-foreground font-mono">
+                  <div class="flex items-baseline justify-between gap-2">
+                    <span>UI v{{ uiVersion }}</span>
+                    <span
+                      v-if="uiBuildDate"
+                      class="text-muted-foreground/60"
+                    >{{ formatBuildDate(uiBuildDate) }}</span>
+                  </div>
+                  <div class="flex items-baseline justify-between gap-2">
+                    <span>API {{ apiVersion || '···' }}</span>
+                    <span
+                      v-if="apiBuildDate"
+                      class="text-muted-foreground/60"
+                    >{{ formatBuildDate(apiBuildDate) }}</span>
+                  </div>
+                </div>
+                <UiSeparator />
                 <div class="space-y-1.5 text-xs text-muted-foreground">
-                  <p>Built by the Capacitarr team</p>
+                  <p>Built by <span class="font-semibold text-foreground">Ghent Starshadow</span></p>
                   <p>
                     Inspired by
                     <a
@@ -191,12 +207,12 @@
                 <div class="flex items-center justify-between">
                   <span class="text-[10px] text-muted-foreground/60">Go · Nuxt · shadcn-vue · SQLite</span>
                   <a
-                    href="https://github.com/capacitarr/capacitarr"
+                    href="https://gitlab.com/starshadow/software/capacitarr"
                     target="_blank"
                     rel="noopener"
                     class="text-xs text-primary hover:underline inline-flex items-center gap-1"
                   >
-                    GitHub <component
+                    GitLab <component
                       :is="ExternalLinkIcon"
                       class="w-3 h-3"
                     />
@@ -231,7 +247,15 @@ import type { ThemeMeta } from '~/composables/useTheme'
 
 const { isDark, toggle } = useAppColorMode()
 const { theme, setTheme, themes } = useTheme()
-const { uiVersion, apiVersion } = useVersion()
+const { uiVersion, uiBuildDate, apiVersion, apiBuildDate } = useVersion()
+
+/** Format an ISO date string as a short readable date */
+function formatBuildDate(iso: string): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+}
 const router = useRouter()
 const authenticated = useCookie('authenticated')
 
