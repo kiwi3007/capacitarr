@@ -29,6 +29,7 @@ func (l *LidarrClient) doRequest(endpoint string) ([]byte, error) {
 	return DoAPIRequest(l.URL+endpoint, "X-Api-Key", l.APIKey)
 }
 
+// TestConnection verifies the Lidarr server is reachable and the API key is valid.
 func (l *LidarrClient) TestConnection() error {
 	_, err := l.doRequest("/api/v1/system/status")
 	return err
@@ -41,6 +42,7 @@ type lidarrDiskSpace struct {
 	FreeSpace  int64  `json:"freeSpace"`
 }
 
+// GetDiskSpace returns disk usage information reported by Lidarr.
 func (l *LidarrClient) GetDiskSpace() ([]DiskSpace, error) {
 	body, err := l.doRequest("/api/v1/diskspace")
 	if err != nil {
@@ -68,6 +70,7 @@ type lidarrRootFolder struct {
 	Path string `json:"path"`
 }
 
+// GetRootFolders returns the configured root folder paths from Lidarr.
 func (l *LidarrClient) GetRootFolders() ([]string, error) {
 	body, err := l.doRequest("/api/v1/rootfolder")
 	if err != nil {
@@ -118,6 +121,7 @@ type lidarrTag struct {
 	Label string `json:"label"`
 }
 
+// GetMediaItems fetches all artists and their albums from Lidarr.
 func (l *LidarrClient) GetMediaItems() ([]MediaItem, error) {
 	// Fetch quality profiles for name lookup
 	profileBody, err := l.doRequest("/api/v1/qualityprofile")
@@ -218,6 +222,7 @@ func (l *LidarrClient) GetQualityProfiles() ([]NameValue, error) {
 	return result, nil
 }
 
+// GetTags returns all tags configured in Lidarr.
 func (l *LidarrClient) GetTags() ([]NameValue, error) {
 	body, err := l.doRequest("/api/v1/tag")
 	if err != nil {
@@ -234,11 +239,13 @@ func (l *LidarrClient) GetTags() ([]NameValue, error) {
 	return result, nil
 }
 
+// GetLanguages returns nil because Lidarr does not support language lookup.
 func (l *LidarrClient) GetLanguages() ([]NameValue, error) {
 	// Lidarr does not have a language endpoint
 	return nil, nil
 }
 
+// DeleteMediaItem removes an artist and its files from disk via the Lidarr API.
 func (l *LidarrClient) DeleteMediaItem(item MediaItem) error {
 	endpoint := fmt.Sprintf("/api/v1/artist/%s?deleteFiles=true", item.ExternalID)
 	req, err := http.NewRequestWithContext(context.Background(), "DELETE", l.URL+endpoint, nil)

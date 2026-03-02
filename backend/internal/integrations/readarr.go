@@ -28,6 +28,7 @@ func (r *ReadarrClient) doRequest(endpoint string) ([]byte, error) {
 	return DoAPIRequest(r.URL+endpoint, "X-Api-Key", r.APIKey)
 }
 
+// TestConnection verifies the Readarr server is reachable and the API key is valid.
 func (r *ReadarrClient) TestConnection() error {
 	_, err := r.doRequest("/api/v1/system/status")
 	return err
@@ -153,6 +154,7 @@ func (r *ReadarrClient) GetQualityProfiles() ([]NameValue, error) {
 	return result, nil
 }
 
+// GetTags returns all tags configured in Readarr.
 func (r *ReadarrClient) GetTags() ([]NameValue, error) {
 	body, err := r.doRequest("/api/v1/tag")
 	if err != nil {
@@ -172,6 +174,7 @@ func (r *ReadarrClient) GetTags() ([]NameValue, error) {
 	return result, nil
 }
 
+// GetLanguages returns all languages configured in Readarr.
 func (r *ReadarrClient) GetLanguages() ([]NameValue, error) {
 	body, err := r.doRequest("/api/v1/language")
 	if err != nil {

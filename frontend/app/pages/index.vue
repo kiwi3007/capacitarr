@@ -14,10 +14,10 @@
     >
       <div>
         <h1 class="text-3xl font-bold tracking-tight">
-          Dashboard
+          {{ $t('dashboard.title') }}
         </h1>
         <p class="text-muted-foreground mt-1.5">
-          Capacity overview across your media storage.
+          {{ $t('dashboard.subtitle') }}
           <span
             v-if="lastUpdated"
             class="inline-flex items-center gap-1 ml-2 text-xs text-muted-foreground/70"
@@ -118,7 +118,7 @@
               :is="ActivityIcon"
               class="w-4 h-4"
             />
-            Engine Activity
+            {{ $t('dashboard.engineActivity') }}
           </div>
           <UiButton
             variant="outline"
@@ -134,14 +134,14 @@
               v-else
               class="w-3.5 h-3.5"
             />
-            Run Now
+            {{ $t('dashboard.runNow') }}
           </UiButton>
           <span class="text-xs text-muted-foreground">
             <template v-if="engineIsRunning">
-              🔄 Engine running…
+              🔄 {{ $t('dashboard.engineRunning') }}
             </template>
             <template v-else>
-              {{ engineLastRunEpoch ? `Last run: ${formatRelativeTime(new Date(engineLastRunEpoch * 1000).toISOString())}` : 'No runs yet' }}
+              {{ engineLastRunEpoch ? $t('dashboard.lastRun', { time: formatRelativeTime(new Date(engineLastRunEpoch * 1000).toISOString()) }) : $t('dashboard.noRunsYet') }}
             </template>
           </span>
           <UiBadge
@@ -151,7 +151,7 @@
             {{ engineModeLabel(engineExecutionMode) }}
           </UiBadge>
           <span class="text-xs text-muted-foreground">
-            Evaluated {{ engineLastRunEvaluated?.toLocaleString() ?? 0 }} · Flagged {{ engineLastRunFlagged?.toLocaleString() ?? 0 }}
+            {{ $t('dashboard.evaluated') }} {{ engineLastRunEvaluated?.toLocaleString() ?? 0 }} · {{ $t('dashboard.flagged') }} {{ engineLastRunFlagged?.toLocaleString() ?? 0 }}
           </span>
         </div>
 
@@ -162,13 +162,13 @@
         >
           <div class="flex items-center gap-3 mb-1">
             <span class="text-[11px] text-muted-foreground/70">
-              Engine Activity · {{ dateRangeLabel }}
+              {{ $t('dashboard.engineActivity') }} · {{ dateRangeLabel }}
             </span>
             <span class="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-              <span class="w-2 h-2 rounded-full bg-primary" /> Flagged
+              <span class="w-2 h-2 rounded-full bg-primary" /> {{ $t('dashboard.flagged') }}
             </span>
             <span class="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-              <span class="w-2 h-2 rounded-full bg-destructive" /> Deleted
+              <span class="w-2 h-2 rounded-full bg-destructive" /> {{ $t('dashboard.deleted') }}
             </span>
           </div>
           <ClientOnly>
@@ -186,7 +186,7 @@
           <!-- Would Free / Freed -->
           <div class="rounded-lg bg-muted px-3 py-2">
             <div class="text-[11px] text-muted-foreground mb-0.5">
-              {{ engineExecutionMode === 'auto' ? 'Freed' : 'Would free' }}
+              {{ engineExecutionMode === 'auto' ? $t('dashboard.freed') : $t('dashboard.wouldFree') }}
             </div>
             <div class="text-sm font-bold tabular-nums">
               {{ formatBytes(engineStats.lastRunFreedBytes ?? 0) }}
@@ -196,7 +196,7 @@
           <!-- Queue -->
           <div class="rounded-lg bg-muted px-3 py-2">
             <div class="text-[11px] text-muted-foreground mb-0.5">
-              Queue
+              {{ $t('dashboard.queue') }}
             </div>
             <div class="flex items-center gap-1.5">
               <span
@@ -204,14 +204,14 @@
                 :class="(engineStats.queueDepth ?? 0) > 0 ? 'bg-warning' : 'bg-success'"
               />
               <span class="text-sm font-bold tabular-nums">{{ engineStats.queueDepth ?? 0 }}</span>
-              <span class="text-[11px] text-muted-foreground">items</span>
+              <span class="text-[11px] text-muted-foreground">{{ $t('common.items') }}</span>
             </div>
           </div>
 
           <!-- Active Delete -->
           <div class="rounded-lg bg-muted px-3 py-2">
             <div class="text-[11px] text-muted-foreground mb-0.5">
-              Active Delete
+              {{ $t('dashboard.activeDelete') }}
             </div>
             <div class="text-sm">
               <template v-if="engineStats.currentlyDeleting">
@@ -226,13 +226,13 @@
                 </span>
               </template>
               <template v-else-if="engineExecutionMode === 'dry_run' || engineExecutionMode === 'dry-run'">
-                <span class="text-muted-foreground text-xs">Dry-Run — no deletions</span>
+                <span class="text-muted-foreground text-xs">{{ $t('dashboard.dryRunNoDelete') }}</span>
               </template>
               <template v-else-if="(engineStats.queueDepth ?? 0) === 0">
-                <span class="text-muted-foreground">Idle</span>
+                <span class="text-muted-foreground">{{ $t('common.idle') }}</span>
               </template>
               <template v-else>
-                <span class="text-muted-foreground">Waiting…</span>
+                <span class="text-muted-foreground">{{ $t('dashboard.waiting') }}</span>
               </template>
             </div>
           </div>
@@ -243,7 +243,7 @@
           to="/audit"
           class="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
         >
-          View full audit log →
+          {{ $t('dashboard.viewAuditLog') }}
         </NuxtLink>
       </UiCardContent>
     </UiCard>
@@ -285,13 +285,13 @@
                 class="w-4 h-4"
               />
             </div>
-            <span class="text-primary">Total Storage</span>
+            <span class="text-primary">{{ $t('dashboard.totalStorage') }}</span>
           </div>
           <div class="text-3xl font-bold tabular-nums">
             {{ formatBytes(totalCapacity) }}
           </div>
           <p class="text-sm text-muted-foreground mt-1">
-            {{ diskGroups.length }} disk group{{ diskGroups.length !== 1 ? 's' : '' }} mapped
+            {{ $t('dashboard.diskGroups', { count: diskGroups.length }, diskGroups.length) }}
           </p>
         </UiCardContent>
       </UiCard>
@@ -311,13 +311,13 @@
                 class="w-4 h-4"
               />
             </div>
-            <span class="text-primary">Used Capacity</span>
+            <span class="text-primary">{{ $t('dashboard.usedCapacity') }}</span>
           </div>
           <div class="text-3xl font-bold tabular-nums">
             {{ formatBytes(totalUsed) }}
           </div>
           <p class="text-sm text-muted-foreground mt-1">
-            {{ totalCapacity > 0 ? Math.round((totalUsed / totalCapacity) * 100) : 0 }}% utilization
+            {{ $t('dashboard.utilization', { pct: totalCapacity > 0 ? Math.round((totalUsed / totalCapacity) * 100) : 0 }) }}
           </p>
         </UiCardContent>
       </UiCard>
@@ -337,13 +337,13 @@
                 class="w-4 h-4"
               />
             </div>
-            <span class="text-primary">Integrations</span>
+            <span class="text-primary">{{ $t('dashboard.integrations') }}</span>
           </div>
           <div class="text-3xl font-bold tabular-nums">
             {{ enabledIntegrations.length }}
           </div>
           <p class="text-sm text-muted-foreground mt-1">
-            {{ enabledIntegrations.filter(i => i.lastSync).length }} synced recently
+            {{ $t('dashboard.syncedRecently', { count: enabledIntegrations.filter(i => i.lastSync).length }) }}
           </p>
         </UiCardContent>
       </UiCard>
@@ -369,13 +369,13 @@
                 class="w-4 h-4"
               />
             </div>
-            <span class="text-primary">Total Space Reclaimed</span>
+            <span class="text-primary">{{ $t('dashboard.spaceReclaimed') }}</span>
           </div>
           <div class="text-3xl font-bold tabular-nums">
             {{ formatBytes(dashboardStats?.totalBytesReclaimed ?? 0) }}
           </div>
           <p class="text-sm text-muted-foreground mt-1">
-            {{ dashboardStats?.totalItemsRemoved ?? 0 }} items removed lifetime
+            {{ $t('dashboard.itemsRemoved', { count: dashboardStats?.totalItemsRemoved ?? 0 }) }}
           </p>
         </UiCardContent>
       </UiCard>
@@ -395,13 +395,13 @@
                 class="w-4 h-4"
               />
             </div>
-            <span class="text-primary">Protected Items</span>
+            <span class="text-primary">{{ $t('dashboard.protectedItems') }}</span>
           </div>
           <div class="text-3xl font-bold tabular-nums">
             {{ dashboardStats?.protectedCount ?? 0 }}
           </div>
           <p class="text-sm text-muted-foreground mt-1">
-            items protected by your rules
+            {{ $t('dashboard.protectedByRules') }}
           </p>
         </UiCardContent>
       </UiCard>
@@ -421,13 +421,13 @@
                 class="w-4 h-4"
               />
             </div>
-            <span class="text-primary">Library Growth Rate</span>
+            <span class="text-primary">{{ $t('dashboard.growthRate') }}</span>
           </div>
           <div class="text-3xl font-bold tabular-nums">
             {{ formattedGrowthRate }}
           </div>
           <p class="text-sm text-muted-foreground mt-1">
-            {{ dashboardStats?.hasGrowthData ? 'over the last 7 days' : 'not enough data yet' }}
+            {{ dashboardStats?.hasGrowthData ? $t('dashboard.overLastWeek') : $t('dashboard.notEnoughData') }}
           </p>
         </UiCardContent>
       </UiCard>
@@ -446,15 +446,10 @@
         class="w-12 h-12 text-muted-foreground/40 mx-auto mb-4"
       />
       <h3 class="text-muted-foreground font-medium mb-1.5">
-        No disk groups yet
+        {{ $t('dashboard.noDiskGroups') }}
       </h3>
       <p class="text-sm text-muted-foreground/70 mb-4 max-w-md mx-auto">
-        Add integrations in
-        <NuxtLink
-          to="/settings"
-          class="text-primary hover:underline"
-        >Settings</NuxtLink>
-        and data will appear on the next poll cycle.
+        {{ $t('dashboard.noDiskGroupsHelp') }}
       </p>
     </div>
 
@@ -486,6 +481,7 @@ import { ServerIcon, ChartPieIcon, HardDriveIcon, LoaderCircleIcon, RefreshCwIco
 import { formatBytes, formatRelativeTime } from '~/utils/format'
 import type { DiskGroup, IntegrationConfig, DashboardStats, SparklineTooltipOpts } from '~/types/api'
 
+const { t } = useI18n()
 const api = useApi()
 const { primaryColor, destructiveColor } = useThemeColors()
 
@@ -585,10 +581,10 @@ const engineStatusBannerClass = computed(() => {
 
 const engineStatusText = computed(() => {
   if (engineIsRunning.value) {
-    return 'Engine is running — evaluating media items…'
+    return t('dashboard.engineRunningDetail')
   }
-  if (!engineLastRunEpoch.value) return 'Engine idle — no runs yet'
-  return `Engine idle — last run ${formatRelativeTime(new Date(engineLastRunEpoch.value * 1000).toISOString())}`
+  if (!engineLastRunEpoch.value) return t('dashboard.engineIdleNoRuns')
+  return t('dashboard.engineIdleLastRun', { time: formatRelativeTime(new Date(engineLastRunEpoch.value * 1000).toISOString()) })
 })
 
 // --- Countdown to next run ---
@@ -612,16 +608,16 @@ const countdownText = computed(() => {
   const nextRunEpoch = engineLastRunEpoch.value + enginePollInterval.value
   const remaining = nextRunEpoch - nowEpoch.value
 
-  if (remaining <= 0) return 'Next run imminent'
-  if (remaining < 60) return `Next run in ${remaining}s`
+  if (remaining <= 0) return t('dashboard.nextRunImminent')
+  if (remaining < 60) return t('dashboard.nextRunSeconds', { seconds: remaining })
   if (remaining < 3600) {
     const mins = Math.floor(remaining / 60)
     const secs = remaining % 60
-    return `Next run in ${mins}m ${secs}s`
+    return t('dashboard.nextRunMinSec', { min: mins, sec: secs })
   }
   const hours = Math.floor(remaining / 3600)
   const mins = Math.floor((remaining % 3600) / 60)
-  return `Next run in ${hours}h ${mins}m`
+  return t('dashboard.nextRunHourMin', { hour: hours, min: mins })
 })
 
 // --- Auto refresh ---

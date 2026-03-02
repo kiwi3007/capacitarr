@@ -3,10 +3,10 @@
     <!-- Header -->
     <div class="mb-8">
       <h1 class="text-3xl font-bold tracking-tight">
-        Help
+        {{ $t('help.title') }}
       </h1>
       <p class="text-muted-foreground mt-1.5">
-        Learn how Capacitarr works and how to configure it effectively.
+        {{ $t('help.subtitle') }}
       </p>
     </div>
 
@@ -22,7 +22,7 @@
         <summary class="flex items-center gap-3 px-5 py-4 cursor-pointer select-none hover:bg-accent transition-colors">
           <ChevronRightIcon class="w-4 h-4 text-muted-foreground transition-transform group-open:rotate-90" />
           <h3 class="font-semibold text-primary">
-            How Scoring Works
+            {{ $t('help.howScoringWorks') }}
           </h3>
         </summary>
         <div class="px-5 pb-5 text-sm text-muted-foreground leading-relaxed space-y-3">
@@ -48,7 +48,7 @@
         <summary class="flex items-center gap-3 px-5 py-4 cursor-pointer select-none hover:bg-accent transition-colors">
           <ChevronRightIcon class="w-4 h-4 text-muted-foreground transition-transform group-open:rotate-90" />
           <h3 class="font-semibold text-primary">
-            Understanding the Sliders
+            {{ $t('help.understandingSliders') }}
           </h3>
         </summary>
         <div class="px-5 pb-5 text-sm text-muted-foreground leading-relaxed space-y-3">
@@ -80,7 +80,7 @@
         <summary class="flex items-center gap-3 px-5 py-4 cursor-pointer select-none hover:bg-accent transition-colors">
           <ChevronRightIcon class="w-4 h-4 text-muted-foreground transition-transform group-open:rotate-90" />
           <h3 class="font-semibold text-primary">
-            Reading a Score Detail
+            {{ $t('help.readingScoreDetail') }}
           </h3>
         </summary>
         <div class="px-5 pb-5 text-sm text-muted-foreground leading-relaxed space-y-4">
@@ -275,12 +275,161 @@
           </ul>
         </div>
       </details>
+
+      <!-- About Capacitarr -->
+      <details
+        v-motion
+        :initial="{ opacity: 0, y: 12 }"
+        :enter="{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24, delay: 500 } }"
+        data-slot="card"
+        class="group rounded-xl border border-border bg-card shadow-sm overflow-hidden"
+      >
+        <summary class="flex items-center gap-3 px-5 py-4 cursor-pointer select-none hover:bg-accent transition-colors">
+          <ChevronRightIcon class="w-4 h-4 text-muted-foreground transition-transform group-open:rotate-90" />
+          <InfoIcon class="w-4 h-4 text-muted-foreground" />
+          <h3 class="font-semibold text-primary">
+            About Capacitarr
+          </h3>
+        </summary>
+        <div class="px-5 pb-5 text-sm text-muted-foreground leading-relaxed space-y-6">
+          <!-- Project Info -->
+          <div class="space-y-3">
+            <p class="font-medium text-foreground">
+              Project Info
+            </p>
+            <div class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+              <span class="text-muted-foreground">App</span>
+              <span class="text-foreground font-medium">Capacitarr</span>
+
+              <span class="text-muted-foreground">Description</span>
+              <span class="text-foreground">Intelligent Media Capacity Management</span>
+
+              <span class="text-muted-foreground">Version</span>
+              <span class="text-foreground">
+                UI v{{ uiVersion }}
+                <template v-if="apiVersion">
+                  · API {{ apiVersion }}
+                </template>
+              </span>
+
+              <span class="text-muted-foreground">Build Date</span>
+              <span class="text-foreground">
+                <template v-if="uiBuildDate">
+                  UI {{ uiBuildDate }}
+                </template>
+                <template v-if="apiBuildDate">
+                  · API {{ apiBuildDate }}
+                </template>
+                <template v-if="!uiBuildDate && !apiBuildDate">
+                  —
+                </template>
+              </span>
+
+              <span class="text-muted-foreground">Source</span>
+              <a
+                href="https://gitlab.com/starshadow/software/capacitarr"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-1 text-primary hover:underline"
+              >
+                GitLab
+                <ExternalLinkIcon class="w-3 h-3" />
+              </a>
+
+              <span class="text-muted-foreground">Docs</span>
+              <a
+                href="https://starshadow.gitlab.io/software/capacitarr/"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-1 text-primary hover:underline"
+              >
+                Documentation
+                <ExternalLinkIcon class="w-3 h-3" />
+              </a>
+
+              <span class="text-muted-foreground">License</span>
+              <span class="text-foreground">PolyForm Noncommercial 1.0.0</span>
+            </div>
+          </div>
+
+          <!-- Tech Stack -->
+          <div class="space-y-3">
+            <p class="font-medium text-foreground">
+              Tech Stack
+            </p>
+            <div class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+              <span class="text-muted-foreground">Frontend</span>
+              <div class="flex flex-wrap gap-1.5">
+                <UiBadge
+                  v-for="item in techStack.frontend"
+                  :key="item"
+                  variant="secondary"
+                >
+                  {{ item }}
+                </UiBadge>
+              </div>
+
+              <span class="text-muted-foreground">Backend</span>
+              <div class="flex flex-wrap gap-1.5">
+                <UiBadge
+                  v-for="item in techStack.backend"
+                  :key="item"
+                  variant="secondary"
+                >
+                  {{ item }}
+                </UiBadge>
+              </div>
+
+              <span class="text-muted-foreground">Auth</span>
+              <div class="flex flex-wrap gap-1.5">
+                <UiBadge
+                  v-for="item in techStack.auth"
+                  :key="item"
+                  variant="secondary"
+                >
+                  {{ item }}
+                </UiBadge>
+              </div>
+
+              <span class="text-muted-foreground">Infrastructure</span>
+              <div class="flex flex-wrap gap-1.5">
+                <UiBadge
+                  v-for="item in techStack.infrastructure"
+                  :key="item"
+                  variant="secondary"
+                >
+                  {{ item }}
+                </UiBadge>
+              </div>
+            </div>
+          </div>
+
+          <!-- Credits -->
+          <div class="space-y-3">
+            <p class="font-medium text-foreground">
+              Credits &amp; Acknowledgments
+            </p>
+            <ul class="space-y-2 pl-1">
+              <li
+                v-for="credit in credits"
+                :key="credit.name"
+                class="flex items-start gap-2"
+              >
+                <span class="mt-1 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                <span><strong class="text-foreground">{{ credit.name }}</strong> — {{ credit.desc }}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </details>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ChevronRightIcon } from 'lucide-vue-next'
+import { ChevronRightIcon, InfoIcon, ExternalLinkIcon } from 'lucide-vue-next'
+
+const { uiVersion, uiBuildDate, apiVersion, apiBuildDate } = useVersion()
 
 const scoringFactors = [
   { name: 'Watch History', desc: 'Has anyone watched this? Unwatched content scores higher (more likely to be removed).' },
@@ -289,5 +438,21 @@ const scoringFactors = [
   { name: 'Rating', desc: 'Lower-rated content scores higher.' },
   { name: 'Time in Library', desc: 'Older library items score higher.' },
   { name: 'Availability', desc: 'Content available on fewer platforms scores higher.' }
+]
+
+const techStack = {
+  frontend: ['Vue 3', 'Nuxt 3', 'Tailwind CSS v4', 'shadcn-vue', 'ApexCharts', 'Lucide Icons'],
+  backend: ['Go 1.25', 'Echo HTTP', 'GORM + SQLite', 'Goose Migrations'],
+  auth: ['JWT', 'bcrypt', 'API Key', 'Proxy Header'],
+  infrastructure: ['Docker', 'Alpine Linux']
+}
+
+const credits = [
+  { name: 'shadcn-vue', desc: 'Component library' },
+  { name: 'Tailwind CSS', desc: 'Utility-first CSS framework' },
+  { name: 'Nuxt', desc: 'Vue meta-framework' },
+  { name: 'Geist', desc: 'Typography (Vercel)' },
+  { name: 'Lucide', desc: 'Icon system' },
+  { name: 'The *arr community', desc: 'Inspiration and ecosystem' }
 ]
 </script>

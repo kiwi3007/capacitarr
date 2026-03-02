@@ -7,10 +7,10 @@
     >
       <div>
         <h1 class="text-3xl font-bold tracking-tight">
-          Settings
+          {{ $t('settings.title') }}
         </h1>
         <p class="text-muted-foreground mt-1.5">
-          Manage integrations, general preferences, and authentication.
+          {{ $t('settings.subtitle') }}
         </p>
       </div>
     </div>
@@ -22,16 +22,19 @@
     >
       <UiTabsList class="mb-6">
         <UiTabsTrigger value="general">
-          General
+          {{ $t('settings.general') }}
         </UiTabsTrigger>
         <UiTabsTrigger value="integrations">
-          Integrations
+          {{ $t('settings.integrations') }}
         </UiTabsTrigger>
         <UiTabsTrigger value="security">
-          Security
+          {{ $t('settings.security') }}
         </UiTabsTrigger>
         <UiTabsTrigger value="advanced">
-          Advanced
+          {{ $t('settings.advanced') }}
+        </UiTabsTrigger>
+        <UiTabsTrigger value="notifications">
+          {{ $t('settings.notifications') }}
         </UiTabsTrigger>
       </UiTabsList>
 
@@ -59,16 +62,16 @@
               </div>
               <div>
                 <UiCardTitle class="text-base">
-                  Display
+                  {{ $t('settings.display') }}
                 </UiCardTitle>
-                <UiCardDescription>Timezone and clock format preferences (saved locally)</UiCardDescription>
+                <UiCardDescription>{{ $t('settings.displayDesc') }}</UiCardDescription>
               </div>
             </div>
           </UiCardHeader>
           <UiCardContent class="pt-5 space-y-5">
             <!-- Timezone -->
             <div class="space-y-1.5">
-              <UiLabel>Timezone</UiLabel>
+              <UiLabel>{{ $t('settings.timezone') }}</UiLabel>
               <UiSelect
                 :model-value="displayTimezone"
                 @update:model-value="(v: string) => setTimezone(String(v))"
@@ -89,28 +92,28 @@
 
             <!-- Clock Format -->
             <div class="space-y-1.5">
-              <UiLabel>Clock Format</UiLabel>
+              <UiLabel>{{ $t('settings.clockFormat') }}</UiLabel>
               <div class="flex gap-2">
                 <UiButton
                   :variant="displayClockFormat === '12h' ? 'default' : 'outline'"
                   size="sm"
                   @click="setClockFormat('12h')"
                 >
-                  12-hour
+                  {{ $t('settings.clock12h') }}
                 </UiButton>
                 <UiButton
                   :variant="displayClockFormat === '24h' ? 'default' : 'outline'"
                   size="sm"
                   @click="setClockFormat('24h')"
                 >
-                  24-hour
+                  {{ $t('settings.clock24h') }}
                 </UiButton>
               </div>
             </div>
 
             <!-- Theme -->
             <div class="space-y-2">
-              <UiLabel>Theme</UiLabel>
+              <UiLabel>{{ $t('settings.theme') }}</UiLabel>
               <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
                 <button
                   v-for="t in themeList"
@@ -128,8 +131,33 @@
               </div>
             </div>
 
+            <!-- Language -->
+            <div class="space-y-1.5">
+              <UiLabel>{{ $t('settings.language') }}</UiLabel>
+              <p class="text-xs text-muted-foreground mb-1">
+                {{ $t('settings.languageDesc') }}
+              </p>
+              <UiSelect
+                :model-value="currentLocale"
+                @update:model-value="(v: string) => setLocale(v)"
+              >
+                <UiSelectTrigger class="w-full max-w-xs">
+                  <UiSelectValue :placeholder="$t('settings.language')" />
+                </UiSelectTrigger>
+                <UiSelectContent>
+                  <UiSelectItem
+                    v-for="loc in availableLocales"
+                    :key="loc.code"
+                    :value="loc.code"
+                  >
+                    {{ loc.name }}
+                  </UiSelectItem>
+                </UiSelectContent>
+              </UiSelect>
+            </div>
+
             <p class="text-xs text-muted-foreground/70">
-              Changes apply immediately and are stored in your browser.
+              {{ $t('settings.themeHint') }}
             </p>
           </UiCardContent>
         </UiCard>
@@ -151,9 +179,9 @@
               </div>
               <div>
                 <UiCardTitle class="text-base">
-                  Engine Behavior
+                  {{ $t('settings.engineBehavior') }}
                 </UiCardTitle>
-                <UiCardDescription>Control how the scoring engine acts on results</UiCardDescription>
+                <UiCardDescription>{{ $t('settings.engineBehaviorDesc') }}</UiCardDescription>
               </div>
             </div>
           </UiCardHeader>
@@ -161,7 +189,7 @@
             <!-- Execution Mode -->
             <div class="space-y-3">
               <div class="flex items-center gap-2">
-                <UiLabel>Execution Mode</UiLabel>
+                <UiLabel>{{ $t('settings.executionMode') }}</UiLabel>
                 <SaveIndicator :status="saveStatus.executionMode" />
               </div>
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -192,7 +220,7 @@
             <!-- Score Tiebreaker -->
             <div class="space-y-1.5">
               <div class="flex items-center gap-2">
-                <UiLabel>Score Tiebreaker</UiLabel>
+                <UiLabel>{{ $t('settings.scoreTiebreaker') }}</UiLabel>
                 <SaveIndicator :status="saveStatus.tiebreaker" />
               </div>
               <p class="text-xs text-muted-foreground mb-1">
@@ -235,7 +263,7 @@
               :is="PlusIcon"
               class="w-4 h-4"
             />
-            Add Integration
+            {{ $t('settings.addIntegration') }}
           </UiButton>
         </div>
 
@@ -263,10 +291,10 @@
             class="w-16 h-16 text-muted-foreground/40 mx-auto mb-4"
           />
           <h3 class="text-lg font-medium text-foreground mb-2">
-            No integrations configured
+            {{ $t('settings.noIntegrations') }}
           </h3>
           <p class="text-muted-foreground mb-6">
-            Connect your Plex, Sonarr, Radarr, or Tautulli instances to get started.
+            {{ $t('settings.noIntegrationsHelp') }}
           </p>
           <UiButton
             size="lg"
@@ -276,7 +304,7 @@
               :is="PlusIcon"
               class="w-4 h-4"
             />
-            Add Your First Integration
+            {{ $t('settings.addFirstIntegration') }}
           </UiButton>
         </div>
 
@@ -316,7 +344,7 @@
                   </div>
                 </div>
                 <UiBadge :variant="integration.enabled ? 'default' : 'secondary'">
-                  {{ integration.enabled ? 'Active' : 'Disabled' }}
+                  {{ integration.enabled ? $t('common.active') : $t('common.disabled') }}
                 </UiBadge>
               </div>
             </UiCardHeader>
@@ -367,14 +395,14 @@
                   size="sm"
                   @click="testConnection(integration)"
                 >
-                  Test
+                  {{ $t('common.test') }}
                 </UiButton>
                 <UiButton
                   variant="outline"
                   size="sm"
                   @click="openEditModal(integration)"
                 >
-                  Edit
+                  {{ $t('common.edit') }}
                 </UiButton>
               </div>
               <UiButton
@@ -382,7 +410,7 @@
                 size="sm"
                 @click="deleteIntegration(integration)"
               >
-                Delete
+                {{ $t('common.delete') }}
               </UiButton>
             </UiCardFooter>
           </UiCard>
@@ -413,16 +441,16 @@
               </div>
               <div>
                 <UiCardTitle class="text-base">
-                  Change Username
+                  {{ $t('settings.changeUsername') }}
                 </UiCardTitle>
-                <UiCardDescription>Update your admin username for better security</UiCardDescription>
+                <UiCardDescription>{{ $t('settings.changeUsernameDesc') }}</UiCardDescription>
               </div>
             </div>
           </UiCardHeader>
           <UiCardContent class="pt-5 space-y-4 max-w-md">
             <div class="space-y-1.5">
               <UiLabel for="new-username">
-                New Username
+                {{ $t('settings.newUsername') }}
               </UiLabel>
               <UiInput
                 id="new-username"
@@ -433,7 +461,7 @@
             </div>
             <div class="space-y-1.5">
               <UiLabel for="username-password">
-                Current Password
+                {{ $t('settings.currentPassword') }}
               </UiLabel>
               <UiInput
                 id="username-password"
@@ -453,7 +481,7 @@
                 :disabled="savingUsername"
                 @click="changeUsername"
               >
-                {{ savingUsername ? 'Changing…' : 'Change Username' }}
+                {{ savingUsername ? $t('settings.changingUsername') : $t('settings.changeUsername') }}
               </UiButton>
             </div>
           </UiCardContent>
@@ -476,16 +504,16 @@
               </div>
               <div>
                 <UiCardTitle class="text-base">
-                  Change Password
+                  {{ $t('settings.changePassword') }}
                 </UiCardTitle>
-                <UiCardDescription>Update your admin password</UiCardDescription>
+                <UiCardDescription>{{ $t('settings.changePasswordDesc') }}</UiCardDescription>
               </div>
             </div>
           </UiCardHeader>
           <UiCardContent class="pt-5 space-y-4 max-w-md">
             <div class="space-y-1.5">
               <UiLabel for="current-password">
-                Current Password
+                {{ $t('settings.currentPassword') }}
               </UiLabel>
               <UiInput
                 id="current-password"
@@ -496,7 +524,7 @@
             </div>
             <div class="space-y-1.5">
               <UiLabel for="new-password">
-                New Password
+                {{ $t('settings.newPassword') }}
               </UiLabel>
               <UiInput
                 id="new-password"
@@ -507,7 +535,7 @@
             </div>
             <div class="space-y-1.5">
               <UiLabel for="confirm-password">
-                Confirm New Password
+                {{ $t('settings.confirmPassword') }}
               </UiLabel>
               <UiInput
                 id="confirm-password"
@@ -527,7 +555,7 @@
                 :disabled="savingPassword"
                 @click="changePassword"
               >
-                {{ savingPassword ? 'Changing…' : 'Change Password' }}
+                {{ savingPassword ? $t('settings.changingPassword') : $t('settings.changePassword') }}
               </UiButton>
             </div>
           </UiCardContent>
@@ -550,9 +578,9 @@
               </div>
               <div>
                 <UiCardTitle class="text-base">
-                  API Key
+                  {{ $t('settings.apiKey') }}
                 </UiCardTitle>
-                <UiCardDescription>For external tool integration</UiCardDescription>
+                <UiCardDescription>{{ $t('settings.apiKeyDesc') }}</UiCardDescription>
               </div>
             </div>
           </UiCardHeader>
@@ -567,21 +595,21 @@
                 size="sm"
                 @click="copyApiKey"
               >
-                Copy
+                {{ $t('common.copy') }}
               </UiButton>
             </div>
             <div
               v-else
               class="text-sm text-muted-foreground"
             >
-              No API key generated yet.
+              {{ $t('settings.noApiKey') }}
             </div>
             <div>
               <UiButton
                 :disabled="generatingApiKey"
                 @click="generateApiKey"
               >
-                {{ apiKey ? 'Regenerate API Key' : 'Generate API Key' }}
+                {{ apiKey ? $t('settings.regenerateApiKey') : $t('settings.generateApiKey') }}
               </UiButton>
             </div>
           </UiCardContent>
@@ -595,6 +623,68 @@
         value="advanced"
         class="space-y-6"
       >
+        <!-- Deletion Safety -->
+        <UiCard
+          v-motion
+          :initial="{ opacity: 0, y: 12 }"
+          :enter="{ opacity: 1, y: 0 }"
+          class="overflow-hidden"
+          :class="deletionsEnabled ? 'border-destructive' : ''"
+        >
+          <UiCardHeader class="border-b border-border">
+            <div class="flex items-center gap-3">
+              <div
+                class="w-10 h-10 rounded-lg flex items-center justify-center"
+                :class="deletionsEnabled ? 'bg-destructive' : 'bg-amber-500'"
+              >
+                <component
+                  :is="AlertTriangleIcon"
+                  class="w-5 h-5 text-white"
+                />
+              </div>
+              <div>
+                <UiCardTitle class="text-base">
+                  {{ $t('settings.deletionSafety') }}
+                </UiCardTitle>
+                <UiCardDescription>{{ $t('settings.deletionSafetyDesc') }}</UiCardDescription>
+              </div>
+            </div>
+          </UiCardHeader>
+          <UiCardContent class="pt-5 space-y-4">
+            <p class="text-sm text-muted-foreground">
+              {{ $t('settings.deletionSafetyExplain') }}
+            </p>
+            <div class="flex items-center justify-between">
+              <div class="space-y-0.5">
+                <div class="flex items-center gap-2">
+                  <UiLabel>{{ $t('settings.enableDeletions') }}</UiLabel>
+                  <SaveIndicator :status="saveStatus.deletionsEnabled" />
+                </div>
+                <p class="text-xs text-muted-foreground/70">
+                  {{ deletionsEnabled ? $t('settings.deletionsActive') : $t('settings.deletionsSimulated') }}
+                </p>
+              </div>
+              <UiSwitch
+                :checked="deletionsEnabled"
+                @update:checked="onDeletionToggle"
+              />
+            </div>
+            <UiAlert
+              v-if="deletionsEnabled"
+              variant="destructive"
+            >
+              <component
+                :is="Trash2Icon"
+                class="w-4 h-4"
+              />
+              <UiAlertTitle>{{ $t('settings.deletionsActiveAlert') }}</UiAlertTitle>
+              <UiAlertDescription>
+                {{ $t('settings.deletionsActiveAlertDesc') }}
+              </UiAlertDescription>
+            </UiAlert>
+          </UiCardContent>
+        </UiCard>
+
         <!-- Poll Interval -->
         <UiCard
           v-motion
@@ -612,16 +702,16 @@
               </div>
               <div>
                 <UiCardTitle class="text-base">
-                  Poll Interval
+                  {{ $t('settings.pollInterval') }}
                 </UiCardTitle>
-                <UiCardDescription>How often Capacitarr checks your integrations</UiCardDescription>
+                <UiCardDescription>{{ $t('settings.pollIntervalDesc') }}</UiCardDescription>
               </div>
             </div>
           </UiCardHeader>
           <UiCardContent class="pt-5">
             <div class="space-y-1.5">
               <div class="flex items-center gap-2">
-                <UiLabel>Interval</UiLabel>
+                <UiLabel>{{ $t('settings.interval') }}</UiLabel>
                 <SaveIndicator :status="saveStatus.pollInterval" />
               </div>
               <UiSelect v-model="pollIntervalStr">
@@ -650,7 +740,7 @@
                 </UiSelectContent>
               </UiSelect>
               <p class="text-xs text-muted-foreground/70">
-                The poller adjusts dynamically — no restart required.
+                {{ $t('settings.pollIntervalHint') }}
               </p>
             </div>
           </UiCardContent>
@@ -673,16 +763,16 @@
               </div>
               <div>
                 <UiCardTitle class="text-base">
-                  Data Management
+                  {{ $t('settings.dataManagement') }}
                 </UiCardTitle>
-                <UiCardDescription>Configure audit log retention</UiCardDescription>
+                <UiCardDescription>{{ $t('settings.dataManagementDesc') }}</UiCardDescription>
               </div>
             </div>
           </UiCardHeader>
           <UiCardContent class="pt-5 space-y-4">
             <div class="space-y-1.5">
               <div class="flex items-center gap-2">
-                <UiLabel>Audit Log Retention</UiLabel>
+                <UiLabel>{{ $t('settings.auditRetention') }}</UiLabel>
                 <SaveIndicator :status="saveStatus.retention" />
               </div>
               <UiSelect v-model="retentionStr">
@@ -721,9 +811,9 @@
               v-if="retentionDays === 0"
               variant="destructive"
             >
-              <UiAlertTitle>Warning</UiAlertTitle>
+              <UiAlertTitle>{{ $t('common.warning') }}</UiAlertTitle>
               <UiAlertDescription>
-                Indefinite retention will cause the database to grow continuously. This may eventually impact performance.
+                {{ $t('settings.retentionWarning') }}
               </UiAlertDescription>
             </UiAlert>
           </UiCardContent>
@@ -826,6 +916,175 @@
           </UiCardContent>
         </UiCard>
       </UiTabsContent>
+
+      <!-- ═══════════════════════════════════════════════════════
+           NOTIFICATIONS TAB
+           ═══════════════════════════════════════════════════════ -->
+      <UiTabsContent value="notifications">
+        <div class="flex justify-end mb-6">
+          <UiButton @click="openAddChannelModal">
+            <component
+              :is="PlusIcon"
+              class="w-4 h-4"
+            />
+            Add Channel
+          </UiButton>
+        </div>
+
+        <!-- Loading -->
+        <div
+          v-if="channelsLoading"
+          class="flex justify-center py-16"
+        >
+          <component
+            :is="LoaderCircleIcon"
+            class="w-8 h-8 text-primary animate-spin"
+          />
+        </div>
+
+        <!-- Empty state -->
+        <div
+          v-else-if="channels.length === 0"
+          v-motion
+          :initial="{ opacity: 0, y: 8 }"
+          :enter="{ opacity: 1, y: 0 }"
+          class="text-center py-20"
+        >
+          <component
+            :is="BellIcon"
+            class="w-16 h-16 text-muted-foreground/40 mx-auto mb-4"
+          />
+          <h3 class="text-lg font-medium text-foreground mb-2">
+            No notification channels configured
+          </h3>
+          <p class="text-muted-foreground mb-6">
+            Set up Discord, Slack, or in-app notifications for engine events.
+          </p>
+          <UiButton
+            size="lg"
+            @click="openAddChannelModal"
+          >
+            <component
+              :is="PlusIcon"
+              class="w-4 h-4"
+            />
+            Add Your First Channel
+          </UiButton>
+        </div>
+
+        <!-- Channel Cards Grid -->
+        <div
+          v-else
+          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
+        >
+          <UiCard
+            v-for="(channel, idx) in channels"
+            :key="channel.id"
+            v-motion
+            :initial="{ opacity: 0, y: 12 }"
+            :enter="{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24, delay: 80 * idx } }"
+            class="overflow-hidden"
+          >
+            <!-- Card Header -->
+            <UiCardHeader class="border-b border-border">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div :class="['w-10 h-10 rounded-lg flex items-center justify-center', channelTypeColor(channel.type)]">
+                    <component
+                      :is="channelTypeIcon(channel.type)"
+                      class="w-5 h-5 text-white"
+                    />
+                  </div>
+                  <div>
+                    <UiCardTitle class="text-base">
+                      {{ channel.name }}
+                    </UiCardTitle>
+                    <UiBadge
+                      :variant="channel.type === 'inapp' ? 'secondary' : 'outline'"
+                      class="mt-1"
+                    >
+                      {{ channelTypeLabel(channel.type) }}
+                    </UiBadge>
+                  </div>
+                </div>
+                <UiSwitch
+                  :checked="channel.enabled"
+                  @update:checked="(val: boolean) => toggleChannelEnabled(channel, val)"
+                />
+              </div>
+            </UiCardHeader>
+
+            <!-- Card Body -->
+            <UiCardContent class="pt-4 space-y-3">
+              <p class="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Event Subscriptions
+              </p>
+              <div class="space-y-2">
+                <label class="flex items-center gap-2 text-sm">
+                  <UiSwitch
+                    :checked="channel.onThresholdBreach"
+                    size="sm"
+                    @update:checked="(val: boolean) => updateChannelEvent(channel, 'onThresholdBreach', val)"
+                  />
+                  <span>Threshold Breach</span>
+                </label>
+                <label class="flex items-center gap-2 text-sm">
+                  <UiSwitch
+                    :checked="channel.onDeletionExecuted"
+                    size="sm"
+                    @update:checked="(val: boolean) => updateChannelEvent(channel, 'onDeletionExecuted', val)"
+                  />
+                  <span>Deletion Executed</span>
+                </label>
+                <label class="flex items-center gap-2 text-sm">
+                  <UiSwitch
+                    :checked="channel.onEngineError"
+                    size="sm"
+                    @update:checked="(val: boolean) => updateChannelEvent(channel, 'onEngineError', val)"
+                  />
+                  <span>Engine Error</span>
+                </label>
+                <label class="flex items-center gap-2 text-sm">
+                  <UiSwitch
+                    :checked="channel.onEngineComplete"
+                    size="sm"
+                    @update:checked="(val: boolean) => updateChannelEvent(channel, 'onEngineComplete', val)"
+                  />
+                  <span>Engine Complete</span>
+                </label>
+              </div>
+            </UiCardContent>
+
+            <!-- Card Footer -->
+            <UiCardFooter class="border-t border-border flex items-center justify-between">
+              <div class="flex gap-2">
+                <UiButton
+                  variant="outline"
+                  size="sm"
+                  :disabled="testingChannelId === channel.id"
+                  @click="testChannel(channel)"
+                >
+                  {{ testingChannelId === channel.id ? 'Sending…' : 'Test' }}
+                </UiButton>
+                <UiButton
+                  variant="outline"
+                  size="sm"
+                  @click="openEditChannelModal(channel)"
+                >
+                  Edit
+                </UiButton>
+              </div>
+              <UiButton
+                variant="destructive"
+                size="sm"
+                @click="deleteChannel(channel)"
+              >
+                Delete
+              </UiButton>
+            </UiCardFooter>
+          </UiCard>
+        </div>
+      </UiTabsContent>
     </UiTabs>
 
     <!-- Data Reset Confirmation Dialog -->
@@ -853,6 +1112,180 @@
             @click="confirmResetData"
           >
             {{ resettingData ? 'Clearing…' : 'Yes, clear all data' }}
+          </UiButton>
+        </UiDialogFooter>
+      </UiDialogContent>
+    </UiDialog>
+
+    <!-- Deletion Confirmation Dialog -->
+    <UiDialog
+      :open="showDeletionConfirmDialog"
+      @update:open="(val: boolean) => { if (!val) cancelEnableDeletions() }"
+    >
+      <UiDialogContent class="max-w-md">
+        <UiDialogHeader>
+          <UiDialogTitle>Enable Actual Deletions?</UiDialogTitle>
+          <UiDialogDescription>
+            This will allow Capacitarr to permanently delete media files from your storage.
+            Deleted files cannot be recovered. Make sure you have backups before proceeding.
+          </UiDialogDescription>
+        </UiDialogHeader>
+        <div class="space-y-3 py-2">
+          <UiAlert variant="destructive">
+            <component
+              :is="AlertTriangleIcon"
+              class="w-4 h-4"
+            />
+            <UiAlertTitle>Warning</UiAlertTitle>
+            <UiAlertDescription>
+              Once enabled, any media flagged by the scoring engine will be permanently removed from disk during the next engine run.
+            </UiAlertDescription>
+          </UiAlert>
+          <div class="space-y-1.5">
+            <UiLabel>Type <span class="font-mono font-bold">DELETE</span> to confirm</UiLabel>
+            <UiInput
+              v-model="deletionConfirmText"
+              type="text"
+              placeholder="Type DELETE here"
+              autocomplete="off"
+            />
+          </div>
+        </div>
+        <UiDialogFooter class="flex gap-2 justify-end">
+          <UiButton
+            variant="outline"
+            @click="cancelEnableDeletions"
+          >
+            Cancel
+          </UiButton>
+          <UiButton
+            variant="destructive"
+            :disabled="deletionConfirmText !== 'DELETE'"
+            @click="confirmEnableDeletions"
+          >
+            Enable Deletions
+          </UiButton>
+        </UiDialogFooter>
+      </UiDialogContent>
+    </UiDialog>
+
+    <!-- Notification Channel Modal -->
+    <UiDialog
+      :open="showChannelModal"
+      @update:open="(val: boolean) => { showChannelModal = val }"
+    >
+      <UiDialogContent class="max-w-md">
+        <UiDialogHeader>
+          <UiDialogTitle>
+            {{ editingChannel ? 'Edit Channel' : 'Add Notification Channel' }}
+          </UiDialogTitle>
+        </UiDialogHeader>
+
+        <form
+          class="space-y-4"
+          @submit.prevent="onChannelSubmit"
+        >
+          <div class="space-y-1.5">
+            <UiLabel>Type</UiLabel>
+            <UiSelect
+              v-model="channelForm.type"
+              :disabled="!!editingChannel"
+            >
+              <UiSelectTrigger class="w-full">
+                <UiSelectValue placeholder="Select type" />
+              </UiSelectTrigger>
+              <UiSelectContent>
+                <UiSelectItem value="discord">
+                  Discord
+                </UiSelectItem>
+                <UiSelectItem value="slack">
+                  Slack
+                </UiSelectItem>
+                <UiSelectItem value="inapp">
+                  In-App
+                </UiSelectItem>
+              </UiSelectContent>
+            </UiSelect>
+          </div>
+
+          <div class="space-y-1.5">
+            <UiLabel>Name</UiLabel>
+            <UiInput
+              v-model="channelForm.name"
+              type="text"
+              placeholder="e.g. My Discord Alerts"
+            />
+          </div>
+
+          <div
+            v-if="channelForm.type !== 'inapp'"
+            class="space-y-1.5"
+          >
+            <UiLabel>Webhook URL</UiLabel>
+            <UiInput
+              v-model="channelForm.webhookUrl"
+              type="text"
+              :placeholder="channelForm.type === 'discord'
+                ? 'https://discord.com/api/webhooks/...'
+                : 'https://hooks.slack.com/services/...'"
+            />
+          </div>
+
+          <div class="space-y-3">
+            <p class="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Event Subscriptions
+            </p>
+            <label class="flex items-center gap-2 text-sm">
+              <UiSwitch
+                :checked="channelForm.onThresholdBreach"
+                @update:checked="(val: boolean) => { channelForm.onThresholdBreach = val }"
+              />
+              <span>Threshold Breach</span>
+            </label>
+            <label class="flex items-center gap-2 text-sm">
+              <UiSwitch
+                :checked="channelForm.onDeletionExecuted"
+                @update:checked="(val: boolean) => { channelForm.onDeletionExecuted = val }"
+              />
+              <span>Deletion Executed</span>
+            </label>
+            <label class="flex items-center gap-2 text-sm">
+              <UiSwitch
+                :checked="channelForm.onEngineError"
+                @update:checked="(val: boolean) => { channelForm.onEngineError = val }"
+              />
+              <span>Engine Error</span>
+            </label>
+            <label class="flex items-center gap-2 text-sm">
+              <UiSwitch
+                :checked="channelForm.onEngineComplete"
+                @update:checked="(val: boolean) => { channelForm.onEngineComplete = val }"
+              />
+              <span>Engine Complete</span>
+            </label>
+          </div>
+
+          <!-- Error -->
+          <UiAlert
+            v-if="channelFormError"
+            variant="destructive"
+          >
+            <UiAlertDescription>{{ channelFormError }}</UiAlertDescription>
+          </UiAlert>
+        </form>
+
+        <UiDialogFooter class="flex gap-2 justify-end">
+          <UiButton
+            variant="ghost"
+            @click="showChannelModal = false"
+          >
+            Cancel
+          </UiButton>
+          <UiButton
+            :disabled="savingChannel"
+            @click="onChannelSubmit"
+          >
+            {{ editingChannel ? 'Save' : 'Add' }}
           </UiButton>
         </UiDialogFooter>
       </UiDialogContent>
@@ -945,12 +1378,43 @@
               type="password"
               placeholder="Enter API key or token"
             />
-            <p
-              v-if="formState.type === 'plex'"
-              class="text-xs text-muted-foreground/70"
-            >
-              To find your Plex token: open any library item in Plex Web → Get Info → View XML → look for <code class="font-mono text-[11px]">X-Plex-Token</code> in the URL.
-            </p>
+
+            <!-- Plex OAuth Sign-in Button -->
+            <template v-if="formState.type === 'plex'">
+              <div class="pt-1 space-y-2">
+                <UiButton
+                  type="button"
+                  class="w-full text-black font-semibold"
+                  style="background-color: #E5A00D;"
+                  :disabled="plexAuthLoading"
+                  @click="startPlexAuth"
+                >
+                  <template v-if="plexAuthLoading">
+                    <component
+                      :is="LoaderCircleIcon"
+                      class="w-4 h-4 animate-spin"
+                    />
+                    Waiting for Plex authorization…
+                  </template>
+                  <template v-else>
+                    <component
+                      :is="LogInIcon"
+                      class="w-4 h-4"
+                    />
+                    Sign in with Plex
+                  </template>
+                </UiButton>
+                <p class="text-xs text-muted-foreground/70">
+                  Opens Plex in a new window to authorize Capacitarr
+                </p>
+              </div>
+
+              <UiSeparator class="my-1" />
+
+              <p class="text-xs text-muted-foreground/70">
+                Or enter your token manually: open any library item in Plex Web → Get Info → View XML → look for <code class="font-mono text-[11px]">X-Plex-Token</code> in the URL.
+              </p>
+            </template>
           </div>
 
           <!-- Error -->
@@ -997,10 +1461,17 @@ import {
   DatabaseIcon, MonitorIcon, ActivityIcon,
   InboxIcon, MusicIcon, TimerIcon, ShieldIcon,
   CheckIcon, UserIcon, BookOpenIcon, MonitorPlayIcon,
-  CogIcon
+  CogIcon, Trash2Icon, LogInIcon,
+  BellIcon, MessageSquareIcon, HashIcon
 } from 'lucide-vue-next'
 import { formatRelativeTime } from '~/utils/format'
-import type { IntegrationConfig, PreferenceSet, ConnectionTestResult, ApiKeyResponse, ApiError } from '~/types/api'
+import type { IntegrationConfig, NotificationChannel, PreferenceSet, ConnectionTestResult, ApiKeyResponse, ApiError } from '~/types/api'
+
+// ─── i18n ─────────────────────────────────────────────────────────────────────
+const { locale: currentLocale, setLocale, locales } = useI18n()
+const availableLocales = computed(() =>
+  (locales.value as Array<{ code: string; name: string }>).map(l => ({ code: l.code, name: l.name }))
+)
 
 // ─── SaveIndicator functional component ──────────────────────────────────────
 const SaveIndicator = defineComponent({
@@ -1073,7 +1544,8 @@ const saveStatus = reactive<Record<string, 'idle' | 'saving' | 'saved' | 'error'
   defaultThreshold: 'idle',
   defaultTarget: 'idle',
   executionMode: 'idle',
-  tiebreaker: 'idle'
+  tiebreaker: 'idle',
+  deletionsEnabled: 'idle'
 })
 
 // Password change state
@@ -1097,6 +1569,11 @@ const savingUsername = ref(false)
 const defaultThreshold = ref(85)
 const defaultTarget = ref(75)
 
+// Deletion safety state
+const deletionsEnabled = ref(false)
+const showDeletionConfirmDialog = ref(false)
+const deletionConfirmText = ref('')
+
 // Data reset state
 const showResetDialog = ref(false)
 const resettingData = ref(false)
@@ -1111,6 +1588,73 @@ const formState = reactive({
   url: '',
   apiKey: ''
 })
+
+// ─── Plex OAuth PIN Auth ─────────────────────────────────────────────────────
+const plexAuthLoading = ref(false)
+let plexAuthPopup: Window | null = null
+let plexAuthAborted = false
+
+async function startPlexAuth() {
+  plexAuthLoading.value = true
+  plexAuthAborted = false
+
+  try {
+    // 1. Create PIN
+    const pinResponse = await api('/api/v1/integrations/plex/auth/pin', {
+      method: 'POST'
+    }) as { id: number, code: string }
+
+    // 2. Open popup
+    plexAuthPopup = window.open(
+      `https://app.plex.tv/auth#?clientID=capacitarr&code=${pinResponse.code}&forwardUrl=close&context%5Bdevice%5D%5Bproduct%5D=Capacitarr`,
+      'PlexAuth',
+      'width=600,height=700,scrollbars=yes'
+    )
+
+    // 3. Poll for claim (150 attempts × 2s = 5 min timeout)
+    const maxAttempts = 150
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      // Check if aborted or popup closed by user
+      if (plexAuthAborted) {
+        break
+      }
+
+      if (plexAuthPopup?.closed) {
+        addToast('Plex authorization cancelled', 'info')
+        break
+      }
+
+      try {
+        const result = await api(`/api/v1/integrations/plex/auth/pin/${pinResponse.id}`) as {
+          claimed: boolean
+          authToken?: string
+        }
+
+        if (result.claimed && result.authToken) {
+          plexAuthPopup?.close()
+          formState.apiKey = result.authToken
+          addToast('Plex authorized successfully!', 'success')
+          break
+        }
+      } catch {
+        // Polling error — continue trying
+      }
+
+      // Timeout on last attempt
+      if (i === maxAttempts - 1) {
+        plexAuthPopup?.close()
+        addToast('Plex authorization timed out — please try again', 'error')
+      }
+    }
+  } catch {
+    addToast('Failed to start Plex authorization', 'error')
+  } finally {
+    plexAuthLoading.value = false
+    plexAuthPopup = null
+  }
+}
 
 const namePlaceholder = computed(() => {
   const defaults: Record<string, string> = {
@@ -1209,7 +1753,7 @@ function showSaveStatus(field: string, status: 'saving' | 'saved' | 'error') {
   }
 }
 
-async function autoSavePreference(field: string, key: string, value: string | number) {
+async function autoSavePreference(field: string, key: string, value: string | number | boolean) {
   showSaveStatus(field, 'saving')
   try {
     const currentPrefs = await api('/api/v1/preferences') as PreferenceSet
@@ -1354,6 +1898,9 @@ async function fetchPreferences() {
     if (prefs?.tiebreakerMethod) {
       engineTiebreakerMethod.value = prefs.tiebreakerMethod
     }
+    if (prefs?.deletionsEnabled !== undefined) {
+      deletionsEnabled.value = prefs.deletionsEnabled
+    }
   } catch {
     // Silently ignored — UI has no further handling
   }
@@ -1362,6 +1909,33 @@ async function fetchPreferences() {
 function setExecutionMode(mode: string) {
   engineExecutionMode.value = mode
   autoSavePreference('executionMode', 'executionMode', mode)
+}
+
+// ─── Deletion Safety Toggle ──────────────────────────────────────────────────
+function onDeletionToggle(checked: boolean) {
+  if (checked) {
+    // Show confirmation dialog when enabling
+    showDeletionConfirmDialog.value = true
+    deletionConfirmText.value = ''
+  } else {
+    // Disable immediately without confirmation
+    deletionsEnabled.value = false
+    autoSavePreference('deletionsEnabled', 'deletionsEnabled', false)
+    addToast('File deletions disabled — all actions are now simulated', 'success')
+  }
+}
+
+function confirmEnableDeletions() {
+  deletionsEnabled.value = true
+  showDeletionConfirmDialog.value = false
+  deletionConfirmText.value = ''
+  autoSavePreference('deletionsEnabled', 'deletionsEnabled', true)
+  addToast('File deletions enabled — flagged items will be permanently removed', 'warning')
+}
+
+function cancelEnableDeletions() {
+  showDeletionConfirmDialog.value = false
+  deletionConfirmText.value = ''
 }
 
 // Watch tiebreaker — immediate save on select change
@@ -1499,9 +2073,179 @@ async function confirmResetData() {
   }
 }
 
+// ─── Notification Channels ───────────────────────────────────────────────────
+const channels = ref<NotificationChannel[]>([])
+const channelsLoading = ref(false)
+const showChannelModal = ref(false)
+const editingChannel = ref<NotificationChannel | null>(null)
+const savingChannel = ref(false)
+const channelFormError = ref('')
+const testingChannelId = ref<number | null>(null)
+
+const channelForm = reactive({
+  type: 'discord' as 'discord' | 'slack' | 'inapp',
+  name: '',
+  webhookUrl: '',
+  onThresholdBreach: true,
+  onDeletionExecuted: true,
+  onEngineError: true,
+  onEngineComplete: false
+})
+
+function channelTypeIcon(type: string) {
+  switch (type) {
+    case 'discord': return MessageSquareIcon
+    case 'slack': return HashIcon
+    case 'inapp': return BellIcon
+    default: return BellIcon
+  }
+}
+
+function channelTypeColor(type: string) {
+  switch (type) {
+    case 'discord': return 'bg-indigo-500'
+    case 'slack': return 'bg-green-500'
+    case 'inapp': return 'bg-blue-500'
+    default: return 'bg-muted-foreground'
+  }
+}
+
+function channelTypeLabel(type: string) {
+  switch (type) {
+    case 'discord': return 'Discord'
+    case 'slack': return 'Slack'
+    case 'inapp': return 'In-App'
+    default: return type
+  }
+}
+
+async function fetchChannels() {
+  channelsLoading.value = true
+  try {
+    channels.value = await api('/api/v1/notifications/channels') as NotificationChannel[]
+  } catch {
+    addToast('Failed to load notification channels', 'error')
+  } finally {
+    channelsLoading.value = false
+  }
+}
+
+function openAddChannelModal() {
+  editingChannel.value = null
+  channelForm.type = 'discord'
+  channelForm.name = ''
+  channelForm.webhookUrl = ''
+  channelForm.onThresholdBreach = true
+  channelForm.onDeletionExecuted = true
+  channelForm.onEngineError = true
+  channelForm.onEngineComplete = false
+  channelFormError.value = ''
+  showChannelModal.value = true
+}
+
+function openEditChannelModal(channel: NotificationChannel) {
+  editingChannel.value = channel
+  channelForm.type = channel.type
+  channelForm.name = channel.name
+  channelForm.webhookUrl = channel.webhookUrl || ''
+  channelForm.onThresholdBreach = channel.onThresholdBreach
+  channelForm.onDeletionExecuted = channel.onDeletionExecuted
+  channelForm.onEngineError = channel.onEngineError
+  channelForm.onEngineComplete = channel.onEngineComplete
+  channelFormError.value = ''
+  showChannelModal.value = true
+}
+
+async function onChannelSubmit() {
+  savingChannel.value = true
+  channelFormError.value = ''
+  try {
+    const body = {
+      type: channelForm.type,
+      name: channelForm.name,
+      webhookUrl: channelForm.type !== 'inapp' ? channelForm.webhookUrl : undefined,
+      enabled: editingChannel.value ? editingChannel.value.enabled : true,
+      onThresholdBreach: channelForm.onThresholdBreach,
+      onDeletionExecuted: channelForm.onDeletionExecuted,
+      onEngineError: channelForm.onEngineError,
+      onEngineComplete: channelForm.onEngineComplete
+    }
+    if (editingChannel.value) {
+      await api(`/api/v1/notifications/channels/${editingChannel.value.id}`, {
+        method: 'PUT',
+        body
+      })
+    } else {
+      await api('/api/v1/notifications/channels', {
+        method: 'POST',
+        body
+      })
+    }
+    showChannelModal.value = false
+    addToast('Notification channel saved', 'success')
+    await fetchChannels()
+  } catch (e: unknown) {
+    channelFormError.value = (e as ApiError)?.data?.error || 'Failed to save channel'
+    addToast(channelFormError.value, 'error')
+  } finally {
+    savingChannel.value = false
+  }
+}
+
+async function deleteChannel(channel: NotificationChannel) {
+  if (!confirm(`Delete "${channel.name}"? This cannot be undone.`)) return
+  try {
+    await api(`/api/v1/notifications/channels/${channel.id}`, { method: 'DELETE' })
+    addToast('Channel deleted', 'success')
+    await fetchChannels()
+  } catch {
+    addToast('Failed to delete channel', 'error')
+  }
+}
+
+async function toggleChannelEnabled(channel: NotificationChannel, enabled: boolean) {
+  try {
+    await api(`/api/v1/notifications/channels/${channel.id}`, {
+      method: 'PUT',
+      body: { ...channel, enabled }
+    })
+    channel.enabled = enabled
+    addToast(`Channel ${enabled ? 'enabled' : 'disabled'}`, 'success')
+  } catch {
+    addToast('Failed to update channel', 'error')
+  }
+}
+
+async function updateChannelEvent(channel: NotificationChannel, field: string, value: boolean) {
+  try {
+    const updated = { ...channel, [field]: value }
+    await api(`/api/v1/notifications/channels/${channel.id}`, {
+      method: 'PUT',
+      body: updated
+    })
+    // Update local state
+    ;(channel as Record<string, unknown>)[field] = value
+  } catch {
+    addToast('Failed to update channel', 'error')
+  }
+}
+
+async function testChannel(channel: NotificationChannel) {
+  testingChannelId.value = channel.id
+  try {
+    await api(`/api/v1/notifications/channels/${channel.id}/test`, { method: 'POST' })
+    addToast('Test notification sent!', 'success')
+  } catch {
+    addToast('Failed to send test notification', 'error')
+  } finally {
+    testingChannelId.value = null
+  }
+}
+
 onMounted(() => {
   fetchIntegrations()
   fetchPreferences()
   fetchApiKey()
+  fetchChannels()
 })
 </script>

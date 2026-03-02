@@ -30,6 +30,7 @@ func (p *PlexClient) doRequest(endpoint string) ([]byte, error) {
 	return DoAPIRequest(fullURL, "Accept", "application/json")
 }
 
+// TestConnection verifies the Plex server is reachable and the token is valid.
 func (p *PlexClient) TestConnection() error {
 	_, err := p.doRequest("/identity")
 	return err
@@ -90,6 +91,7 @@ type plexMetadata struct {
 	LeafCount int `json:"leafCount,omitempty"` // episode count (for shows/seasons)
 }
 
+// GetMediaItems fetches all movies, shows, and seasons from all Plex libraries.
 func (p *PlexClient) GetMediaItems() ([]MediaItem, error) {
 	// 1. Get all library sections
 	body, err := p.doRequest("/library/sections")
@@ -312,6 +314,7 @@ type PlexServerInfo struct {
 // Ensure PlexClient implements Integration
 var _ Integration = (*PlexClient)(nil)
 
+// DeleteMediaItem is a no-op for Plex; actual deletion is performed via *arr services.
 func (p *PlexClient) DeleteMediaItem(_ MediaItem) error {
 	// Plex is read-only for watch history in this architecture.
 	// Actual deletion happens via Radarr/Sonarr.

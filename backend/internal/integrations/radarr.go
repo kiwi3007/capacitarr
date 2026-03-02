@@ -28,6 +28,7 @@ func (r *RadarrClient) doRequest(endpoint string) ([]byte, error) {
 	return DoAPIRequest(r.URL+endpoint, "X-Api-Key", r.APIKey)
 }
 
+// TestConnection verifies the Radarr server is reachable and the API key is valid.
 func (r *RadarrClient) TestConnection() error {
 	_, err := r.doRequest("/api/v3/system/status")
 	return err
@@ -40,6 +41,7 @@ type radarrDiskSpace struct {
 	FreeSpace  int64  `json:"freeSpace"`
 }
 
+// GetDiskSpace returns disk usage information reported by Radarr.
 func (r *RadarrClient) GetDiskSpace() ([]DiskSpace, error) {
 	body, err := r.doRequest("/api/v3/diskspace")
 	if err != nil {
@@ -67,6 +69,7 @@ type radarrRootFolder struct {
 	Path string `json:"path"`
 }
 
+// GetRootFolders returns the configured root folder paths from Radarr.
 func (r *RadarrClient) GetRootFolders() ([]string, error) {
 	body, err := r.doRequest("/api/v3/rootfolder")
 	if err != nil {
@@ -120,6 +123,7 @@ type radarrTag struct {
 	Label string `json:"label"`
 }
 
+// GetMediaItems fetches all movies from Radarr with quality and tag metadata.
 func (r *RadarrClient) GetMediaItems() ([]MediaItem, error) {
 	// Fetch quality profiles for name lookup
 	profileBody, err := r.doRequest("/api/v3/qualityprofile")
@@ -224,6 +228,7 @@ func (r *RadarrClient) GetQualityProfiles() ([]NameValue, error) {
 	return result, nil
 }
 
+// GetTags returns all tags configured in Radarr.
 func (r *RadarrClient) GetTags() ([]NameValue, error) {
 	body, err := r.doRequest("/api/v3/tag")
 	if err != nil {
@@ -240,6 +245,7 @@ func (r *RadarrClient) GetTags() ([]NameValue, error) {
 	return result, nil
 }
 
+// GetLanguages returns all languages configured in Radarr.
 func (r *RadarrClient) GetLanguages() ([]NameValue, error) {
 	body, err := r.doRequest("/api/v3/language")
 	if err != nil {
@@ -259,6 +265,7 @@ func (r *RadarrClient) GetLanguages() ([]NameValue, error) {
 	return result, nil
 }
 
+// DeleteMediaItem removes a movie and its files from disk via the Radarr API.
 func (r *RadarrClient) DeleteMediaItem(item MediaItem) error {
 	endpoint := fmt.Sprintf("/api/v3/movie/%s?deleteFiles=true", item.ExternalID)
 	req, err := http.NewRequestWithContext(context.Background(), "DELETE", r.URL+endpoint, nil)

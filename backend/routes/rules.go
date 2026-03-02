@@ -333,10 +333,54 @@ func RegisterRuleRoutes(protected *echo.Group, database *gorm.DB) {
 	// ---------------------------------------------------------
 	protected.GET("/protections", func(c echo.Context) error {
 		var rules []db.ProtectionRule
-		if err := database.Find(&rules).Error; err != nil {
+		if err := database.Order("sort_order ASC, id ASC").Find(&rules).Error; err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch custom rules"})
 		}
 		return c.JSON(http.StatusOK, rules)
+	})
+
+	protected.PUT("/protections/reorder", func(c echo.Context) error {
+		var payload struct {
+			Order []uint `json:"order"`
+		}
+		if err := c.Bind(&payload); err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request payload"})
+		}
+		if len(payload.Order) == 0 {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Order array must not be empty"})
+		}
+
+		tx := database.Begin()
+		for idx, ruleID := range payload.Order {
+			if err := tx.Model(&db.ProtectionRule{}).Where("id = ?", ruleID).Update("sort_order", idx).Error; err != nil {
+				tx.Rollback()
+				slog.Error("Failed to update rule sort order", "component", "api", "ruleId", ruleID, "error", err)
+				return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to reorder rules"})
+			}
+		}
+		tx.Commit()
+		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
+	})
+
+	protected.PUT("/protections/:id", func(c echo.Context) error {
+		id := c.Param("id")
+		var existing db.ProtectionRule
+		if err := database.First(&existing, id).Error; err != nil {
+			return c.JSON(http.StatusNotFound, map[string]string{"error": "Rule not found"})
+		}
+
+		var updated db.ProtectionRule
+		if err := c.Bind(&updated); err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request payload"})
+		}
+
+		// Preserve the ID from URL param
+		updated.ID = existing.ID
+		if err := database.Save(&updated).Error; err != nil {
+			slog.Error("Failed to update custom rule", "component", "api", "operation", "update_rule", "id", id, "error", err)
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update rule"})
+		}
+		return c.JSON(http.StatusOK, updated)
 	})
 
 	protected.POST("/protections", func(c echo.Context) error {

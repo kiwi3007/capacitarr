@@ -1,5 +1,7 @@
 # Capacitarr Implementation Plan
 
+> **Status:** ✅ Complete (Historical) — All items implemented or superseded by later plans. This was the original implementation plan; see `20260301T0048Z-phase-4-production-readiness.md` for the consolidated active plan.
+
 Capacitarr is a standalone capacity manager application combining a highly efficient Go backend with a premium Vue.js & NuxtUI frontend, utilizing SQLite for zero-config data persistence.
 
 ## Proposed Architecture Updates

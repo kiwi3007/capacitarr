@@ -50,7 +50,7 @@ func RegisterPreviewRoutes(protected *echo.Group, database *gorm.DB) {
 		database.FirstOrCreate(&prefs, db.PreferenceSet{ID: 1})
 
 		var rules []db.ProtectionRule
-		database.Find(&rules)
+		database.Order("sort_order ASC, id ASC").Find(&rules)
 
 		evaluated := engine.EvaluateMedia(allItems, prefs, rules)
 		slog.Debug("Preview: evaluated items", "component", "api", "count", len(evaluated))

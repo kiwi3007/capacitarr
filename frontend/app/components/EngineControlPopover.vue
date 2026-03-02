@@ -30,7 +30,7 @@
         <!-- Header -->
         <div class="flex items-center justify-between">
           <h4 class="font-semibold text-sm">
-            Engine Control
+            {{ $t('engine.control') }}
           </h4>
           <UiBadge
             :variant="executionMode === 'auto' ? 'destructive' : executionMode === 'approval' ? 'outline' : 'secondary'"
@@ -41,7 +41,7 @@
 
         <!-- Mode Toggle -->
         <div class="space-y-1.5">
-          <span class="text-xs text-muted-foreground font-medium">Execution Mode</span>
+          <span class="text-xs text-muted-foreground font-medium">{{ $t('engine.executionMode') }}</span>
           <div class="flex gap-1">
             <UiButton
               v-for="mode in modes"
@@ -61,7 +61,7 @@
         <div class="grid grid-cols-2 gap-2 text-xs">
           <div class="rounded-lg bg-muted px-2.5 py-1.5">
             <div class="text-muted-foreground">
-              Last Run
+              {{ $t('engine.lastRun') }}
             </div>
             <div class="font-medium">
               {{ lastRunText }}
@@ -69,7 +69,7 @@
           </div>
           <div class="rounded-lg bg-muted px-2.5 py-1.5">
             <div class="text-muted-foreground">
-              Queue
+              {{ $t('engine.queue') }}
             </div>
             <div class="font-medium">
               {{ queueDepth }} items
@@ -77,7 +77,7 @@
           </div>
           <div class="rounded-lg bg-muted px-2.5 py-1.5">
             <div class="text-muted-foreground">
-              Evaluated
+              {{ $t('engine.evaluated') }}
             </div>
             <div class="font-medium">
               {{ lastRunEvaluated }}
@@ -85,7 +85,7 @@
           </div>
           <div class="rounded-lg bg-muted px-2.5 py-1.5">
             <div class="text-muted-foreground">
-              Flagged
+              {{ $t('engine.flagged') }}
             </div>
             <div class="font-medium">
               {{ lastRunFlagged }}
@@ -107,7 +107,7 @@
             v-else
             class="w-4 h-4"
           />
-          {{ executionMode === 'dry-run' ? 'Dry Run' : 'Run Now' }}
+          {{ executionMode === 'dry-run' ? $t('engine.dryRun') : $t('engine.runNow') }}
         </UiButton>
       </div>
     </UiPopoverContent>
@@ -121,25 +121,24 @@
     <UiDialogContent class="max-w-sm">
       <UiDialogHeader>
         <UiDialogTitle class="text-destructive">
-          Enable Auto Mode?
+          {{ $t('engine.enableAutoMode') }}
         </UiDialogTitle>
       </UiDialogHeader>
       <p class="text-sm text-muted-foreground">
-        Auto mode will <strong class="text-foreground">automatically delete</strong> media items that exceed the threshold.
-        This action cannot be undone. Are you sure?
+        {{ $t('engine.autoModeWarning') }}
       </p>
       <UiDialogFooter>
         <UiButton
           variant="ghost"
           @click="showAutoConfirm = false"
         >
-          Cancel
+          {{ $t('common.cancel') }}
         </UiButton>
         <UiButton
           variant="destructive"
           @click="confirmAutoMode"
         >
-          Enable Auto Mode
+          {{ $t('engine.enableAutoModeConfirm') }}
         </UiButton>
       </UiDialogFooter>
     </UiDialogContent>

@@ -24,6 +24,10 @@ func applyRules(item integrations.MediaItem, rules []db.ProtectionRule) (bool, f
 	modifier := 1.0
 
 	for _, rule := range rules {
+		// Skip disabled rules
+		if !rule.Enabled {
+			continue
+		}
 		// Skip rules scoped to a different integration
 		if rule.IntegrationID != nil && *rule.IntegrationID != item.IntegrationID {
 			continue

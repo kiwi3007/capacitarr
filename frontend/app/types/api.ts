@@ -54,6 +54,7 @@ export interface PreferenceSet {
   availabilityWeight: number
   executionMode: string
   tiebreakerMethod: string
+  deletionsEnabled: boolean
   updatedAt: string
 }
 
@@ -68,6 +69,8 @@ export interface ProtectionRule {
   operator: string
   value: string
   effect: string
+  enabled: boolean
+  sortOrder: number
   /** @deprecated Legacy field — kept for migration compatibility */
   type?: string
   /** @deprecated Legacy field — kept for migration compatibility */
@@ -270,5 +273,37 @@ export interface SelectedDetailItem {
   scoreDetails: string
   sizeBytes: number
   action: string
+  createdAt: string
+}
+
+// ---------------------------------------------------------------------------
+// Notification Channel
+// ---------------------------------------------------------------------------
+
+export interface NotificationChannel {
+  id: number
+  type: 'discord' | 'slack' | 'inapp'
+  name: string
+  webhookUrl?: string
+  enabled: boolean
+  onThresholdBreach: boolean
+  onDeletionExecuted: boolean
+  onEngineError: boolean
+  onEngineComplete: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+// ---------------------------------------------------------------------------
+// In-App Notification
+// ---------------------------------------------------------------------------
+
+export interface InAppNotification {
+  id: number
+  title: string
+  message: string
+  severity: 'info' | 'warning' | 'error' | 'success'
+  read: boolean
+  eventType: string
   createdAt: string
 }

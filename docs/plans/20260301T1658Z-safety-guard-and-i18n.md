@@ -1,7 +1,7 @@
 # Safety Guard Advanced Setting + Internationalization
 
 **Date:** 2026-03-01
-**Status:** Draft
+**Status:** ✅ Phase 1 Complete — Safety guard implemented as DB-backed `DeletionsEnabled` setting with UI toggle in Settings > Advanced. Phase 2 (i18n) superseded by `20260302T1527Z-internationalization-i18n.md`.
 **Branch:** `feature/ux-refinement`
 
 ---

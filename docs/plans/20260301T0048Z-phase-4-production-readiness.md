@@ -1,7 +1,7 @@
 # Capacitarr Phase 4: Production Readiness
 
 **Date:** 2026-03-01
-**Status:** Active — current working plan
+**Status:** ✅ Complete — All 12 phases implemented and verified.
 **Supersedes:** Remaining items from Phase 3 (`20260228T0600Z`), Theming (`20260228T1620Z`), and Visual Polish (`20260228T2025Z`)
 
 This plan consolidates all outstanding work from previous plans plus new requirements into a single prioritized execution order. Previous plan files have been updated to mark deferred items as "→ Deferred to Phase 4".
@@ -324,3 +324,24 @@ These items are tracked in `20260301T0048Z-advanced-configuration-backlog.md` an
 | 10 | Run Now UX polish | S | UX |
 | 11 | Touchscreen + pull-to-refresh | S-M | Accessibility |
 | 12 | Frontend/backend decoupling & OpenAPI spec | M | Architecture |
+
+---
+
+## Completion Status (2026-03-02)
+
+All 12 phases have been implemented and verified against the codebase:
+
+| Phase | Item | Status |
+|-------|------|--------|
+| 1 | Poller concurrency guard | ✅ `pollRunning atomic.Bool` in `poller.go` |
+| 2 | Goose migration framework | ✅ `migrate.go` + 8 migration files |
+| 3 | Reverse proxy & auth header | ✅ `AuthHeader` config, proxy auth middleware, cookie path fix |
+| 4 | Settings restructure + poll interval | ✅ 4-tab layout, `PollIntervalSeconds` in preferences |
+| 5 | Admin password management | ✅ `PUT /auth/password` + `PUT /auth/username` |
+| 6 | API key authentication | ✅ SHA-256 hashed keys, `POST /auth/apikey` |
+| 7 | New integrations + service-specific rules | ✅ Tautulli, Overseerr, Lidarr, Readarr, Jellyfin, Emby |
+| 8 | Show/season grouping | ✅ `groupedLogs` in audit, `groupedPreview` in rules |
+| 9 | Visual design polish | ✅ UiSlider, Geist fonts, `useThemeColors.ts` |
+| 10 | Run Now UX polish | ✅ `EngineControlPopover.vue` with spinner + stats |
+| 11 | Touchscreen + pull-to-refresh | ✅ `usePullToRefresh.ts` composable |
+| 12 | Frontend/backend decoupling & OpenAPI | ✅ OpenAPI spec, API docs, versioning docs. Headless mode will not be implemented — superseded by formalized API infrastructure. |

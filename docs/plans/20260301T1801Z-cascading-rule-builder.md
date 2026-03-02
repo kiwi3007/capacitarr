@@ -2,7 +2,7 @@
 
 **Created:** 2026-03-01T18:01Z  
 **Branch:** `feature/cascading-rule-builder`  
-**Status:** Planning
+**Status:** ✅ Complete — All 3 phases implemented. Core cascade, rule-values endpoint, combobox/closed-set inputs, conflict indicators, drag-to-reorder, bulk enable/disable, and free-text value validation all done.
 
 ---
 

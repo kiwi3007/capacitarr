@@ -1,5 +1,7 @@
 # Structured Score Transparency
 
+> **Status:** ✅ Complete — `ScoreFactor` struct, `scoreDetails` JSON in audit logs, `ScoreBreakdown.vue` + `ScoreDetailModal.vue` all implemented.
+
 ## Problem
 Score details are currently embedded as a formatted string in the `reason` field (e.g., `"Score: 0.89 (Watch:0.28, Recency:0.22, Size:0.12, Rating:0.14, Age:0.11, Status:0.08)"`). This is fragile, not parseable for arbitrary factor counts, and won't scale as custom rules, Tautulli watch data, Overseerr request status, and other integrations add more scoring dimensions.
 

@@ -22,9 +22,9 @@
             />
           </div>
           <UiCardTitle class="text-2xl">
-            Welcome Back
+            {{ $t('login.title') }}
           </UiCardTitle>
-          <UiCardDescription>Sign in to Capacitarr</UiCardDescription>
+          <UiCardDescription>{{ $t('login.subtitle') }}</UiCardDescription>
         </UiCardHeader>
 
         <!-- Form -->
@@ -35,7 +35,7 @@
           >
             <div class="space-y-2">
               <UiLabel for="username">
-                Username
+                {{ $t('login.username') }}
               </UiLabel>
               <UiInput
                 id="username"
@@ -48,7 +48,7 @@
 
             <div class="space-y-2">
               <UiLabel for="password">
-                Password
+                {{ $t('login.password') }}
               </UiLabel>
               <UiInput
                 id="password"
@@ -82,9 +82,9 @@
                   :is="LoaderCircleIcon"
                   class="w-4 h-4 animate-spin"
                 />
-                Signing in...
+                {{ $t('login.signingIn') }}
               </span>
-              <span v-else>Sign In</span>
+              <span v-else>{{ $t('login.signIn') }}</span>
             </UiButton>
           </form>
         </UiCardContent>
@@ -92,7 +92,7 @@
 
       <!-- Subtle branding footer -->
       <p class="text-center text-xs text-muted-foreground mt-4">
-        Capacitarr — Intelligent Media Capacity Management
+        {{ $t('login.branding') }}
       </p>
     </div>
   </div>
@@ -102,6 +102,7 @@
 import { LockKeyholeIcon, LoaderCircleIcon } from 'lucide-vue-next'
 import { ofetch } from 'ofetch'
 
+const { t } = useI18n()
 const config = useRuntimeConfig()
 
 const state = reactive({
@@ -133,14 +134,14 @@ async function onSubmit() {
       // Full page reload to ensure all components pick up the auth state
       window.location.href = '/'
     } else {
-      errorMsg.value = 'Authentication failed'
+      errorMsg.value = t('login.authFailed')
     }
   } catch (e) {
     const err = e as { response?: { status?: number } }
     if (err.response?.status === 401) {
-      errorMsg.value = 'Invalid username or password'
+      errorMsg.value = t('login.invalidCredentials')
     } else {
-      errorMsg.value = 'Network error connecting to backend'
+      errorMsg.value = t('login.networkError')
     }
   } finally {
     loading.value = false

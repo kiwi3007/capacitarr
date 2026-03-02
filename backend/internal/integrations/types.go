@@ -6,12 +6,18 @@ import "time"
 type IntegrationType string
 
 const (
-	IntegrationTypePlex      IntegrationType = "plex"
-	IntegrationTypeSonarr    IntegrationType = "sonarr"
-	IntegrationTypeRadarr    IntegrationType = "radarr"
-	IntegrationTypeTautulli  IntegrationType = "tautulli"
+	// IntegrationTypePlex identifies a Plex Media Server integration.
+	IntegrationTypePlex IntegrationType = "plex"
+	// IntegrationTypeSonarr identifies a Sonarr (TV series) integration.
+	IntegrationTypeSonarr IntegrationType = "sonarr"
+	// IntegrationTypeRadarr identifies a Radarr (movies) integration.
+	IntegrationTypeRadarr IntegrationType = "radarr"
+	// IntegrationTypeTautulli identifies a Tautulli (Plex analytics) integration.
+	IntegrationTypeTautulli IntegrationType = "tautulli"
+	// IntegrationTypeOverseerr identifies an Overseerr (media requests) integration.
 	IntegrationTypeOverseerr IntegrationType = "overseerr"
-	IntegrationTypeLidarr    IntegrationType = "lidarr"
+	// IntegrationTypeLidarr identifies a Lidarr (music) integration.
+	IntegrationTypeLidarr IntegrationType = "lidarr"
 )
 
 // Integration defines the common interface all service integrations implement
@@ -78,18 +84,27 @@ type MediaItem struct {
 type MediaType string
 
 const (
-	MediaTypeMovie   MediaType = "movie"
-	MediaTypeShow    MediaType = "show"
-	MediaTypeSeason  MediaType = "season"
+	// MediaTypeMovie represents a film or movie entry.
+	MediaTypeMovie MediaType = "movie"
+	// MediaTypeShow represents a TV series.
+	MediaTypeShow MediaType = "show"
+	// MediaTypeSeason represents a single season of a TV series.
+	MediaTypeSeason MediaType = "season"
+	// MediaTypeEpisode represents a single episode of a TV series.
 	MediaTypeEpisode MediaType = "episode"
-	MediaTypeArtist  MediaType = "artist"
-	MediaTypeBook    MediaType = "book"
+	// MediaTypeArtist represents a music artist.
+	MediaTypeArtist MediaType = "artist"
+	// MediaTypeBook represents a book or audiobook.
+	MediaTypeBook MediaType = "book"
 )
 
 const (
-	IntegrationTypeReadarr  IntegrationType = "readarr"
+	// IntegrationTypeReadarr identifies a Readarr (books/audiobooks) integration.
+	IntegrationTypeReadarr IntegrationType = "readarr"
+	// IntegrationTypeJellyfin identifies a Jellyfin media server integration.
 	IntegrationTypeJellyfin IntegrationType = "jellyfin"
-	IntegrationTypeEmby     IntegrationType = "emby"
+	// IntegrationTypeEmby identifies an Emby media server integration.
+	IntegrationTypeEmby IntegrationType = "emby"
 )
 
 // NameValue is a simple label/value pair used for rule value options.

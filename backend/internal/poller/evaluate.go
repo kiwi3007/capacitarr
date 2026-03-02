@@ -12,6 +12,7 @@ import (
 	"capacitarr/internal/db"
 	"capacitarr/internal/engine"
 	"capacitarr/internal/integrations"
+	"capacitarr/internal/notifications"
 )
 
 // evaluateAndCleanDisk scores all media items on a disk group and, when the
@@ -34,6 +35,18 @@ func evaluateAndCleanDisk(group db.DiskGroup, allItems []integrations.MediaItem,
 	slog.Info("Disk threshold breached, evaluating media for deletion", "component", "poller",
 		"mount", group.MountPath, "currentPct", fmt.Sprintf("%.1f", currentPct), "threshold", group.ThresholdPct)
 
+	// Notify: threshold breached
+	notifications.Dispatch(notifications.NotificationEvent{
+		Type:    notifications.EventThresholdBreach,
+		Title:   "Threshold Breached",
+		Message: fmt.Sprintf("Disk %s is at %.1f%% capacity (threshold: %.0f%%)", group.MountPath, currentPct, group.ThresholdPct),
+		Fields: map[string]string{
+			"Disk Group": group.MountPath,
+			"Usage":      fmt.Sprintf("%.1f%%", currentPct),
+			"Threshold":  fmt.Sprintf("%.0f%%", group.ThresholdPct),
+		},
+	})
+
 	// Filter items on this mount
 	var diskItems []integrations.MediaItem
 	for _, item := range allItems {
@@ -46,7 +59,7 @@ func evaluateAndCleanDisk(group db.DiskGroup, allItems []integrations.MediaItem,
 		"mount", group.MountPath, "itemCount", len(diskItems))
 
 	var rules []db.ProtectionRule
-	db.DB.Find(&rules)
+	db.DB.Order("sort_order ASC, id ASC").Find(&rules)
 
 	// Evaluate
 	evaluated := engine.EvaluateMedia(diskItems, prefs, rules)

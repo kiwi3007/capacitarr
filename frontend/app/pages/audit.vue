@@ -13,10 +13,10 @@
     >
       <div>
         <h1 class="text-3xl font-bold tracking-tight">
-          Audit History
+          {{ $t('audit.title') }}
         </h1>
         <p class="text-muted-foreground mt-1.5">
-          Historical log of all scoring engine decisions and space reclaimed.
+          {{ $t('audit.subtitle') }}
         </p>
       </div>
       <UiButton
@@ -31,7 +31,7 @@
           v-else
           class="w-4 h-4"
         />
-        Refresh
+        {{ $t('common.refresh') }}
       </UiButton>
     </div>
 
@@ -49,7 +49,7 @@
             <UiInput
               :model-value="auditSearch"
               aria-label="Search audit logs by media name"
-              placeholder="Search by media name…"
+              :placeholder="$t('audit.searchPlaceholder')"
               class="pl-8"
               @update:model-value="onSearchInput"
             />
@@ -84,7 +84,7 @@
         class="flex flex-col items-center justify-center py-20 text-muted-foreground"
       >
         <ClockIcon class="w-10 h-10 mb-3" />
-        <span class="text-sm font-medium">No history found</span>
+        <span class="text-sm font-medium">{{ $t('audit.noHistory') }}</span>
       </div>
 
       <div
@@ -100,7 +100,7 @@
                 @click="toggleAuditSort('created_at')"
               >
                 <span class="inline-flex items-center gap-1">
-                  Timestamp
+                  {{ $t('audit.timestamp') }}
                   <ArrowUpIcon
                     v-if="auditSortBy === 'created_at' && auditSortDir === 'asc'"
                     class="w-3 h-3"
@@ -120,7 +120,7 @@
                 @click="toggleAuditSort('media_name')"
               >
                 <span class="inline-flex items-center gap-1">
-                  Title
+                  {{ $t('audit.mediaTitle') }}
                   <ArrowUpIcon
                     v-if="auditSortBy === 'media_name' && auditSortDir === 'asc'"
                     class="w-3 h-3"
@@ -135,13 +135,13 @@
                   />
                 </span>
               </UiTableHead>
-              <UiTableHead>Type</UiTableHead>
+              <UiTableHead>{{ $t('audit.type') }}</UiTableHead>
               <UiTableHead
                 class="cursor-pointer select-none group"
                 @click="toggleAuditSort('action')"
               >
                 <span class="inline-flex items-center gap-1">
-                  Result
+                  {{ $t('audit.result') }}
                   <ArrowUpIcon
                     v-if="auditSortBy === 'action' && auditSortDir === 'asc'"
                     class="w-3 h-3"
@@ -156,13 +156,13 @@
                   />
                 </span>
               </UiTableHead>
-              <UiTableHead>Score</UiTableHead>
+              <UiTableHead>{{ $t('audit.score') }}</UiTableHead>
               <UiTableHead
                 class="text-right cursor-pointer select-none group"
                 @click="toggleAuditSort('size_bytes')"
               >
                 <span class="inline-flex items-center gap-1 justify-end">
-                  Space
+                  {{ $t('audit.space') }}
                   <ArrowUpIcon
                     v-if="auditSortBy === 'size_bytes' && auditSortDir === 'asc'"
                     class="w-3 h-3"

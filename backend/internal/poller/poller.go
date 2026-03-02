@@ -1,6 +1,7 @@
 package poller
 
 import (
+	"fmt"
 	"log/slog"
 	"strings"
 	"sync/atomic"
@@ -8,6 +9,7 @@ import (
 
 	"capacitarr/internal/db"
 	"capacitarr/internal/integrations"
+	"capacitarr/internal/notifications"
 
 	"gorm.io/gorm"
 )
@@ -89,6 +91,11 @@ func poll() {
 	var configs []db.IntegrationConfig
 	if err := db.DB.Where("enabled = ?", true).Find(&configs).Error; err != nil {
 		slog.Error("Failed to load integrations", "component", "poller", "operation", "load_integrations", "error", err)
+		notifications.Dispatch(notifications.NotificationEvent{
+			Type:    notifications.EventEngineError,
+			Title:   "Engine Error",
+			Message: fmt.Sprintf("Failed to load integrations: %v", err),
+		})
 		return
 	}
 
@@ -191,11 +198,26 @@ func poll() {
 		slog.Error("Failed to persist engine run stats", "component", "poller", "operation", "persist_stats", "error", err)
 	}
 
+	// Notify: engine cycle complete
+	evaluated := atomic.LoadInt64(&lastRunEvaluated)
+	flagged := atomic.LoadInt64(&lastRunFlagged)
+	notifications.Dispatch(notifications.NotificationEvent{
+		Type:    notifications.EventEngineComplete,
+		Title:   "Engine Cycle Complete",
+		Message: fmt.Sprintf("Evaluated %d items, flagged %d for removal in %s", evaluated, flagged, time.Since(pollStart).String()),
+		Fields: map[string]string{
+			"Evaluated": fmt.Sprintf("%d", evaluated),
+			"Flagged":   fmt.Sprintf("%d", flagged),
+			"Duration":  time.Since(pollStart).String(),
+			"Mode":      prefs.ExecutionMode,
+		},
+	})
+
 	slog.Debug("Poll cycle complete", "component", "poller",
 		"duration", time.Since(pollStart).String(),
 		"totalItems", len(fetched.allItems),
-		"evaluated", atomic.LoadInt64(&lastRunEvaluated),
-		"flagged", atomic.LoadInt64(&lastRunFlagged),
+		"evaluated", evaluated,
+		"flagged", flagged,
 		"protected", atomic.LoadInt64(&lastRunProtected))
 }
 

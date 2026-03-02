@@ -1,5 +1,7 @@
 # Capacitarr v2 Migration Plan
 
+> **Status:** ✅ Complete (Historical) — All phases implemented including §9.1 notification channels (Discord, Slack, in-app). Checkboxes below were not maintained during execution but all work was completed.
+
 This document covers the complete modernization of Capacitarr: licensing, frontend rebuild on shadcn-vue + Motion, backend security/correctness fixes, and housekeeping. The Go + Nuxt architecture remains — only the frontend component layer and specific backend issues change.
 
 ---

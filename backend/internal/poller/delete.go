@@ -9,10 +9,12 @@ import (
 	"time"
 
 	"golang.org/x/time/rate"
+	"gorm.io/gorm"
 
 	"capacitarr/internal/db"
 	"capacitarr/internal/engine"
 	"capacitarr/internal/integrations"
+	"capacitarr/internal/notifications"
 )
 
 type deleteJob struct {
@@ -49,33 +51,59 @@ func deletionWorker() {
 
 		currentlyDeletingVal.Store(job.item.Title)
 
-		// ╔══════════════════════════════════════════════════════════╗
-		// ║  SAFETY GUARD: Deletions are disabled until testing     ║
-		// ║  Remove this block when ready for production testing.   ║
-		// ╚══════════════════════════════════════════════════════════╝
-		slog.Warn("SAFETY GUARD: Delete skipped (deletions disabled in codebase)",
-			"component", "poller",
-			"item", job.item.Title,
-			"type", job.item.Type,
-			"size", job.item.SizeBytes,
-			"score", job.score,
-		)
-		currentlyDeletingVal.Store("")
-		atomic.AddInt64(&metricsProcessed, 1)
-
-		// Still log to audit as "Dry-Delete" so the UI shows activity
-		factorsJSON, _ := json.Marshal(job.factors) //nolint:errcheck // marshal of known-safe struct
-		logEntry := db.AuditLog{
-			MediaName:    job.item.Title,
-			MediaType:    string(job.item.Type),
-			Reason:       fmt.Sprintf("Score: %.2f (%s)", job.score, job.reason),
-			ScoreDetails: string(factorsJSON),
-			Action:       "Dry-Delete",
-			SizeBytes:    job.item.SizeBytes,
-			CreatedAt:    time.Now(),
+		// Check whether actual deletions are enabled via user preference
+		var prefs db.PreferenceSet
+		deletionsEnabled := false
+		if err := db.DB.First(&prefs, 1).Error; err == nil {
+			deletionsEnabled = prefs.DeletionsEnabled
 		}
 
-		/* DISABLED: Actual deletion — uncomment when ready for production testing
+		factorsJSON, _ := json.Marshal(job.factors) //nolint:errcheck // marshal of known-safe struct
+
+		if !deletionsEnabled {
+			// Dry-Delete: log but do not actually remove the file
+			slog.Warn("Dry-Delete: deletions disabled in settings",
+				"component", "poller",
+				"item", job.item.Title,
+				"type", job.item.Type,
+				"size", job.item.SizeBytes,
+				"score", job.score,
+			)
+			currentlyDeletingVal.Store("")
+			atomic.AddInt64(&metricsProcessed, 1)
+
+			logEntry := db.AuditLog{
+				MediaName:    job.item.Title,
+				MediaType:    string(job.item.Type),
+				Reason:       fmt.Sprintf("Score: %.2f (%s)", job.score, job.reason),
+				ScoreDetails: string(factorsJSON),
+				Action:       "Dry-Delete",
+				SizeBytes:    job.item.SizeBytes,
+				CreatedAt:    time.Now(),
+			}
+			if err := db.DB.Create(&logEntry).Error; err != nil {
+				slog.Error("Failed to create audit log entry", "component", "poller", "operation", "create_audit_log", "error", err)
+			}
+
+			// Notify: deletion executed (dry-delete)
+			notifications.Dispatch(notifications.NotificationEvent{
+				Type:    notifications.EventDeletionExecuted,
+				Title:   "Deletion Executed (Dry-Delete)",
+				Message: fmt.Sprintf("%s flagged for removal (dry-delete mode, score: %.2f)", job.item.Title, job.score),
+				Fields: map[string]string{
+					"Media":  job.item.Title,
+					"Action": "Dry-Delete",
+					"Score":  fmt.Sprintf("%.2f", job.score),
+					"Size":   fmt.Sprintf("%d bytes", job.item.SizeBytes),
+				},
+			})
+
+			slog.Info("Background engine action completed", "component", "poller",
+				"media", job.item.Title, "action", "Dry-Delete", "freed", job.item.SizeBytes)
+			continue
+		}
+
+		// Actual deletion path
 		if err := job.client.DeleteMediaItem(job.item); err != nil {
 			slog.Error("Background deletion failed", "component", "poller", "operation", "delete_media", "item", job.item.Title, "error", err)
 			atomic.AddInt64(&metricsFailed, 1)
@@ -93,7 +121,6 @@ func deletionWorker() {
 				"total_items_removed":   gorm.Expr("total_items_removed + ?", 1),
 			})
 
-		factorsJSON, _ := json.Marshal(job.factors)
 		logEntry := db.AuditLog{
 			MediaName:    job.item.Title,
 			MediaType:    string(job.item.Type),
@@ -103,10 +130,22 @@ func deletionWorker() {
 			SizeBytes:    job.item.SizeBytes,
 			CreatedAt:    time.Now(),
 		}
-		*/
 		if err := db.DB.Create(&logEntry).Error; err != nil {
 			slog.Error("Failed to create audit log entry", "component", "poller", "operation", "create_audit_log", "error", err)
 		}
+
+		// Notify: deletion executed (actual)
+		notifications.Dispatch(notifications.NotificationEvent{
+			Type:    notifications.EventDeletionExecuted,
+			Title:   "Deletion Executed",
+			Message: fmt.Sprintf("%s was deleted (score: %.2f)", job.item.Title, job.score),
+			Fields: map[string]string{
+				"Media":  job.item.Title,
+				"Action": "Deleted",
+				"Score":  fmt.Sprintf("%.2f", job.score),
+				"Size":   fmt.Sprintf("%d bytes", job.item.SizeBytes),
+			},
+		})
 
 		slog.Info("Background engine action completed", "component", "poller",
 			"media", job.item.Title, "action", "Deleted", "freed", job.item.SizeBytes)

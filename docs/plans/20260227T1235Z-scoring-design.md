@@ -1,5 +1,7 @@
 # Scoring Engine v2: Preferences, Not Rules
 
+> **Status:** ✅ Complete — Design implemented. The scoring engine uses weighted preferences + protection rules as described. See `20260301T1801Z-cascading-rule-builder.md` for the evolved rule system.
+
 ## The Core Insight
 
 Users don't want to *write rules*. They want to *express preferences*: "I'd rather keep things I've watched than things with a high rating that I haven't seen." That's not a rule — it's a priority.

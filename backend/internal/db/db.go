@@ -10,6 +10,7 @@ import (
 	gormlogger "gorm.io/gorm/logger"
 )
 
+// DB is the package-level database connection used throughout the application.
 var DB *gorm.DB
 
 // Init opens the SQLite database, runs migrations, and stores the connection in the package-level DB variable.

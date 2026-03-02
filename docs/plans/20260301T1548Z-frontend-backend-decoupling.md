@@ -1,7 +1,7 @@
 # Frontend/Backend Decoupling Plan
 
 **Date:** 2026-03-01
-**Status:** Draft — review and refine before execution
+**Status:** ✅ Complete — Phases 1, 4, 5 done (OpenAPI spec, CORS docs, versioning). Phases 2-3 (headless mode) will not be implemented — superseded by the formalized API infrastructure which enables third-party frontends without requiring a separate headless binary.
 **Effort:** M (medium)
 
 ## Goal

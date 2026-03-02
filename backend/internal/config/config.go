@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// Config holds the application-wide configuration loaded from environment variables.
 type Config struct {
 	Port          string
 	BaseURL       string

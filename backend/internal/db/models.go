@@ -78,6 +78,7 @@ type PreferenceSet struct {
 	AvailabilityWeight    int       `gorm:"default:3" json:"availabilityWeight"`
 	ExecutionMode         string    `gorm:"default:'dry-run';not null" json:"executionMode"`      // "dry-run", "approval", "auto"
 	TiebreakerMethod      string    `gorm:"default:'size_desc';not null" json:"tiebreakerMethod"` // "size_desc", "size_asc", "name_asc", "oldest_first", "newest_first"
+	DeletionsEnabled      bool      `gorm:"default:false;not null" json:"deletionsEnabled"`       // Safety guard: actual deletions only when true
 	UpdatedAt             time.Time `json:"updatedAt"`
 }
 
@@ -89,6 +90,8 @@ type ProtectionRule struct {
 	Operator      string `gorm:"not null" json:"operator"`   // e.g. "==", "contains", ">"
 	Value         string `gorm:"not null" json:"value"`      // e.g. "4K", "anime", "7.5"
 	Effect        string `gorm:"not null" json:"effect"`     // e.g. "always_keep", "prefer_remove"
+	Enabled       bool   `gorm:"default:true;not null" json:"enabled"`
+	SortOrder     int    `gorm:"default:0;not null" json:"sortOrder"`
 	// Deprecated — kept for migration compatibility
 	Type      string    `json:"type,omitempty"`
 	Intensity string    `json:"intensity,omitempty"`
@@ -130,4 +133,31 @@ type LifetimeStats struct {
 	TotalEngineRuns     int   `gorm:"not null;default:0" json:"totalEngineRuns"`
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
+}
+
+// NotificationConfig stores a configured notification channel (Discord, Slack, or in-app).
+type NotificationConfig struct {
+	ID         uint   `gorm:"primarykey" json:"id"`
+	Type       string `gorm:"not null" json:"type"`          // "discord", "slack", "inapp"
+	Name       string `gorm:"not null" json:"name"`          // User-friendly name
+	WebhookURL string `json:"webhookUrl,omitempty"`          // Discord/Slack webhook URL
+	Enabled    bool   `gorm:"default:true" json:"enabled"`
+	// Event subscriptions — which events trigger this channel
+	OnThresholdBreach  bool      `gorm:"default:true" json:"onThresholdBreach"`
+	OnDeletionExecuted bool      `gorm:"default:true" json:"onDeletionExecuted"`
+	OnEngineError      bool      `gorm:"default:true" json:"onEngineError"`
+	OnEngineComplete   bool      `gorm:"default:false" json:"onEngineComplete"`
+	CreatedAt          time.Time `json:"createdAt"`
+	UpdatedAt          time.Time `json:"updatedAt"`
+}
+
+// InAppNotification stores a notification displayed in the UI notification panel.
+type InAppNotification struct {
+	ID        uint      `gorm:"primarykey" json:"id"`
+	Title     string    `gorm:"not null" json:"title"`
+	Message   string    `gorm:"not null" json:"message"`
+	Severity  string    `gorm:"not null;default:'info'" json:"severity"` // "info", "warning", "error", "success"
+	Read      bool      `gorm:"default:false" json:"read"`
+	EventType string    `gorm:"not null" json:"eventType"` // "threshold_breach", "deletion_executed", etc.
+	CreatedAt time.Time `json:"createdAt"`
 }

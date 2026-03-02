@@ -1,10 +1,10 @@
 # Advanced Configuration Backlog
 
 **Date:** 2026-03-01
-**Status:** Backlog — implement when demand warrants
-**Type:** Ideas/deferred items for power-user configuration
+**Status:** ❌ Closed — Will not implement
+**Type:** Ideas that were evaluated and rejected
 
-These items are intentionally deferred from the main development plan. They represent advanced configuration options that most users won't need but power users may request.
+These items were considered during development but have been decided against. The simple interval dropdown covers all realistic polling use cases, and the hardcoded 3-second deletion rate is a sensible default that doesn't warrant user configuration.
 
 ---
 

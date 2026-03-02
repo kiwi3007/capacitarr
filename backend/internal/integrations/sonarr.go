@@ -28,6 +28,7 @@ func (s *SonarrClient) doRequest(endpoint string) ([]byte, error) {
 	return DoAPIRequest(s.URL+endpoint, "X-Api-Key", s.APIKey)
 }
 
+// TestConnection verifies the Sonarr server is reachable and the API key is valid.
 func (s *SonarrClient) TestConnection() error {
 	_, err := s.doRequest("/api/v3/system/status")
 	return err
@@ -40,6 +41,7 @@ type sonarrDiskSpace struct {
 	FreeSpace  int64  `json:"freeSpace"`
 }
 
+// GetDiskSpace returns disk usage information reported by Sonarr.
 func (s *SonarrClient) GetDiskSpace() ([]DiskSpace, error) {
 	body, err := s.doRequest("/api/v3/diskspace")
 	if err != nil {
@@ -67,6 +69,7 @@ type sonarrRootFolder struct {
 	Path string `json:"path"`
 }
 
+// GetRootFolders returns the configured root folder paths from Sonarr.
 func (s *SonarrClient) GetRootFolders() ([]string, error) {
 	body, err := s.doRequest("/api/v3/rootfolder")
 	if err != nil {
@@ -130,6 +133,7 @@ type sonarrTag struct {
 	Label string `json:"label"`
 }
 
+// GetMediaItems fetches all series and seasons from Sonarr with quality and tag metadata.
 func (s *SonarrClient) GetMediaItems() ([]MediaItem, error) {
 	// Fetch quality profiles
 	profileBody, err := s.doRequest("/api/v3/qualityprofile")
@@ -256,6 +260,7 @@ func (s *SonarrClient) GetQualityProfiles() ([]NameValue, error) {
 	return result, nil
 }
 
+// GetTags returns all tags configured in Sonarr.
 func (s *SonarrClient) GetTags() ([]NameValue, error) {
 	body, err := s.doRequest("/api/v3/tag")
 	if err != nil {
@@ -272,6 +277,7 @@ func (s *SonarrClient) GetTags() ([]NameValue, error) {
 	return result, nil
 }
 
+// GetLanguages returns all languages configured in Sonarr.
 func (s *SonarrClient) GetLanguages() ([]NameValue, error) {
 	body, err := s.doRequest("/api/v3/language")
 	if err != nil {
@@ -291,6 +297,7 @@ func (s *SonarrClient) GetLanguages() ([]NameValue, error) {
 	return result, nil
 }
 
+// DeleteMediaItem removes a series or season and its files from disk via the Sonarr API.
 func (s *SonarrClient) DeleteMediaItem(item MediaItem) error {
 	var endpoint string
 	if item.Type == MediaTypeShow { //nolint:gocritic // conditions test different fields, not a single value

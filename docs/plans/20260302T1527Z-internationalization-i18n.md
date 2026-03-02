@@ -1,7 +1,7 @@
 # Internationalization (i18n) Implementation Plan
 
 **Date:** 2026-03-02
-**Status:** Draft
+**Status:** ✅ Complete — Infrastructure setup, 229-key English locale, string extraction across all pages/components, language selector in Settings, and stub translations for Spanish, German, and French.
 **Branch:** `feature/i18n`
 **Supersedes:** Phase 2 of `20260301T1658Z-safety-guard-and-i18n.md`
 
