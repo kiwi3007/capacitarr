@@ -942,13 +942,12 @@
               <!-- Toggle with label -->
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                  <div @click.prevent="onDeletionToggle(!deletionsEnabled)">
-                    <UiSwitch
-                      :checked="deletionsEnabled"
-                      aria-label="Enable actual file deletion"
-                      :class="deletionsEnabled ? '[&[data-state=checked]]:bg-destructive' : ''"
-                    />
-                  </div>
+                  <UiSwitch
+                    :checked="deletionsEnabled"
+                    aria-label="Enable actual file deletion"
+                    :class="deletionsEnabled ? '[&[data-state=checked]]:bg-destructive' : ''"
+                    @update:checked="onDeletionToggle"
+                  />
                   <div>
                     <span class="text-sm font-medium">
                       {{ $t('settings.enableDeletions') }}
@@ -1986,8 +1985,11 @@ function setExecutionMode(mode: string) {
 // ─── Deletion Safety Toggle ──────────────────────────────────────────────────
 function onDeletionToggle(checked: boolean) {
   if (checked) {
-    // Show confirmation dialog when enabling
-    showDeletionConfirmDialog.value = true
+    // Immediately revert the visual toggle — it will flip back if confirmed
+    deletionsEnabled.value = false
+    nextTick(() => {
+      showDeletionConfirmDialog.value = true
+    })
   } else {
     // Disable immediately without confirmation
     deletionsEnabled.value = false
@@ -2004,6 +2006,7 @@ function confirmEnableDeletions() {
 }
 
 function cancelEnableDeletions() {
+  deletionsEnabled.value = false
   showDeletionConfirmDialog.value = false
 }
 
