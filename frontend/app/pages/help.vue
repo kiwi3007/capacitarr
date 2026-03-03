@@ -519,6 +519,14 @@
               </li>
             </ul>
           </div>
+
+          <!-- From the Author -->
+          <div class="space-y-2 pt-4 border-t border-border/50">
+            <p class="text-xs text-muted-foreground/70 leading-relaxed">
+              <span class="inline-block mr-1">🇺🇦</span>
+              I stand with Ukraine. This project is built with the belief that freedom, sovereignty, and self-determination matter — for people and for software.
+            </p>
+          </div>
         </div>
       </details>
     </div>
