@@ -479,14 +479,15 @@ curl -s -H "X-Api-Key: $CAPACITARR_API_KEY" \
 
 ```json
 {
-  "weightAge": 25,
-  "weightSize": 30,
-  "weightLastWatched": 20,
-  "weightPopularity": 12.5,
-  "weightSeeding": 12.5,
+  "watchHistoryWeight": 10,
+  "lastWatchedWeight": 8,
+  "fileSizeWeight": 6,
+  "ratingWeight": 5,
+  "timeInLibraryWeight": 4,
+  "seriesStatusWeight": 3,
   "executionMode": "dry-run",
-  "tiebreakerMethod": "size",
-  "engineSchedule": "0 3 * * *"
+  "tiebreakerMethod": "size_desc",
+  "deletionsEnabled": true
 }
 ```
 
@@ -497,14 +498,15 @@ curl -s -X PUT -H "X-Api-Key: $CAPACITARR_API_KEY" \
   -H "Content-Type: application/json" \
   "$CAPACITARR_URL/preferences" \
   -d '{
-    "weightAge": 25,
-    "weightSize": 30,
-    "weightLastWatched": 20,
-    "weightPopularity": 12.5,
-    "weightSeeding": 12.5,
+    "watchHistoryWeight": 10,
+    "lastWatchedWeight": 8,
+    "fileSizeWeight": 6,
+    "ratingWeight": 5,
+    "timeInLibraryWeight": 4,
+    "seriesStatusWeight": 3,
     "executionMode": "dry-run",
-    "tiebreakerMethod": "size",
-    "engineSchedule": "0 3 * * *"
+    "tiebreakerMethod": "size_desc",
+    "deletionsEnabled": true
   }' | jq
 ```
 

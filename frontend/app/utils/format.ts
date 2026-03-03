@@ -11,10 +11,6 @@ export function formatBytes(bytes: number): string {
   return `${val.toFixed(val >= 100 ? 0 : 1)} ${units[i]}`
 }
 
-export function formatPercent(value: number, decimals = 0): string {
-  return `${value.toFixed(decimals)}%`
-}
-
 export function formatTime(dateStr: string | null | undefined): string {
   if (!dateStr) return 'Never'
   return new Date(dateStr).toLocaleString()

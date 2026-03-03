@@ -138,7 +138,7 @@ Common HTTP status codes:
 
 Authentication endpoints are rate-limited to prevent brute-force attacks:
 
-- **Login** (`POST /auth/login`): 5 attempts per 15 minutes per IP address
+- **Login** (`POST /auth/login`): 10 attempts per 15 minutes per IP address
 
 When rate-limited, the server returns a `429 Too Many Requests` response. Wait for the window to reset before retrying.
 

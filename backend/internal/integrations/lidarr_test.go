@@ -2,6 +2,7 @@ package integrations
 
 import (
 	"encoding/json"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -185,7 +186,7 @@ func TestLidarrClient_GetMediaItems(t *testing.T) {
 	}
 	// Rating is 9.2/10 normalized to 0.92
 	expectedRating := 9.2 / 10.0
-	if pinkFloyd.Rating != expectedRating {
+	if math.Abs(pinkFloyd.Rating-expectedRating) > 0.001 {
 		t.Errorf("Expected normalized rating %v, got %v", expectedRating, pinkFloyd.Rating)
 	}
 	if pinkFloyd.QualityProfile != "Lossless" {

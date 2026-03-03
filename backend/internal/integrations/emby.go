@@ -47,45 +47,6 @@ func (e *EmbyClient) TestConnection() error {
 	return nil
 }
 
-// EmbyWatchData contains watch history for a media item from Emby
-type EmbyWatchData struct {
-	PlayCount      int
-	LastPlayedDate time.Time
-	Played         bool
-}
-
-// GetWatchHistory fetches play history for a specific item by its Emby ID.
-func (e *EmbyClient) GetWatchHistory(embyID, userID string) (*EmbyWatchData, error) {
-	endpoint := fmt.Sprintf("/Users/%s/Items/%s", userID, embyID)
-	body, err := e.doRequest(endpoint)
-	if err != nil {
-		return nil, err
-	}
-
-	var item struct {
-		UserData struct {
-			PlayCount      int    `json:"PlayCount"`
-			LastPlayedDate string `json:"LastPlayedDate"`
-			Played         bool   `json:"Played"`
-		} `json:"UserData"`
-	}
-
-	if err := json.Unmarshal(body, &item); err != nil {
-		return nil, fmt.Errorf("failed to parse Emby item: %w", err)
-	}
-
-	data := &EmbyWatchData{
-		PlayCount: item.UserData.PlayCount,
-		Played:    item.UserData.Played,
-	}
-
-	if item.UserData.LastPlayedDate != "" {
-		data.LastPlayedDate, _ = time.Parse(time.RFC3339, item.UserData.LastPlayedDate)
-	}
-
-	return data, nil
-}
-
 // GetBulkWatchData fetches all movies and series from Emby's library with their
 // watch data (PlayCount, LastPlayedDate) in a single paginated API call.
 // Returns a map from normalized (lowercase) title to MediaServerWatchData.

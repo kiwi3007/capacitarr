@@ -62,39 +62,6 @@ type jellyfinItem struct {
 	} `json:"UserData"`
 }
 
-// JellyfinWatchData contains watch history for a media item
-type JellyfinWatchData struct {
-	PlayCount      int
-	LastPlayedDate time.Time
-	Played         bool
-}
-
-// GetWatchHistory fetches play history for a specific item by its Jellyfin ID.
-// The userId parameter is required — use GetAdminUserID to find it.
-func (j *JellyfinClient) GetWatchHistory(jellyfinID, userID string) (*JellyfinWatchData, error) {
-	endpoint := fmt.Sprintf("/Users/%s/Items/%s", userID, jellyfinID)
-	body, err := j.doRequest(endpoint)
-	if err != nil {
-		return nil, err
-	}
-
-	var item jellyfinItem
-	if err := json.Unmarshal(body, &item); err != nil {
-		return nil, fmt.Errorf("failed to parse Jellyfin item: %w", err)
-	}
-
-	data := &JellyfinWatchData{
-		PlayCount: item.UserData.PlayCount,
-		Played:    item.UserData.Played,
-	}
-
-	if item.UserData.LastPlayedDate != "" {
-		data.LastPlayedDate, _ = time.Parse(time.RFC3339, item.UserData.LastPlayedDate)
-	}
-
-	return data, nil
-}
-
 // MediaServerWatchData contains aggregated watch data from a media server (Jellyfin or Emby).
 // Used for bulk enrichment — keyed by normalized title in the lookup map.
 type MediaServerWatchData struct {

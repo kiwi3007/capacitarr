@@ -100,7 +100,10 @@ func poll() {
 	}
 
 	var prefs db.PreferenceSet
-	db.DB.FirstOrCreate(&prefs, db.PreferenceSet{ID: 1})
+	if err := db.DB.FirstOrCreate(&prefs, db.PreferenceSet{ID: 1}).Error; err != nil {
+		slog.Error("Failed to load preferences", "component", "poller", "operation", "load_preferences", "error", err)
+		return
+	}
 
 	slog.Debug("Poll cycle starting", "component", "poller",
 		"enabledIntegrations", len(configs),
@@ -280,6 +283,8 @@ func createClient(intType, url, apiKey string) integrations.Integration {
 		return integrations.NewRadarrClient(url, apiKey)
 	case "lidarr":
 		return integrations.NewLidarrClient(url, apiKey)
+	case "readarr":
+		return integrations.NewReadarrClient(url, apiKey)
 	case "plex":
 		return integrations.NewPlexClient(url, apiKey)
 	default:
@@ -287,21 +292,4 @@ func createClient(intType, url, apiKey string) integrations.Integration {
 	}
 }
 
-// SetInterval is provided for potential external use but the poll interval
-// is actually managed via DB preferences. This is a no-op placeholder
-// referenced by the plan but not currently needed.
-func SetInterval(_ time.Duration) {
-	// Poll interval is managed via DB preferences; see getPollInterval()
-	slog.Debug("SetInterval called but poll interval is DB-managed", "component", "poller")
-}
 
-// Trigger sends a signal to the poller to run an immediate cycle.
-// This is a convenience wrapper around RunNowCh for external callers.
-func Trigger() bool {
-	select {
-	case RunNowCh <- struct{}{}:
-		return true
-	default:
-		return false
-	}
-}

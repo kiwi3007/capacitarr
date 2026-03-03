@@ -19,13 +19,13 @@ type AuthConfig struct {
 
 // LibraryHistory stores historical capacity logs
 type LibraryHistory struct {
-	ID            uint      `gorm:"primarykey"`
-	Timestamp     time.Time `gorm:"index;not null"`
-	TotalCapacity int64     `gorm:"not null"`
-	UsedCapacity  int64     `gorm:"not null"`
-	Resolution    string    `gorm:"index;not null"` // "raw", "hourly", "daily", "weekly"
-	DiskGroupID   *uint     `gorm:"index"`          // Optional FK to DiskGroup
-	CreatedAt     time.Time
+	ID            uint      `gorm:"primarykey" json:"id"`
+	Timestamp     time.Time `gorm:"index;not null" json:"timestamp"`
+	TotalCapacity int64     `gorm:"not null" json:"totalCapacity"`
+	UsedCapacity  int64     `gorm:"not null" json:"usedCapacity"`
+	Resolution    string    `gorm:"index;not null" json:"resolution"` // "raw", "hourly", "daily", "weekly"
+	DiskGroupID   *uint     `gorm:"index" json:"diskGroupId,omitempty"` // Optional FK to DiskGroup
+	CreatedAt     time.Time `json:"createdAt"`
 }
 
 // IntegrationConfig stores a configured service connection.
@@ -114,7 +114,7 @@ type AuditLog struct {
 // EngineRunStats stores one row per engine evaluation cycle, persisting metrics
 // across container restarts so the UI always shows the latest run's stats.
 type EngineRunStats struct {
-	ID            uint      `gorm:"primaryKey" json:"id"`
+	ID            uint      `gorm:"primarykey" json:"id"`
 	RunAt         time.Time `gorm:"index;not null" json:"runAt"`
 	Evaluated     int       `gorm:"not null;default:0" json:"evaluated"`
 	Flagged       int       `gorm:"not null;default:0" json:"flagged"`
@@ -130,9 +130,9 @@ type LifetimeStats struct {
 	ID                  uint  `gorm:"primarykey" json:"id"`
 	TotalBytesReclaimed int64 `gorm:"not null;default:0" json:"totalBytesReclaimed"`
 	TotalItemsRemoved   int   `gorm:"not null;default:0" json:"totalItemsRemoved"`
-	TotalEngineRuns     int   `gorm:"not null;default:0" json:"totalEngineRuns"`
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
+	TotalEngineRuns     int       `gorm:"not null;default:0" json:"totalEngineRuns"`
+	CreatedAt           time.Time `json:"createdAt"`
+	UpdatedAt           time.Time `json:"updatedAt"`
 }
 
 // NotificationConfig stores a configured notification channel (Discord, Slack, or in-app).

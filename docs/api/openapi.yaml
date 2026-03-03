@@ -18,8 +18,8 @@ info:
 
     The `/health`, `/version`, and `/auth/login` endpoints are public.
   license:
-    name: GPL-3.0-or-later
-    url: https://www.gnu.org/licenses/gpl-3.0.html
+    name: PolyForm Noncommercial 1.0.0
+    url: https://polyformproject.org/licenses/noncommercial/1.0.0/
 
 servers:
   - url: http://localhost:2187/api/v1
@@ -1470,6 +1470,10 @@ components:
           type: string
           enum: [size_desc, size_asc, name_asc, oldest_first, newest_first]
           default: size_desc
+        deletionsEnabled:
+          type: boolean
+          description: Whether actual deletion execution is enabled
+          example: false
         updatedAt:
           type: string
           format: date-time

@@ -148,10 +148,6 @@ const props = defineProps<{
   refreshKey?: number
 }>()
 
-defineEmits<{
-  (e: 'updated'): void
-}>()
-
 /** Raw (unrounded) usage percentage — used for color zone comparisons. */
 const rawUsagePct = computed(() => {
   if (props.group.totalBytes === 0) return 0

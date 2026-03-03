@@ -148,15 +148,15 @@ Rules override the scoring engine by applying **score modifiers** — multiplier
 | `always_keep` | — | Item is immune to deletion. Score is set to 0.0 and the item is marked as protected. No further processing. |
 | `prefer_keep` | ×0.2 | Strongly reduces the deletion score. |
 | `lean_keep` | ×0.5 | Moderately reduces the deletion score. |
-| `lean_remove` | ×1.2 | Slightly increases the deletion score. |
-| `prefer_remove` | ×2.0 | Strongly increases the deletion score. |
+| `lean_remove` | ×1.5 | Slightly increases the deletion score. |
+| `prefer_remove` | ×3.0 | Strongly increases the deletion score. |
 | `always_remove` | ×100.0 | Pushes the score to the maximum — item is effectively always first in the queue. |
 
 ### "Keep Always Wins"
 
 When multiple rules match the same item, `always_keep` takes absolute precedence. If any matching rule has the `always_keep` effect, the item is unconditionally protected regardless of any other matching rules.
 
-For all other effects, modifiers **multiply together**. For example, if an item matches both a `prefer_keep` (×0.2) and a `lean_remove` (×1.2) rule, the combined modifier is 0.2 × 1.2 = **0.24** — the keep effect dominates.
+For all other effects, modifiers **multiply together**. For example, if an item matches both a `prefer_keep` (×0.2) and a `lean_remove` (×1.5) rule, the combined modifier is 0.2 × 1.5 = **0.30** — the keep effect dominates.
 
 ### Rule Matching
 

@@ -19,7 +19,10 @@ import (
 // threshold is breached, queues the highest-scoring candidates for deletion.
 func evaluateAndCleanDisk(group db.DiskGroup, allItems []integrations.MediaItem, serviceClients map[uint]integrations.Integration) {
 	var prefs db.PreferenceSet
-	db.DB.FirstOrCreate(&prefs, db.PreferenceSet{ID: 1})
+	if err := db.DB.FirstOrCreate(&prefs, db.PreferenceSet{ID: 1}).Error; err != nil {
+		slog.Error("Failed to load preferences", "component", "poller", "operation", "load_preferences", "error", err)
+		return
+	}
 
 	if group.TotalBytes == 0 {
 		return
@@ -59,7 +62,10 @@ func evaluateAndCleanDisk(group db.DiskGroup, allItems []integrations.MediaItem,
 		"mount", group.MountPath, "itemCount", len(diskItems))
 
 	var rules []db.CustomRule
-	db.DB.Order("sort_order ASC, id ASC").Find(&rules)
+	if err := db.DB.Order("sort_order ASC, id ASC").Find(&rules).Error; err != nil {
+		slog.Error("Failed to load custom rules", "component", "poller", "operation", "load_rules", "error", err)
+		return
+	}
 
 	// Evaluate
 	evaluated := engine.EvaluateMedia(diskItems, prefs, rules)

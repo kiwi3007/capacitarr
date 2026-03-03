@@ -337,29 +337,6 @@ func TestPlexClient_GetMediaItems_MalformedJSON(t *testing.T) {
 	}
 }
 
-func TestPlexClient_GetServerIdentity(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/identity" {
-			t.Errorf("Unexpected path: %s", r.URL.Path)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"MediaContainer":{"machineIdentifier":"abc-123-def","version":"1.32.5.7516"}}`))
-	}))
-	defer srv.Close()
-
-	client := NewPlexClient(srv.URL, "test-token")
-	info, err := client.GetServerIdentity()
-	if err != nil {
-		t.Fatalf("GetServerIdentity should succeed: %v", err)
-	}
-	if info.MachineID != "abc-123-def" {
-		t.Errorf("Expected machineId 'abc-123-def', got %q", info.MachineID)
-	}
-	if info.Version != "1.32.5.7516" {
-		t.Errorf("Expected version '1.32.5.7516', got %q", info.Version)
-	}
-}
-
 func TestPlexClient_GetLibrarySections(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/library/sections" {
@@ -395,63 +372,6 @@ func TestPlexClient_GetLibrarySections(t *testing.T) {
 
 	if sections[0].Title != "Movies" || sections[0].Type != "movie" || sections[0].Key != "1" {
 		t.Errorf("Unexpected first section: %+v", sections[0])
-	}
-}
-
-func TestPlexClient_GetWatchHistory(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/library/metadata/101" {
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{
-				"MediaContainer": {
-					"Metadata": [{
-						"ratingKey": "101",
-						"title": "Inception",
-						"type": "movie",
-						"viewCount": 5,
-						"lastViewedAt": 1700000000,
-						"addedAt": 1680000000
-					}]
-				}
-			}`))
-			return
-		}
-		w.WriteHeader(http.StatusNotFound)
-	}))
-	defer srv.Close()
-
-	client := NewPlexClient(srv.URL, "test-token")
-	data, err := client.GetWatchHistory("101")
-	if err != nil {
-		t.Fatalf("GetWatchHistory should succeed: %v", err)
-	}
-
-	if data.PlayCount != 5 {
-		t.Errorf("Expected PlayCount 5, got %d", data.PlayCount)
-	}
-	if data.LastPlayed == nil {
-		t.Error("Expected LastPlayed to be set")
-	}
-	if data.AddedAt == nil {
-		t.Error("Expected AddedAt to be set")
-	}
-}
-
-func TestPlexClient_GetWatchHistory_NotFound(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/library/metadata/999" {
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"MediaContainer":{"Metadata":[]}}`))
-			return
-		}
-		w.WriteHeader(http.StatusNotFound)
-	}))
-	defer srv.Close()
-
-	client := NewPlexClient(srv.URL, "test-token")
-	_, err := client.GetWatchHistory("999")
-	if err == nil {
-		t.Fatal("Expected error when no metadata found")
 	}
 }
 

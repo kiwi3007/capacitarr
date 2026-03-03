@@ -109,87 +109,87 @@ func TestMatchesRule_AllFieldTypes(t *testing.T) {
 		matched bool
 	}{
 		// Title field
-		{"title == match", db.CustomRule{Field: "title", Operator: "==", Value: "the matrix"}, true},
-		{"title == no match", db.CustomRule{Field: "title", Operator: "==", Value: "avatar"}, false},
-		{"title contains match", db.CustomRule{Field: "title", Operator: "contains", Value: "matrix"}, true},
-		{"title !contains match", db.CustomRule{Field: "title", Operator: "!contains", Value: "avatar"}, true},
+		{"title == match", db.CustomRule{Enabled: true, Field: "title", Operator: "==", Value: "the matrix"}, true},
+		{"title == no match", db.CustomRule{Enabled: true, Field: "title", Operator: "==", Value: "avatar"}, false},
+		{"title contains match", db.CustomRule{Enabled: true, Field: "title", Operator: "contains", Value: "matrix"}, true},
+		{"title !contains match", db.CustomRule{Enabled: true, Field: "title", Operator: "!contains", Value: "avatar"}, true},
 
 		// Quality field
-		{"quality == match", db.CustomRule{Field: "quality", Operator: "==", Value: "hd-1080p"}, true},
-		{"quality != match", db.CustomRule{Field: "quality", Operator: "!=", Value: "4k"}, true},
+		{"quality == match", db.CustomRule{Enabled: true, Field: "quality", Operator: "==", Value: "hd-1080p"}, true},
+		{"quality != match", db.CustomRule{Enabled: true, Field: "quality", Operator: "!=", Value: "4k"}, true},
 
 		// SeriesStatus
-		{"seriesstatus == match", db.CustomRule{Field: "seriesstatus", Operator: "==", Value: "ended"}, true},
-		{"seriesstatus == no match", db.CustomRule{Field: "seriesstatus", Operator: "==", Value: "continuing"}, false},
+		{"seriesstatus == match", db.CustomRule{Enabled: true, Field: "seriesstatus", Operator: "==", Value: "ended"}, true},
+		{"seriesstatus == no match", db.CustomRule{Enabled: true, Field: "seriesstatus", Operator: "==", Value: "continuing"}, false},
 
 		// Tag field (matches any tag in the slice)
-		{"tag contains match", db.CustomRule{Field: "tag", Operator: "contains", Value: "anime"}, true},
-		{"tag contains no match", db.CustomRule{Field: "tag", Operator: "contains", Value: "horror"}, false},
-		{"tag !contains match", db.CustomRule{Field: "tag", Operator: "!contains", Value: "horror"}, true},
+		{"tag contains match", db.CustomRule{Enabled: true, Field: "tag", Operator: "contains", Value: "anime"}, true},
+		{"tag contains no match", db.CustomRule{Enabled: true, Field: "tag", Operator: "contains", Value: "horror"}, false},
+		{"tag !contains match", db.CustomRule{Enabled: true, Field: "tag", Operator: "!contains", Value: "horror"}, true},
 
 		// Genre field
-		{"genre contains match", db.CustomRule{Field: "genre", Operator: "contains", Value: "sci-fi"}, true},
-		{"genre == exact", db.CustomRule{Field: "genre", Operator: "==", Value: "action, sci-fi"}, true},
+		{"genre contains match", db.CustomRule{Enabled: true, Field: "genre", Operator: "contains", Value: "sci-fi"}, true},
+		{"genre == exact", db.CustomRule{Enabled: true, Field: "genre", Operator: "==", Value: "action, sci-fi"}, true},
 
 		// Rating field (numeric)
-		{"rating > match", db.CustomRule{Field: "rating", Operator: ">", Value: "8.0"}, true},
-		{"rating < no match", db.CustomRule{Field: "rating", Operator: "<", Value: "8.0"}, false},
-		{"rating >= boundary", db.CustomRule{Field: "rating", Operator: ">=", Value: "8.5"}, true},
-		{"rating invalid value", db.CustomRule{Field: "rating", Operator: ">", Value: "notanumber"}, false},
+		{"rating > match", db.CustomRule{Enabled: true, Field: "rating", Operator: ">", Value: "8.0"}, true},
+		{"rating < no match", db.CustomRule{Enabled: true, Field: "rating", Operator: "<", Value: "8.0"}, false},
+		{"rating >= boundary", db.CustomRule{Enabled: true, Field: "rating", Operator: ">=", Value: "8.5"}, true},
+		{"rating invalid value", db.CustomRule{Enabled: true, Field: "rating", Operator: ">", Value: "notanumber"}, false},
 
 		// SizeBytes field (numeric)
-		{"sizebytes > match", db.CustomRule{Field: "sizebytes", Operator: ">", Value: "5000000000"}, true},
-		{"sizebytes < no match", db.CustomRule{Field: "sizebytes", Operator: "<", Value: "5000000000"}, false},
+		{"sizebytes > match", db.CustomRule{Enabled: true, Field: "sizebytes", Operator: ">", Value: "5000000000"}, true},
+		{"sizebytes < no match", db.CustomRule{Enabled: true, Field: "sizebytes", Operator: "<", Value: "5000000000"}, false},
 
 		// TimeInLibrary (computed from AddedAt)
-		{"timeinlibrary > match", db.CustomRule{Field: "timeinlibrary", Operator: ">", Value: "300"}, true},
-		{"timeinlibrary < no match", db.CustomRule{Field: "timeinlibrary", Operator: "<", Value: "100"}, false},
+		{"timeinlibrary > match", db.CustomRule{Enabled: true, Field: "timeinlibrary", Operator: ">", Value: "300"}, true},
+		{"timeinlibrary < no match", db.CustomRule{Enabled: true, Field: "timeinlibrary", Operator: "<", Value: "100"}, false},
 
 		// SeasonCount
-		{"seasoncount == match", db.CustomRule{Field: "seasoncount", Operator: "==", Value: "3"}, true},
-		{"seasoncount > match", db.CustomRule{Field: "seasoncount", Operator: ">", Value: "2"}, true},
+		{"seasoncount == match", db.CustomRule{Enabled: true, Field: "seasoncount", Operator: "==", Value: "3"}, true},
+		{"seasoncount > match", db.CustomRule{Enabled: true, Field: "seasoncount", Operator: ">", Value: "2"}, true},
 
 		// EpisodeCount
-		{"episodecount >= match", db.CustomRule{Field: "episodecount", Operator: ">=", Value: "24"}, true},
-		{"episodecount < no match", db.CustomRule{Field: "episodecount", Operator: "<", Value: "10"}, false},
+		{"episodecount >= match", db.CustomRule{Enabled: true, Field: "episodecount", Operator: ">=", Value: "24"}, true},
+		{"episodecount < no match", db.CustomRule{Enabled: true, Field: "episodecount", Operator: "<", Value: "10"}, false},
 
 		// Monitored (boolean)
-		{"monitored == true", db.CustomRule{Field: "monitored", Operator: "==", Value: "true"}, true},
-		{"monitored == false no match", db.CustomRule{Field: "monitored", Operator: "==", Value: "false"}, false},
+		{"monitored == true", db.CustomRule{Enabled: true, Field: "monitored", Operator: "==", Value: "true"}, true},
+		{"monitored == false no match", db.CustomRule{Enabled: true, Field: "monitored", Operator: "==", Value: "false"}, false},
 
 		// PlayCount
-		{"playcount > match", db.CustomRule{Field: "playcount", Operator: ">", Value: "3"}, true},
-		{"playcount == match", db.CustomRule{Field: "playcount", Operator: "==", Value: "5"}, true},
+		{"playcount > match", db.CustomRule{Enabled: true, Field: "playcount", Operator: ">", Value: "3"}, true},
+		{"playcount == match", db.CustomRule{Enabled: true, Field: "playcount", Operator: "==", Value: "5"}, true},
 
 		// Requested (boolean)
-		{"requested == true", db.CustomRule{Field: "requested", Operator: "==", Value: "true"}, true},
-		{"requested == false no match", db.CustomRule{Field: "requested", Operator: "==", Value: "false"}, false},
+		{"requested == true", db.CustomRule{Enabled: true, Field: "requested", Operator: "==", Value: "true"}, true},
+		{"requested == false no match", db.CustomRule{Enabled: true, Field: "requested", Operator: "==", Value: "false"}, false},
 
 		// RequestCount
-		{"requestcount >= match", db.CustomRule{Field: "requestcount", Operator: ">=", Value: "2"}, true},
+		{"requestcount >= match", db.CustomRule{Enabled: true, Field: "requestcount", Operator: ">=", Value: "2"}, true},
 
 		// Language
-		{"language == match", db.CustomRule{Field: "language", Operator: "==", Value: "english"}, true},
-		{"language != match", db.CustomRule{Field: "language", Operator: "!=", Value: "japanese"}, true},
+		{"language == match", db.CustomRule{Enabled: true, Field: "language", Operator: "==", Value: "english"}, true},
+		{"language != match", db.CustomRule{Enabled: true, Field: "language", Operator: "!=", Value: "japanese"}, true},
 
 		// Type
-		{"type == match", db.CustomRule{Field: "type", Operator: "==", Value: "show"}, true},
-		{"type != match", db.CustomRule{Field: "type", Operator: "!=", Value: "movie"}, true},
+		{"type == match", db.CustomRule{Enabled: true, Field: "type", Operator: "==", Value: "show"}, true},
+		{"type != match", db.CustomRule{Enabled: true, Field: "type", Operator: "!=", Value: "movie"}, true},
 
 		// Year
-		{"year == match", db.CustomRule{Field: "year", Operator: "==", Value: "1999"}, true},
-		{"year > match", db.CustomRule{Field: "year", Operator: ">", Value: "1990"}, true},
-		{"year < no match", db.CustomRule{Field: "year", Operator: "<", Value: "1990"}, false},
+		{"year == match", db.CustomRule{Enabled: true, Field: "year", Operator: "==", Value: "1999"}, true},
+		{"year > match", db.CustomRule{Enabled: true, Field: "year", Operator: ">", Value: "1990"}, true},
+		{"year < no match", db.CustomRule{Enabled: true, Field: "year", Operator: "<", Value: "1990"}, false},
 
 		// Unknown field
-		{"unknown field returns false", db.CustomRule{Field: "nonexistent", Operator: "==", Value: "anything"}, false},
+		{"unknown field returns false", db.CustomRule{Enabled: true, Field: "nonexistent", Operator: "==", Value: "anything"}, false},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := matchesRule(baseItem, tc.rule)
+			result, _ := matchesRuleWithValue(baseItem, tc.rule)
 			if result != tc.matched {
-				t.Errorf("matchesRule for %s %s %s = %v, want %v",
+				t.Errorf("matchesRuleWithValue for %s %s %s = %v, want %v",
 					tc.rule.Field, tc.rule.Operator, tc.rule.Value, result, tc.matched)
 			}
 		})
@@ -198,9 +198,9 @@ func TestMatchesRule_AllFieldTypes(t *testing.T) {
 
 func TestMatchesRule_NilAddedAt(t *testing.T) {
 	item := integrations.MediaItem{AddedAt: nil}
-	rule := db.CustomRule{Field: "timeinlibrary", Operator: ">", Value: "30"}
+	rule := db.CustomRule{Enabled: true, Field: "timeinlibrary", Operator: ">", Value: "30"}
 
-	result := matchesRule(item, rule)
+	result, _ := matchesRuleWithValue(item, rule)
 	if result {
 		t.Error("Expected false for timeinlibrary with nil AddedAt")
 	}
@@ -208,9 +208,9 @@ func TestMatchesRule_NilAddedAt(t *testing.T) {
 
 func TestMatchesRule_TagNoTags(t *testing.T) {
 	item := integrations.MediaItem{Tags: nil}
-	rule := db.CustomRule{Field: "tag", Operator: "contains", Value: "anime"}
+	rule := db.CustomRule{Enabled: true, Field: "tag", Operator: "contains", Value: "anime"}
 
-	result := matchesRule(item, rule)
+	result, _ := matchesRuleWithValue(item, rule)
 	if result {
 		t.Error("Expected false for tag match with no tags")
 	}
@@ -218,12 +218,12 @@ func TestMatchesRule_TagNoTags(t *testing.T) {
 
 func TestMatchesRule_TagNotContainsWithNoTags(t *testing.T) {
 	item := integrations.MediaItem{Tags: nil}
-	rule := db.CustomRule{Field: "tag", Operator: "!contains", Value: "anime"}
+	rule := db.CustomRule{Enabled: true, Field: "tag", Operator: "!contains", Value: "anime"}
 
-	// With nil tags, the loop doesn't execute, so returns false
-	result := matchesRule(item, rule)
-	if result {
-		t.Error("Expected false for tag !contains with no tags (empty loop)")
+	// With nil tags, !contains is vacuously true (no tag violates the condition)
+	result, _ := matchesRuleWithValue(item, rule)
+	if !result {
+		t.Error("Expected true for tag !contains with no tags (vacuous truth)")
 	}
 }
 
@@ -256,7 +256,7 @@ func TestApplyRules(t *testing.T) {
 			name: "Always keep by title (new effect field)",
 			item: baseItem,
 			rules: []db.CustomRule{
-				{Field: "title", Operator: "==", Value: "the matrix", Effect: "always_keep"},
+				{Enabled: true, Field: "title", Operator: "==", Value: "the matrix", Effect: "always_keep"},
 			},
 			isAbs:    true,
 			modifier: 0.0,
@@ -265,7 +265,7 @@ func TestApplyRules(t *testing.T) {
 			name: "Prefer keep by rating",
 			item: baseItem,
 			rules: []db.CustomRule{
-				{Field: "rating", Operator: ">", Value: "8.0", Effect: "prefer_keep"},
+				{Enabled: true, Field: "rating", Operator: ">", Value: "8.0", Effect: "prefer_keep"},
 			},
 			isAbs:    false,
 			modifier: 0.2,
@@ -274,7 +274,7 @@ func TestApplyRules(t *testing.T) {
 			name: "Lean keep modifier",
 			item: baseItem,
 			rules: []db.CustomRule{
-				{Field: "rating", Operator: ">", Value: "8.0", Effect: "lean_keep"},
+				{Enabled: true, Field: "rating", Operator: ">", Value: "8.0", Effect: "lean_keep"},
 			},
 			isAbs:    false,
 			modifier: 0.5,
@@ -283,7 +283,7 @@ func TestApplyRules(t *testing.T) {
 			name: "Lean remove modifier",
 			item: baseItem,
 			rules: []db.CustomRule{
-				{Field: "seriesstatus", Operator: "==", Value: "ended", Effect: "lean_remove"},
+				{Enabled: true, Field: "seriesstatus", Operator: "==", Value: "ended", Effect: "lean_remove"},
 			},
 			isAbs:    false,
 			modifier: 1.5,
@@ -292,7 +292,7 @@ func TestApplyRules(t *testing.T) {
 			name: "Prefer remove modifier",
 			item: baseItem,
 			rules: []db.CustomRule{
-				{Field: "seriesstatus", Operator: "==", Value: "ended", Effect: "prefer_remove"},
+				{Enabled: true, Field: "seriesstatus", Operator: "==", Value: "ended", Effect: "prefer_remove"},
 			},
 			isAbs:    false,
 			modifier: 3.0,
@@ -301,7 +301,7 @@ func TestApplyRules(t *testing.T) {
 			name: "Always remove by seriesstatus",
 			item: baseItem,
 			rules: []db.CustomRule{
-				{Field: "seriesstatus", Operator: "==", Value: "ended", Effect: "always_remove"},
+				{Enabled: true, Field: "seriesstatus", Operator: "==", Value: "ended", Effect: "always_remove"},
 			},
 			isAbs:    false,
 			modifier: 100.0,
@@ -310,8 +310,8 @@ func TestApplyRules(t *testing.T) {
 			name: "Multiple cascading modifiers multiply",
 			item: baseItem,
 			rules: []db.CustomRule{
-				{Field: "rating", Operator: ">", Value: "8.0", Effect: "prefer_keep"},        // ×0.2
-				{Field: "title", Operator: "contains", Value: "matrix", Effect: "lean_keep"}, // ×0.5
+				{Enabled: true, Field: "rating", Operator: ">", Value: "8.0", Effect: "prefer_keep"},        // ×0.2
+				{Enabled: true, Field: "title", Operator: "contains", Value: "matrix", Effect: "lean_keep"}, // ×0.5
 			},
 			isAbs:    false,
 			modifier: 0.1, // 0.2 × 0.5
@@ -320,8 +320,8 @@ func TestApplyRules(t *testing.T) {
 			name: "Lean keep + lean remove partially cancel",
 			item: baseItem,
 			rules: []db.CustomRule{
-				{Field: "rating", Operator: ">", Value: "8.0", Effect: "lean_keep"},            // ×0.5
-				{Field: "seriesstatus", Operator: "==", Value: "ended", Effect: "lean_remove"}, // ×1.5
+				{Enabled: true, Field: "rating", Operator: ">", Value: "8.0", Effect: "lean_keep"},            // ×0.5
+				{Enabled: true, Field: "seriesstatus", Operator: "==", Value: "ended", Effect: "lean_remove"}, // ×1.5
 			},
 			isAbs:    false,
 			modifier: 0.75, // 0.5 × 1.5
@@ -330,8 +330,8 @@ func TestApplyRules(t *testing.T) {
 			name: "Always keep wins over always remove",
 			item: baseItem,
 			rules: []db.CustomRule{
-				{Field: "title", Operator: "==", Value: "the matrix", Effect: "always_keep"},
-				{Field: "seriesstatus", Operator: "==", Value: "ended", Effect: "always_remove"},
+				{Enabled: true, Field: "title", Operator: "==", Value: "the matrix", Effect: "always_keep"},
+				{Enabled: true, Field: "seriesstatus", Operator: "==", Value: "ended", Effect: "always_remove"},
 			},
 			isAbs:    true,
 			modifier: 0.0,
@@ -340,8 +340,8 @@ func TestApplyRules(t *testing.T) {
 			name: "Always keep wins over prefer remove",
 			item: baseItem,
 			rules: []db.CustomRule{
-				{Field: "title", Operator: "==", Value: "the matrix", Effect: "always_keep"},
-				{Field: "rating", Operator: ">", Value: "5.0", Effect: "prefer_remove"},
+				{Enabled: true, Field: "title", Operator: "==", Value: "the matrix", Effect: "always_keep"},
+				{Enabled: true, Field: "rating", Operator: ">", Value: "5.0", Effect: "prefer_remove"},
 			},
 			isAbs:    true,
 			modifier: 0.0,
@@ -350,27 +350,27 @@ func TestApplyRules(t *testing.T) {
 			name: "Prefer keep + prefer remove = net protection",
 			item: baseItem,
 			rules: []db.CustomRule{
-				{Field: "rating", Operator: ">", Value: "8.0", Effect: "prefer_keep"},            // ×0.2
-				{Field: "seriesstatus", Operator: "==", Value: "ended", Effect: "prefer_remove"}, // ×2.0
+				{Enabled: true, Field: "rating", Operator: ">", Value: "8.0", Effect: "prefer_keep"},            // ×0.2
+				{Enabled: true, Field: "seriesstatus", Operator: "==", Value: "ended", Effect: "prefer_remove"}, // ×3.0
 			},
 			isAbs:    false,
-			modifier: 0.4, // 0.2 × 2.0
+			modifier: 0.6, // 0.2 × 3.0
 		},
 		{
 			name: "Stacked prefer remove",
 			item: baseItem,
 			rules: []db.CustomRule{
-				{Field: "rating", Operator: ">", Value: "5.0", Effect: "prefer_remove"},          // ×2.0
-				{Field: "seriesstatus", Operator: "==", Value: "ended", Effect: "prefer_remove"}, // ×2.0
+				{Enabled: true, Field: "rating", Operator: ">", Value: "5.0", Effect: "prefer_remove"},          // ×3.0
+				{Enabled: true, Field: "seriesstatus", Operator: "==", Value: "ended", Effect: "prefer_remove"}, // ×3.0
 			},
 			isAbs:    false,
-			modifier: 4.0, // 2.0 × 2.0
+			modifier: 9.0, // 3.0 × 3.0
 		},
 		{
 			name: "Non-matching rule has no effect",
 			item: baseItem,
 			rules: []db.CustomRule{
-				{Field: "title", Operator: "==", Value: "avatar", Effect: "always_keep"},
+				{Enabled: true, Field: "title", Operator: "==", Value: "avatar", Effect: "always_keep"},
 			},
 			isAbs:    false,
 			modifier: 1.0,
@@ -411,7 +411,7 @@ func TestApplyRules_IntegrationIDFiltering(t *testing.T) {
 		{
 			name: "Rule scoped to matching integration applies",
 			rules: []db.CustomRule{
-				{IntegrationID: &integrationID1, Field: "title", Operator: "==", Value: "the matrix", Effect: "always_keep"},
+				{Enabled: true, IntegrationID: &integrationID1, Field: "title", Operator: "==", Value: "the matrix", Effect: "always_keep"},
 			},
 			isAbs:    true,
 			modifier: 0.0,
@@ -419,7 +419,7 @@ func TestApplyRules_IntegrationIDFiltering(t *testing.T) {
 		{
 			name: "Rule scoped to different integration is skipped",
 			rules: []db.CustomRule{
-				{IntegrationID: &integrationID2, Field: "title", Operator: "==", Value: "the matrix", Effect: "always_keep"},
+				{Enabled: true, IntegrationID: &integrationID2, Field: "title", Operator: "==", Value: "the matrix", Effect: "always_keep"},
 			},
 			isAbs:    false,
 			modifier: 1.0,
@@ -427,7 +427,7 @@ func TestApplyRules_IntegrationIDFiltering(t *testing.T) {
 		{
 			name: "Global rule (nil integration_id) applies to all items",
 			rules: []db.CustomRule{
-				{IntegrationID: nil, Field: "title", Operator: "==", Value: "the matrix", Effect: "prefer_keep"},
+				{Enabled: true, IntegrationID: nil, Field: "title", Operator: "==", Value: "the matrix", Effect: "prefer_keep"},
 			},
 			isAbs:    false,
 			modifier: 0.2,
@@ -435,8 +435,8 @@ func TestApplyRules_IntegrationIDFiltering(t *testing.T) {
 		{
 			name: "Mixed: global rule applies, scoped rule skipped",
 			rules: []db.CustomRule{
-				{IntegrationID: nil, Field: "rating", Operator: ">", Value: "8.0", Effect: "lean_keep"},                      // ×0.5 (applies)
-				{IntegrationID: &integrationID2, Field: "title", Operator: "==", Value: "the matrix", Effect: "always_keep"}, // skipped
+				{Enabled: true, IntegrationID: nil, Field: "rating", Operator: ">", Value: "8.0", Effect: "lean_keep"},                      // ×0.5 (applies)
+				{Enabled: true, IntegrationID: &integrationID2, Field: "title", Operator: "==", Value: "the matrix", Effect: "always_keep"}, // skipped
 			},
 			isAbs:    false,
 			modifier: 0.5,
@@ -466,7 +466,7 @@ func TestApplyRules_ReturnsFactors(t *testing.T) {
 	}
 
 	rules := []db.CustomRule{
-		{Field: "rating", Operator: ">", Value: "8.0", Effect: "prefer_keep"},
+		{Enabled: true, Field: "rating", Operator: ">", Value: "8.0", Effect: "prefer_keep"},
 	}
 
 	_, _, _, factors := applyRules(item, rules)
@@ -489,8 +489,8 @@ func TestApplyRules_AlwaysKeepReturnsImmediately(t *testing.T) {
 
 	// always_keep is first followed by modifiers that would change things
 	rules := []db.CustomRule{
-		{Field: "title", Operator: "==", Value: "the matrix", Effect: "always_keep"},
-		{Field: "rating", Operator: ">", Value: "5.0", Effect: "prefer_remove"},
+		{Enabled: true, Field: "title", Operator: "==", Value: "the matrix", Effect: "always_keep"},
+		{Enabled: true, Field: "rating", Operator: ">", Value: "5.0", Effect: "prefer_remove"},
 	}
 
 	isAbs, modifier, reason, factors := applyRules(item, rules)
@@ -555,19 +555,19 @@ func TestApplyRules_LegacyFallback(t *testing.T) {
 	}{
 		{
 			name:     "Legacy absolute protect",
-			rule:     db.CustomRule{Type: "protect", Field: "title", Operator: "==", Value: "the matrix", Intensity: "absolute"},
+			rule:     db.CustomRule{Enabled: true, Type: "protect", Field: "title", Operator: "==", Value: "the matrix", Intensity: "absolute"},
 			isAbs:    true,
 			modifier: 0.0,
 		},
 		{
 			name:     "Legacy strong target",
-			rule:     db.CustomRule{Type: "target", Field: "rating", Operator: ">", Value: "8.0", Intensity: "strong"},
+			rule:     db.CustomRule{Enabled: true, Type: "target", Field: "rating", Operator: ">", Value: "8.0", Intensity: "strong"},
 			isAbs:    false,
-			modifier: 2.0,
+			modifier: 3.0,
 		},
 		{
 			name:     "Legacy default protect",
-			rule:     db.CustomRule{Type: "protect", Field: "rating", Operator: ">", Value: "8.0"},
+			rule:     db.CustomRule{Enabled: true, Type: "protect", Field: "rating", Operator: ">", Value: "8.0"},
 			isAbs:    false,
 			modifier: 0.5,
 		},

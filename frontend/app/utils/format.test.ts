@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   formatBytes,
-  formatPercent,
   formatTime,
   diskUsageStatus,
   diskStatusBgClass,
@@ -81,26 +80,6 @@ describe('formatBytes', () => {
     // 99.5 KB ≈ 101888 bytes
     const result = formatBytes(101888)
     expect(result).toMatch(/^\d+\.\d KB$/)
-  })
-})
-
-// ---------------------------------------------------------------------------
-// formatPercent
-// ---------------------------------------------------------------------------
-describe('formatPercent', () => {
-  it('formats with default 0 decimals', () => {
-    expect(formatPercent(75)).toBe('75%')
-    expect(formatPercent(99.7)).toBe('100%')
-  })
-
-  it('formats with specified decimals', () => {
-    expect(formatPercent(75.123, 1)).toBe('75.1%')
-    expect(formatPercent(75.123, 2)).toBe('75.12%')
-  })
-
-  it('handles 0 and 100', () => {
-    expect(formatPercent(0)).toBe('0%')
-    expect(formatPercent(100)).toBe('100%')
   })
 })
 

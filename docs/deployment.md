@@ -84,11 +84,9 @@ services:
 ```yaml
 labels:
   - "traefik.http.routers.capacitarr.rule=Host(`example.com`) && PathPrefix(`/capacitarr`)"
-  - "traefik.http.middlewares.capacitarr-strip.stripprefix.prefixes=/capacitarr"
-  - "traefik.http.routers.capacitarr.middlewares=capacitarr-strip"
 ```
 
-> **Note:** Do NOT strip the prefix — Capacitarr handles the base URL path internally. Remove the `stripprefix` middleware if using `BASE_URL`.
+> **Note:** Do **not** use a `stripprefix` middleware with Capacitarr. When `BASE_URL` is set, the application expects to receive the full prefixed path and handles routing internally. Stripping the prefix causes asset and API route mismatches.
 
 #### Caddy
 

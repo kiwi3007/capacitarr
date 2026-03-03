@@ -2,6 +2,7 @@ package routes
 
 import (
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -43,6 +44,14 @@ func RegisterNotificationRoutes(g *echo.Group, database *gorm.DB) {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "webhookUrl is required for discord and slack channels"})
 		}
 
+		// Validate webhook URL scheme (must be http or https to prevent SSRF via exotic schemes)
+		if req.WebhookURL != "" {
+			parsedURL, err := url.Parse(req.WebhookURL)
+			if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") || parsedURL.Host == "" {
+				return c.JSON(http.StatusBadRequest, map[string]string{"error": "webhookUrl must be a valid HTTP or HTTPS URL"})
+			}
+		}
+
 		req.ID = 0 // ensure auto-increment
 		req.CreatedAt = time.Now()
 		req.UpdatedAt = time.Now()
@@ -71,6 +80,14 @@ func RegisterNotificationRoutes(g *echo.Group, database *gorm.DB) {
 		// Validate type if changed
 		if req.Type != "" && req.Type != "discord" && req.Type != "slack" && req.Type != "inapp" {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "type must be discord, slack, or inapp"})
+		}
+
+		// Validate webhook URL scheme (must be http or https to prevent SSRF via exotic schemes)
+		if req.WebhookURL != "" {
+			parsedURL, err := url.Parse(req.WebhookURL)
+			if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") || parsedURL.Host == "" {
+				return c.JSON(http.StatusBadRequest, map[string]string{"error": "webhookUrl must be a valid HTTP or HTTPS URL"})
+			}
 		}
 
 		updates := map[string]interface{}{

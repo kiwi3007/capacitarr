@@ -383,7 +383,7 @@ func TestEvaluateMedia_ProtectedItemHasZeroScore(t *testing.T) {
 	}
 	prefs := db.PreferenceSet{WatchHistoryWeight: 10}
 	rules := []db.CustomRule{
-		{Field: "title", Operator: "==", Value: "protected movie", Effect: "always_keep"},
+		{Enabled: true, Field: "title", Operator: "==", Value: "protected movie", Effect: "always_keep"},
 	}
 
 	result := EvaluateMedia(items, prefs, rules)
@@ -404,7 +404,7 @@ func TestEvaluateMedia_RuleModifiersApplied(t *testing.T) {
 	}
 	prefs := db.PreferenceSet{RatingWeight: 10}
 	rules := []db.CustomRule{
-		{Field: "rating", Operator: "<", Value: "5", Effect: "prefer_remove"}, // ×3.0
+		{Enabled: true, Field: "rating", Operator: "<", Value: "5", Effect: "prefer_remove"}, // ×3.0
 	}
 
 	result := EvaluateMedia(items, prefs, rules)

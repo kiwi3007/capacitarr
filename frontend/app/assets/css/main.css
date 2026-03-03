@@ -260,15 +260,6 @@ h2 { font-size: 1.5rem; line-height: 2rem; font-weight: 600; letter-spacing: -0.
 h3 { font-size: 1.25rem; line-height: 1.75rem; font-weight: 600; }
 h4 { font-size: 1.125rem; line-height: 1.5rem; font-weight: 500; }
 
-/* Muted section labels */
-[data-slot="section-label"] {
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-muted-foreground);
-}
-
 /* ========================================
    Navbar Content Spacing
    Prevent content from hiding behind sticky navbar
@@ -313,7 +304,6 @@ hr, [data-slot="separator"] {
    More visual weight on scoring presets / badges
    ======================================== */
 
-[data-slot="preset-chip"],
 [data-slot="badge"][data-variant="outline"] {
   border-width: 1.5px;
   font-weight: 600;
@@ -593,22 +583,6 @@ html {
 }
 
 /* ========================================
-   Section Gradient Divider
-   ======================================== */
-
-[data-slot="section-divider"] {
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    oklch(from var(--color-border) l c h / 0.6) 20%,
-    oklch(from var(--color-primary) l c h / 0.2) 50%,
-    oklch(from var(--color-border) l c h / 0.6) 80%,
-    transparent 100%
-  );
-}
-
-/* ========================================
    Page Header Animated Gradient
    Subtle background mesh effect
    ======================================== */
@@ -745,31 +719,6 @@ html {
 }
 
 /* ========================================
-   Settings Integration Card
-   Enhanced styling for integration tiles
-   ======================================== */
-
-[data-slot="integration-card"] {
-  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
-}
-
-@media (hover: hover) {
-  [data-slot="integration-card"]:hover {
-    transform: translateY(-1px);
-  }
-}
-
-.dark [data-slot="integration-card"] {
-  border-color: oklch(from var(--color-border) l c h / 0.6);
-}
-
-@media (hover: hover) {
-  .dark [data-slot="integration-card"]:hover {
-    border-color: oklch(from var(--color-primary) l c h / 0.15);
-  }
-}
-
-/* ========================================
    Shadcn Slider Enhancement
    Premium filled-track slider — no prominent circle knob
    ======================================== */
@@ -843,19 +792,6 @@ html {
       0 0 0 3px oklch(from var(--color-primary) l c h / 0.25),
       0 0 16px oklch(from var(--color-primary) l c h / 0.15);
   }
-}
-
-/* ========================================
-   Score Bar Enhancement
-   Gradient-filled score indicators
-   ======================================== */
-
-[data-slot="score-bar"] {
-  background: linear-gradient(90deg,
-    oklch(from var(--color-primary) calc(l + 0.1) c h / 0.6),
-    var(--color-primary)
-  );
-  border-radius: 9999px;
 }
 
 /* ========================================

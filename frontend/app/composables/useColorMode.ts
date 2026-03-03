@@ -30,16 +30,6 @@ export const useAppColorMode = () => {
     apply()
   }
 
-  /** Legacy toggle: cycles light → dark → light */
-  function toggle() {
-    if (preference.value === 'dark') {
-      preference.value = 'light'
-    } else {
-      preference.value = 'dark'
-    }
-    apply()
-  }
-
   function apply() {
     if (!import.meta.client) return
     document.documentElement.classList.toggle('dark', isDark.value)
@@ -58,5 +48,5 @@ export const useAppColorMode = () => {
     })
   }
 
-  return { mode: preference, isDark, toggle, setMode }
+  return { mode: preference, isDark, setMode }
 }
