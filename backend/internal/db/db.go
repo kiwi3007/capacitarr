@@ -5,7 +5,8 @@ import (
 
 	"capacitarr/internal/config"
 	"capacitarr/internal/logger"
-	"gorm.io/driver/sqlite"
+	_ "github.com/ncruces/go-sqlite3/embed" // load the embedded SQLite WASM binary
+	"github.com/ncruces/go-sqlite3/gormlite"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
 )
@@ -20,7 +21,7 @@ func Init(cfg *config.Config) error {
 		logLevel = gormlogger.Info
 	}
 
-	db, err := gorm.Open(sqlite.Open(cfg.Database), &gorm.Config{
+	db, err := gorm.Open(gormlite.Open(cfg.Database), &gorm.Config{
 		Logger: gormlogger.Default.LogMode(logLevel),
 	})
 	if err != nil {

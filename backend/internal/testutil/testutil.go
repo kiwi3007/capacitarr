@@ -13,7 +13,8 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
-	"gorm.io/driver/sqlite"
+	_ "github.com/ncruces/go-sqlite3/embed" // load the embedded SQLite WASM binary
+	"github.com/ncruces/go-sqlite3/gormlite"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
 
@@ -34,7 +35,7 @@ const TestUsername = "testadmin"
 func SetupTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
-	database, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+	database, err := gorm.Open(gormlite.Open(":memory:"), &gorm.Config{
 		Logger: gormlogger.Default.LogMode(gormlogger.Silent),
 	})
 	if err != nil {

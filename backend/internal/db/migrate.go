@@ -30,3 +30,19 @@ func RunMigrations(sqlDB *sql.DB) error {
 	slog.Info("Database migrations applied successfully", "component", "db")
 	return nil
 }
+
+// RunMigrationsDown rolls back all Goose migrations to version 0.
+// This is used only in tests to verify migration reversibility.
+func RunMigrationsDown(sqlDB *sql.DB) error {
+	goose.SetBaseFS(embedMigrations)
+
+	if err := goose.SetDialect("sqlite3"); err != nil {
+		return fmt.Errorf("goose set dialect: %w", err)
+	}
+
+	if err := goose.DownTo(sqlDB, "migrations", 0); err != nil {
+		return fmt.Errorf("goose down: %w", err)
+	}
+
+	return nil
+}

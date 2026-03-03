@@ -4,7 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"gorm.io/driver/sqlite"
+	_ "github.com/ncruces/go-sqlite3/embed" // load the embedded SQLite WASM binary
+	"github.com/ncruces/go-sqlite3/gormlite"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
 
@@ -17,7 +18,7 @@ import (
 func setupStatsTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
-	database, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+	database, err := gorm.Open(gormlite.Open(":memory:"), &gorm.Config{
 		Logger: gormlogger.Default.LogMode(gormlogger.Silent),
 	})
 	if err != nil {
