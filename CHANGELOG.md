@@ -1,7 +1,13 @@
-## [0.2.0] - 2026-03-03
+## [0.1.0] - 2026-03-03
 
 ### 🚀 Features
 
+- Complete Phase 2 Core Backend Engine ([7f5ec46](https://gitlab.com/starshadow/software/capacitarr/-/commit/7f5ec468af750136a35f39c8c20edf12c36097e0))
+- Complete Phase 3 Data Aggregation & Logic ([e9de2cd](https://gitlab.com/starshadow/software/capacitarr/-/commit/e9de2cdf79fb4b75fc2630ac1f702b23ce28479b))
+- Complete Phase 4 Frontend Foundation ([cbbdceb](https://gitlab.com/starshadow/software/capacitarr/-/commit/cbbdcebd26b2833c6797be3d5bd01d2bb8f6d5c7))
+- Complete Phase 5 Premium Data Visualization ([9947f82](https://gitlab.com/starshadow/software/capacitarr/-/commit/9947f820483f1774da5f80c8c17a2107aef7386f))
+- Complete Phase 6 Deployment and multi-stage container ([3c04908](https://gitlab.com/starshadow/software/capacitarr/-/commit/3c049087e67a9743ff48b8375cef6aefb9461206))
+- Complete Phase 1 Real Data ([e2b2bfe](https://gitlab.com/starshadow/software/capacitarr/-/commit/e2b2bfea29f59fe7bc06883531ba7ff0839eb5ce))
 - *(db)* Replace AutoMigrate with Goose migration framework ([f3b296b](https://gitlab.com/starshadow/software/capacitarr/-/commit/f3b296b461d67119ea6cbf407f7fc53abc35827a))
 - Add reverse proxy & auth header support ([628f3e8](https://gitlab.com/starshadow/software/capacitarr/-/commit/628f3e894ddb92c106d1286893e55cc4e75118a2))
 - Add configurable poll interval and restructure settings into tabs ([c577844](https://gitlab.com/starshadow/software/capacitarr/-/commit/c5778441336239353c27773955731145ac7a7cd1))
@@ -99,6 +105,17 @@
 - Use Twemoji SVG for Ukraine flag (bundled locally), replace UiScrollArea with native scroll div for notifications ([19de2dd](https://gitlab.com/starshadow/software/capacitarr/-/commit/19de2dd444ddc598c7942c9bc5688565c41529af))
 - Deep code audit — fix broken tests, remove dead code, correct docs ([a3dfdfd](https://gitlab.com/starshadow/software/capacitarr/-/commit/a3dfdfd8f9e81c70a8d9688b9d5107c31231a610))
 - *(css)* Replace oklch relative color syntax with color-mix ([9d21e37](https://gitlab.com/starshadow/software/capacitarr/-/commit/9d21e37088ab651b1b817bc3db7f881e9f01ebb1))
+- *(ci)* Fix lint job failures and add tag pipeline rules ([89f6904](https://gitlab.com/starshadow/software/capacitarr/-/commit/89f69042e8295650013b016c8d1dd16895524041))
+- *(ci)* Remove typecheck linter and pin golangci-lint version ([d578bfa](https://gitlab.com/starshadow/software/capacitarr/-/commit/d578bfad59b1f0ace62db7d60b78ac471c711065))
+- *(ci)* Add git to changelog/goreleaser containers and fix job ordering ([d3ee867](https://gitlab.com/starshadow/software/capacitarr/-/commit/d3ee8677338d902877c3e4c696dde9494cd6a4be))
+- *(ci)* Use correct package manager for git-cliff (Debian) and add GIT_DEPTH: 0 ([628a73d](https://gitlab.com/starshadow/software/capacitarr/-/commit/628a73dd99be6b6b072e335f27ba63b90e4feb07))
+- *(ci)* Migrate golangci-lint config to v2 format ([9d9fa4f](https://gitlab.com/starshadow/software/capacitarr/-/commit/9d9fa4fcb0a311ceaf4add780da7c103e90c4196))
+- Resolve all ESLint errors and warnings ([c5f4d6e](https://gitlab.com/starshadow/software/capacitarr/-/commit/c5f4d6e131cd789d724fbf1673a312ad881e5b58))
+- Add commit preprocessor to normalize git revert format ([d78b3fa](https://gitlab.com/starshadow/software/capacitarr/-/commit/d78b3fa3185c80bd41641f1b8f7aa1a3414b9188))
+- *(ci)* Create embed placeholder for Go jobs and normalize revert commits ([6e40594](https://gitlab.com/starshadow/software/capacitarr/-/commit/6e40594c195d03be63148845e6eb76779208b387))
+- *(backend)* Resolve all 105 golangci-lint v2 issues ([63f4f1e](https://gitlab.com/starshadow/software/capacitarr/-/commit/63f4f1eb994a6de24be9ee2d23609cc0fbda16c7))
+- Add go:embed placeholder to make check target ([e917633](https://gitlab.com/starshadow/software/capacitarr/-/commit/e9176338b94a584cf0302248d75e296e13526022))
+- *(ci)* Remove -race flag from Go tests and add vue as dev dependency ([c79462e](https://gitlab.com/starshadow/software/capacitarr/-/commit/c79462e2bcb011d76a9402f753c064ad76ebd47b))
 
 ### 🚜 Refactor
 
@@ -109,6 +126,7 @@
 - Deletion safety uses toggle with red active state, simplified confirmation ([7532fc7](https://gitlab.com/starshadow/software/capacitarr/-/commit/7532fc7586a9436d86546b95b1611140e5b95cbb))
 - Rename ProtectionRule → CustomRule, /protections → /custom-rules, availability → seriesstatus ([a279bf9](https://gitlab.com/starshadow/software/capacitarr/-/commit/a279bf9f058f02fa6ad7583b25594e6aade99a34))
 - *(db)* Migrate from mattn/go-sqlite3 to ncruces/go-sqlite3 ([828236d](https://gitlab.com/starshadow/software/capacitarr/-/commit/828236d76eae2a96adda18522b29c6f97bfdeddd))
+- *(ci)* Single pipeline with conditional release stage ([8f9ee00](https://gitlab.com/starshadow/software/capacitarr/-/commit/8f9ee00f688bd36619f3e4783abc5a67bb9a17a9))
 
 ### 📚 Documentation
 
@@ -137,6 +155,7 @@
 
 ### ⚙️ Miscellaneous Tasks
 
+- Initial scaffolding for Phase 1 ([08a05b9](https://gitlab.com/starshadow/software/capacitarr/-/commit/08a05b9dac567e8e736ddf25797f55d5f184208d))
 - Integrate git cliff for changelogs ([22d6ca8](https://gitlab.com/starshadow/software/capacitarr/-/commit/22d6ca82558af04b3dfd9ccb0d0c5034b3139a6c))
 - *(dx)* Add Makefile and lint/format scripts ([e0bca2a](https://gitlab.com/starshadow/software/capacitarr/-/commit/e0bca2afdbdd40c9663fea12110cfdd3b43d36f8))
 - *(lint)* Expand golangci-lint config with security and quality linters ([bfba513](https://gitlab.com/starshadow/software/capacitarr/-/commit/bfba513f7a88897bd6e72f9f3e3ff3801dccd59a))
@@ -144,17 +163,7 @@
 - *(docker)* Optimize Dockerfile with pinned alpine, Node 22, labels, and healthcheck ([54a7a79](https://gitlab.com/starshadow/software/capacitarr/-/commit/54a7a796cf6de2a13efed73e8444749c7882be91))
 - Regenerate pnpm-lock.yaml for @nuxtjs/i18n ([2c564e9](https://gitlab.com/starshadow/software/capacitarr/-/commit/2c564e93b3398e566de15a4ddb7e1189da1dabb3))
 - Remove manually-maintained 'What's New' section from help page ([6a0a7fd](https://gitlab.com/starshadow/software/capacitarr/-/commit/6a0a7fdcf7db9cafa23376b3048876fceefa4a1a))
-## [0.0.0] - 2026-02-27
 
-### 🚀 Features
+### ◀️ Revert
 
-- Complete Phase 2 Core Backend Engine ([7f5ec46](https://gitlab.com/starshadow/software/capacitarr/-/commit/7f5ec468af750136a35f39c8c20edf12c36097e0))
-- Complete Phase 3 Data Aggregation & Logic ([e9de2cd](https://gitlab.com/starshadow/software/capacitarr/-/commit/e9de2cdf79fb4b75fc2630ac1f702b23ce28479b))
-- Complete Phase 4 Frontend Foundation ([cbbdceb](https://gitlab.com/starshadow/software/capacitarr/-/commit/cbbdcebd26b2833c6797be3d5bd01d2bb8f6d5c7))
-- Complete Phase 5 Premium Data Visualization ([9947f82](https://gitlab.com/starshadow/software/capacitarr/-/commit/9947f820483f1774da5f80c8c17a2107aef7386f))
-- Complete Phase 6 Deployment and multi-stage container ([3c04908](https://gitlab.com/starshadow/software/capacitarr/-/commit/3c049087e67a9743ff48b8375cef6aefb9461206))
-- Complete Phase 1 Real Data ([e2b2bfe](https://gitlab.com/starshadow/software/capacitarr/-/commit/e2b2bfea29f59fe7bc06883531ba7ff0839eb5ce))
-
-### ⚙️ Miscellaneous Tasks
-
-- Initial scaffolding for Phase 1 ([08a05b9](https://gitlab.com/starshadow/software/capacitarr/-/commit/08a05b9dac567e8e736ddf25797f55d5f184208d))
+- Fix: deletion toggle uses @update:checked with nextTick for dialog ([e530030](https://gitlab.com/starshadow/software/capacitarr/-/commit/e53003013051a7ce923ed6024139fc6b15d417e3))
