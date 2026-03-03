@@ -41,7 +41,7 @@ npm version "$SEMVER" --no-git-tag-version
 cd frontend && npm version "$SEMVER" --no-git-tag-version && cd ..
 
 # 4. Commit and tag
-git add CHANGELOG.md package.json frontend/package.json
+git add CHANGELOG.md package.json package-lock.json frontend/package.json
 git commit -m "chore(release): $VERSION"
 git tag "$VERSION"
 
