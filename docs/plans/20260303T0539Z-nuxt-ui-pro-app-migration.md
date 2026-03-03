@@ -1,8 +1,11 @@
 # Nuxt UI v4 App Migration — Replace shadcn-vue
 
 **Created:** 2026-03-03T05:39Z
-**Updated:** 2026-03-03T14:07Z
+**Updated:** 2026-03-03T22:15Z
+**Status:** ❌ Won't Do
 **Scope:** Migrate `capacitarr/frontend/` from shadcn-vue + @vueuse/motion to Nuxt UI v4
+
+> **Decision (2026-03-03):** After a full codebase audit, this migration was rejected. The ROI is poor — ~50–80 hours of effort to swap a working, polished component library for marginal developer-experience gains. The primary blockers are: (1) the existing 6-theme oklch color system (1,076 lines of custom CSS) would need to be rebuilt or abandoned, since Nuxt UI v4's theming expects preset palettes; (2) all `data-slot`-based CSS styling would break; (3) the complex audit table with expandable row groups, custom sorting, and badge rendering would require a full TanStack ColumnDef rewrite; (4) ~50+ lucide-vue-next icon imports would need migration. The current shadcn-vue setup works well, the wrapper files are never manually edited, and the template verbosity is not a meaningful bottleneck at this project's scale (6 pages, ~12 components).
 
 ## Overview
 

@@ -16,7 +16,7 @@ Capacitarr integrates with your *arr apps, media servers, and request managers t
 - **Audit Trail** — Complete history of every engine action (deletions, evaluations, errors)
 - **Themeable UI** — Light/dark mode with customizable accent colors
 - **Reverse Proxy Ready** — Subdirectory deployments, proxy authentication (Authelia, Authentik, Organizr)
-- **Single Container** — Go backend + Nuxt 3 frontend + SQLite database in one Docker image
+- **Single Container** — Go backend + Nuxt 4 frontend + SQLite database in one Docker image
 - **PUID/PGID Support** — Runs as any user/group for proper volume permissions
 
 ## Quick Start (Docker Compose)
@@ -105,12 +105,12 @@ For the complete configuration reference including subdirectory deployment and p
 
 ## Architecture Overview
 
-Capacitarr is a single-container application that bundles a Go backend, a Nuxt 3 (Vue 3) frontend, and a SQLite database. The frontend is statically generated at build time and embedded into the Go binary via `go:embed`, producing a single self-contained executable.
+Capacitarr is a single-container application that bundles a Go backend, a Nuxt 4 (Vue 3) frontend, and a SQLite database. The frontend is statically generated at build time and embedded into the Go binary via `go:embed`, producing a single self-contained executable.
 
 ```mermaid
 flowchart TD
     subgraph CONTAINER["Docker Container"]
-        FRONTEND["Nuxt 3 Frontend<br/>Vue 3 + Tailwind CSS + shadcn-vue"]
+        FRONTEND["Nuxt 4 Frontend<br/>Vue 3 + Tailwind CSS 4 + shadcn-vue + Lucide"]
         BACKEND["Go Backend<br/>Echo framework + GORM"]
         DB["SQLite Database<br/>/config/capacitarr.db"]
         ENGINE["Scoring Engine<br/>Weighted factors + protection rules"]
@@ -148,7 +148,7 @@ flowchart TD
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| **Frontend** | Nuxt 3, Vue 3, Tailwind CSS 4, shadcn-vue, ApexCharts | Dashboard UI, rule builder, score visualization |
+| **Frontend** | Nuxt 4, Vue 3, Tailwind CSS 4, shadcn-vue, Lucide, ApexCharts | Dashboard UI, rule builder, score visualization |
 | **Backend** | Go, Echo, GORM | REST API, authentication, integration clients, scheduling |
 | **Database** | SQLite | Configuration, audit logs, engine statistics |
 | **Container** | Alpine Linux, multi-stage Docker build | Minimal runtime image (~30 MB) |
@@ -197,7 +197,7 @@ docker compose logs -f
 docker compose down
 ```
 
-The container exposes port **2187** and serves both the Go backend API and the Nuxt 3 frontend.
+The container exposes port **2187** and serves both the Go backend API and the Nuxt 4 frontend.
 
 ### Project Structure
 
@@ -214,14 +214,14 @@ capacitarr/
 │   │   ├── poller/           # Capacity polling + deletion logic
 │   │   └── logger/           # Structured logging
 │   └── routes/               # REST API handlers + middleware
-├── frontend/                 # Nuxt 3 frontend
+├── frontend/                 # Nuxt 4 frontend
 │   ├── app/
 │   │   ├── components/       # Vue components (shadcn-vue based)
 │   │   ├── composables/      # Vue composables
 │   │   ├── pages/            # Nuxt pages (dashboard, rules, settings, audit)
 │   │   └── assets/css/       # Tailwind CSS + theme variables
 │   └── nuxt.config.ts        # Nuxt configuration
-├── docs/                     # Documentation (MkDocs)
+├── docs/                     # Documentation
 ├── docker-compose.yml        # Development/deployment compose file
 ├── Dockerfile                # Multi-stage build (Node → Go → Alpine)
 └── entrypoint.sh             # Container entrypoint (PUID/PGID handling)
@@ -239,7 +239,7 @@ Contributions are welcome! Please read the [Contributing Guide](CONTRIBUTING.md)
 
 ## Documentation
 
-Full documentation is available on the [Capacitarr documentation site](https://starshadow.gitlab.io/software/capacitarr/), powered by MkDocs.
+Full documentation is available on the [Capacitarr documentation site](https://capacitarr.app/).
 
 Key documentation pages:
 

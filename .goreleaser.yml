@@ -67,7 +67,7 @@ release:
   header: |
     ## What's Changed
 
-    See the full [CHANGELOG](https://capacitarr.app/changelog) for details.
+    See the full [CHANGELOG](https://capacitarr.app/docs/changelog) for details.
   # Don't replace existing drafts
   mode: replace
   # Upload extra files to the release

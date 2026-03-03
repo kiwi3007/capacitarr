@@ -45,9 +45,12 @@ git add CHANGELOG.md package.json frontend/package.json
 git commit -m "chore(release): $VERSION"
 git tag "$VERSION"
 
-# 5. Push with tags
-git push origin main --tags
+# 5. Push (two-step to avoid duplicate pipelines)
+git push origin main        # branch pipeline: lint/test/build/security/pages
+git push origin "$VERSION"  # tag pipeline: full release (binaries + Docker + GitLab release)
 ```
+
+> **Why two steps?** Running `git push origin main --tags` in a single command causes GitLab to create **two separate pipelines** — one for the branch push and one for the tag push — which wastes CI minutes. Pushing them separately ensures only one pipeline runs at a time.
 
 ### Convenience Script
 
@@ -57,7 +60,12 @@ There is a convenience script in the root `package.json`:
 npm run release
 ```
 
-This runs the full release flow locally (changelog generation, version bump, commit, and tag). You still need to `git push origin main --tags` afterward.
+This runs the full release flow locally (changelog generation, version bump, commit, and tag). You still need to push afterward:
+
+```bash
+git push origin main
+git push origin vX.Y.Z
+```
 
 ## Semantic Versioning
 
@@ -77,11 +85,13 @@ Version numbers follow the `MAJOR.MINOR.PATCH` format. The version bump is deter
 
 The following commit types are excluded from the changelog but still count toward version determination:
 
+- `docs` — documentation changes
+- `refactor` — code refactoring
+- `chore` — maintenance tasks (including `chore(release)`)
 - `test` — test additions/changes
 - `ci` — CI/CD pipeline changes
 - `style` — code style/formatting changes
 - `build` — build system changes
-- `chore(release)` — release preparation commits
 
 ## Version Display
 
@@ -98,15 +108,13 @@ Both `package.json` files must be updated during the release prep step for the U
 The changelog is configured in [`cliff.toml`](../cliff.toml) at the project root. Key settings:
 
 - **Conventional commits parsing** — only conventional commit messages are included
-- **Commit grouping** — commits are organized by type with emoji prefixes:
+- **Commit grouping** — user-facing commits are organized by type with emoji prefixes:
   - 🚀 Features (`feat`)
   - 🐛 Bug Fixes (`fix`)
-  - 🚜 Refactor (`refactor`)
-  - 📚 Documentation (`docs`)
   - ⚡ Performance (`perf`)
-  - ⚙️ Miscellaneous Tasks (`chore`)
   - 🛡️ Security (commits with "security" in the body)
   - ◀️ Revert (`revert`)
+- **Skipped from changelog** — `docs`, `refactor`, `chore`, `test`, `ci`, `style`, `build`
 - **Commit links** — each changelog entry links to the commit on GitLab
 - **Sorted oldest-first** — commits within each group appear in chronological order
 

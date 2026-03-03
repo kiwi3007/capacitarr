@@ -1,6 +1,6 @@
 # CI/CD Polish and Cleanup
 
-**Status:** 📋 Planned
+**Status:** ✅ Complete (except Phase 4 — manual GitLab UI cleanup)
 
 **Prerequisite:** [Build, CI/CD, and Publishing Overhaul](20260303T1551Z-build-cicd-publishing.md) — ✅ Complete
 
@@ -14,7 +14,7 @@ Follow-up items discovered during the CI/CD overhaul implementation. These are p
 
 ## Phase 1: CI Pipeline Fixes
 
-### 1.1 Fix `build:docker` warning
+### 1.1 Fix `build:docker` warning — ✅ Complete
 
 The `build:docker` smoke test job produces: `WARNING: No output specified with docker-container driver`. Add `--output=type=cacheonly` to explicitly declare the build is verification-only.
 
@@ -26,17 +26,17 @@ build:docker:
     - docker buildx build --platform linux/amd64,linux/arm64 --output=type=cacheonly .
 ```
 
-### 1.2 Add `interruptible: true` to non-release CI jobs
+### 1.2 Add `interruptible: true` to non-release CI jobs — ✅ Complete
 
 When multiple pushes happen quickly, older pipelines waste CI minutes. Adding `interruptible: true` to lint/test/build/security jobs allows GitLab to auto-cancel superseded pipelines.
 
 **File:** [`.gitlab-ci.yml`](../../.gitlab-ci.yml)
 
-### 1.3 Fix duplicate pipeline on tag+branch push
+### 1.3 Fix duplicate pipeline on tag+branch push — ✅ Complete
 
-`git push origin main --tags` creates two pipelines (branch + tag). Options:
-- **Option A:** Document two-step push: `git push origin main` then `git push origin vX.Y.Z`
-- **Option B:** Use GitLab's `auto_cancel.on_new_commit` setting to cancel the branch pipeline when the tag pipeline starts
+`git push origin main --tags` creates two pipelines (branch + tag). Implemented both options:
+- **Option A:** Documented two-step push in `docs/releasing.md`
+- **Option B:** Added `workflow.auto_cancel.on_new_commit: interruptible` to `.gitlab-ci.yml`
 
 **Files:** [`.gitlab-ci.yml`](../../.gitlab-ci.yml), [`docs/releasing.md`](../releasing.md)
 
@@ -44,9 +44,17 @@ When multiple pushes happen quickly, older pipelines waste CI minutes. Adding `i
 
 ## Phase 2: Changelog Improvements
 
-### 2.1 Slim down changelog output
+### 2.1 Fix broken changelog link on release page — ✅ Complete
 
-The changelog currently includes every conventional commit type. Trim to user-facing changes only.
+The GoReleaser release header links to `https://capacitarr.app/changelog`, but the actual site route is `/docs/changelog` (the sync script writes `CHANGELOG.md` into `content/docs/changelog.md`).
+
+**Fix:** Update the URL in `.goreleaser.yml` from `/changelog` to `/docs/changelog`.
+
+**File:** [`.goreleaser.yml`](../../.goreleaser.yml)
+
+### 2.2 Slim down changelog output — ✅ Complete
+
+The changelog currently includes every conventional commit type. Trimmed to user-facing changes only.
 
 **Keep in changelog:**
 - 🚀 Features (`feat`)
@@ -66,17 +74,27 @@ The changelog currently includes every conventional commit type. Trim to user-fa
 
 ## Phase 3: Documentation Updates
 
-### 3.1 Update "Nuxt 3" references to "Nuxt 4"
+### 3.1 Fix inaccurate stack references across documentation — ✅ Complete
 
-The project uses Nuxt 4 (`nuxt: ^4.3.1` in [`frontend/package.json`](../../frontend/package.json)). Multiple docs reference "Nuxt 3":
+The project uses Nuxt 4 (`nuxt: ^4.3.1`), Vue 3 (`vue: ^3.5.29`), Tailwind CSS 4 (`tailwindcss: ^4.1.18`). Multiple docs reference outdated stack info.
 
-- [`README.md`](../../README.md) — "Nuxt 3 frontend", "Nuxt 3 (Vue 3) frontend"
-- [`docs/index.md`](../index.md) — if applicable
-- Any other documentation files
+**Audit results:**
 
-### 3.2 Update releasing docs for two-step push
+[`README.md`](../../README.md):
+- Line 19: `Nuxt 3 frontend` → `Nuxt 4 frontend`
+- Line 108: `Nuxt 3 (Vue 3) frontend` → `Nuxt 4 (Vue 3) frontend`
+- Line 113 (Mermaid): `Nuxt 3 Frontend` → `Nuxt 4 Frontend`, `Tailwind CSS` → `Tailwind CSS 4`
+- Line 151 (table): `Nuxt 3` → `Nuxt 4`
+- Line 200: `Nuxt 3 frontend` → `Nuxt 4 frontend`
+- Line 217: `# Nuxt 3 frontend` → `# Nuxt 4 frontend`
+- Line 224: `docs/  # Documentation (MkDocs)` → `docs/  # Documentation`
+- Line 242: `powered by MkDocs` → `powered by Nuxt Content` (site is now Nuxt Content + Nuxt UI Pro)
 
-Document that `git push origin main --tags` creates duplicate pipelines, and recommend the two-step approach:
+[`docs/index.md`](../index.md) — ✅ No inaccurate references
+
+### 3.2 Update releasing docs for two-step push — ✅ Complete
+
+Documented that `git push origin main --tags` creates duplicate pipelines, and updated to recommend the two-step approach:
 
 ```bash
 git push origin main        # branch pipeline (lint/test/build/security/pages)
@@ -103,7 +121,7 @@ Delete via GitLab web UI:
 | File | Phase | Description |
 |------|-------|-------------|
 | `.gitlab-ci.yml` | 1.1, 1.2, 1.3 | Add `--output=type=cacheonly`, `interruptible: true`, pipeline dedup |
-| `cliff.toml` | 2.1 | Skip docs/refactor/chore from changelog |
-| `README.md` | 3.1 | Update Nuxt 3 → Nuxt 4 |
+| `.goreleaser.yml` | 2.1 | Fix broken changelog link (`/changelog` → `/docs/changelog`) |
+| `cliff.toml` | 2.2 | Skip docs/refactor/chore from changelog |
+| `README.md` | 3.1 | Fix Nuxt 3 → Nuxt 4 (6 occurrences), MkDocs → Nuxt Content (2 occurrences) |
 | `docs/releasing.md` | 3.2 | Document two-step push workflow |
-| `docs/index.md` | 3.1 | Update Nuxt 3 → Nuxt 4 (if applicable) |

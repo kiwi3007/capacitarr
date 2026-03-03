@@ -8,6 +8,8 @@
 # (only the tag pipeline runs, not a separate branch pipeline).
 
 workflow:
+  auto_cancel:
+    on_new_commit: interruptible
   rules:
     # Tag push → run the full pipeline including release stage
     - if: $CI_COMMIT_TAG
@@ -29,6 +31,7 @@ stages:
 lint:go:
   stage: lint
   image: golangci/golangci-lint:latest
+  interruptible: true
   before_script:
     # Create placeholder for go:embed directive (frontend isn't built during lint)
     - mkdir -p backend/frontend/dist && touch backend/frontend/dist/.gitkeep
@@ -38,6 +41,7 @@ lint:go:
 lint:frontend:
   stage: lint
   image: node:22-alpine
+  interruptible: true
   before_script:
     - corepack enable
     - cd frontend && pnpm install --frozen-lockfile
@@ -49,6 +53,7 @@ lint:frontend:
 test:go:
   stage: test
   image: golang:1.25-alpine
+  interruptible: true
   before_script:
     # Create placeholder for go:embed directive (frontend isn't built during test)
     - mkdir -p backend/frontend/dist && touch backend/frontend/dist/.gitkeep
@@ -58,6 +63,7 @@ test:go:
 test:frontend:
   stage: test
   image: node:22-alpine
+  interruptible: true
   before_script:
     - corepack enable
     - cd frontend && pnpm install --frozen-lockfile
@@ -69,18 +75,20 @@ test:frontend:
 build:docker:
   stage: build
   image: docker:latest
+  interruptible: true
   services:
     - docker:dind
   before_script:
     - docker buildx create --use --driver docker-container
   script:
-    - docker buildx build --platform linux/amd64,linux/arm64 .
+    - docker buildx build --platform linux/amd64,linux/arm64 --output=type=cacheonly .
 
 # ── Security ──────────────────────────────────────────────────────────────────
 
 security:govulncheck:
   stage: security
   image: golang:1.25-alpine
+  interruptible: true
   before_script:
     - go install golang.org/x/vuln/cmd/govulncheck@latest
     # Create placeholder for go:embed directive (frontend isn't built during security scan)
@@ -92,6 +100,7 @@ security:govulncheck:
 security:pnpm-audit:
   stage: security
   image: node:22-alpine
+  interruptible: true
   before_script:
     - corepack enable
     - cd frontend && pnpm install --frozen-lockfile
@@ -181,6 +190,7 @@ release:docker:
 pages:
   stage: pages
   image: node:22-alpine
+  interruptible: true
   before_script:
     - corepack enable
     - cd site && pnpm install --frozen-lockfile
