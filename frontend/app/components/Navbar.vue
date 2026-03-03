@@ -110,7 +110,7 @@
                   </UiButton>
                 </div>
               </div>
-              <UiScrollArea class="max-h-80">
+              <div class="max-h-80 overflow-y-auto">
                 <div
                   v-if="notifLoading"
                   class="flex justify-center py-8"
@@ -156,7 +156,7 @@
                     />
                   </button>
                 </div>
-              </UiScrollArea>
+              </div>
             </UiPopoverContent>
           </UiPopover>
 
