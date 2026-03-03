@@ -1,9 +1,20 @@
 # Capacitarr GitLab CI/CD Pipeline
 #
-# On every push and MR: lint → test → build → security (smoke test, no publish)
-# On tag push (v*):     changelog → goreleaser (binaries + GitLab release)
-#                                 → docker push (multi-arch to GitLab CR)
-#                                 → pages (rebuild project site)
+# Single pipeline for all events:
+#   lint → test → build → security → [release] → pages
+#
+# The release stage only runs when a tag is pushed.
+# The workflow:rules prevent duplicate pipelines when pushing a tag
+# (only the tag pipeline runs, not a separate branch pipeline).
+
+workflow:
+  rules:
+    # Tag push → run the full pipeline including release stage
+    - if: $CI_COMMIT_TAG
+    # MR pipelines
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    # Branch pushes (but not if a tag was also pushed — handled above)
+    - if: $CI_COMMIT_BRANCH
 
 stages:
   - lint
@@ -17,13 +28,9 @@ stages:
 
 lint:go:
   stage: lint
-  image: golangci/golangci-lint:v2.1.6
+  image: golangci/golangci-lint:latest
   script:
     - cd backend && golangci-lint run ./...
-  rules:
-    - if: $CI_COMMIT_TAG
-      when: never
-    - when: on_success
 
 lint:frontend:
   stage: lint
@@ -33,10 +40,6 @@ lint:frontend:
     - cd frontend && pnpm install --frozen-lockfile
   script:
     - pnpm lint
-  rules:
-    - if: $CI_COMMIT_TAG
-      when: never
-    - when: on_success
 
 # ── Test ──────────────────────────────────────────────────────────────────────
 
@@ -45,10 +48,6 @@ test:go:
   image: golang:1.25-alpine
   script:
     - cd backend && go test ./... -race -count=1
-  rules:
-    - if: $CI_COMMIT_TAG
-      when: never
-    - when: on_success
 
 test:frontend:
   stage: test
@@ -58,10 +57,6 @@ test:frontend:
     - cd frontend && pnpm install --frozen-lockfile
   script:
     - pnpm test
-  rules:
-    - if: $CI_COMMIT_TAG
-      when: never
-    - when: on_success
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 
@@ -74,11 +69,6 @@ build:docker:
     - docker buildx create --use --driver docker-container
   script:
     - docker buildx build --platform linux/amd64,linux/arm64 .
-  rules:
-    - if: $CI_COMMIT_TAG
-      when: never
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 # ── Security ──────────────────────────────────────────────────────────────────
 
@@ -90,10 +80,6 @@ security:govulncheck:
   script:
     - cd backend && govulncheck ./...
   allow_failure: true
-  rules:
-    - if: $CI_COMMIT_TAG
-      when: never
-    - when: on_success
 
 security:pnpm-audit:
   stage: security
@@ -104,12 +90,8 @@ security:pnpm-audit:
   script:
     - pnpm audit
   allow_failure: true
-  rules:
-    - if: $CI_COMMIT_TAG
-      when: never
-    - when: on_success
 
-# ── Release (tag-triggered) ──────────────────────────────────────────────────
+# ── Release (tag-triggered, gated behind lint/test/build) ────────────────────
 
 # Extract release notes from the committed CHANGELOG.md for the tagged version
 changelog:
