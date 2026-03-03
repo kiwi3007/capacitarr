@@ -62,6 +62,14 @@ func Start() *cron.Cron {
 		slog.Error("Failed to add engine stats cleanup cron", "component", "jobs", "operation", "add_cron", "error", err)
 	}
 
+	// 6. Prune old in-app notifications — uses audit log retention setting
+	_, err = c.AddFunc("@daily", func() {
+		pruneOldNotifications()
+	})
+	if err != nil {
+		slog.Error("Failed to add notification cleanup cron", "component", "jobs", "operation", "add_cron", "error", err)
+	}
+
 	c.Start()
 	slog.Info("Cron jobs started successfully", "component", "jobs")
 	return c
@@ -115,6 +123,28 @@ func rollupData(fromRes, toRes string, start, end time.Time) {
 func pruneData(resolution string, before time.Time) {
 	if err := db.DB.Where("resolution = ? AND timestamp < ?", resolution, before).Delete(&db.LibraryHistory{}).Error; err != nil {
 		slog.Error("Failed to prune data", "component", "jobs", "operation", "prune", "resolution", resolution, "error", err)
+	}
+}
+
+// pruneOldNotifications deletes in-app notifications older than the audit log retention period.
+// If retention is 0 (forever), no cleanup is performed.
+func pruneOldNotifications() {
+	var prefs db.PreferenceSet
+	if err := db.DB.First(&prefs).Error; err != nil {
+		slog.Error("Failed to fetch preferences for notification cleanup", "component", "jobs", "operation", "prune_notifications", "error", err)
+		return
+	}
+
+	if prefs.AuditLogRetentionDays <= 0 {
+		return // 0 = keep forever
+	}
+
+	cutoff := time.Now().Add(-time.Duration(prefs.AuditLogRetentionDays) * 24 * time.Hour)
+	deleted := db.DB.Where("created_at < ?", cutoff).Delete(&db.InAppNotification{})
+	if deleted.Error != nil {
+		slog.Error("Failed to prune old notifications", "component", "jobs", "operation", "prune_notifications", "error", deleted.Error)
+	} else if deleted.RowsAffected > 0 {
+		slog.Info("Pruned old in-app notifications", "component", "jobs", "deleted", deleted.RowsAffected, "retentionDays", prefs.AuditLogRetentionDays)
 	}
 }
 

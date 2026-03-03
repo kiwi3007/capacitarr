@@ -10,7 +10,7 @@
     <div
       v-if="!isConnected"
       data-slot="connection-banner"
-      class="fixed top-0 inset-x-0 z-[100] flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium bg-destructive text-destructive-foreground shadow-lg"
+      class="fixed top-0 left-0 right-0 w-full z-[100] flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium bg-destructive text-destructive-foreground shadow-lg"
     >
       <WifiOffIcon class="w-4 h-4 shrink-0" />
       <span>{{ $t('connection.lost') }}</span>
@@ -28,7 +28,7 @@
     <div
       v-if="isReconnected"
       data-slot="connection-banner"
-      class="fixed top-0 inset-x-0 z-[100] flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium bg-emerald-500 text-white shadow-lg"
+      class="fixed top-0 left-0 right-0 w-full z-[100] flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium bg-emerald-500 text-white shadow-lg"
     >
       <WifiIcon class="w-4 h-4 shrink-0" />
       <span>{{ $t('connection.restored') }}</span>

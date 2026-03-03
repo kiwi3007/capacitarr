@@ -426,7 +426,7 @@
               </a>
 
               <span class="text-muted-foreground">License</span>
-              <span class="text-foreground">PolyForm Noncommercial 1.0.0</span>
+              <span class="text-foreground">PolyForm Noncommercial 1.0.0 + CLA</span>
 
               <span class="text-muted-foreground">Author</span>
               <span class="text-foreground font-medium">Ghent Starshadow</span>

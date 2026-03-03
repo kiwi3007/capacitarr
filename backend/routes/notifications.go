@@ -195,4 +195,12 @@ func RegisterNotificationRoutes(g *echo.Group, database *gorm.DB) {
 		}
 		return c.JSON(http.StatusOK, map[string]string{"status": "all_read"})
 	})
+
+	// DELETE /api/v1/notifications — delete all in-app notifications
+	g.DELETE("/notifications", func(c echo.Context) error {
+		if err := database.Where("1 = 1").Delete(&db.InAppNotification{}).Error; err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to clear notifications"})
+		}
+		return c.JSON(http.StatusOK, map[string]string{"status": "cleared"})
+	})
 }

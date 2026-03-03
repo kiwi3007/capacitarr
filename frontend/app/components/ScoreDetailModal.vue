@@ -7,104 +7,169 @@
       <!-- Header -->
       <UiDialogHeader>
         <span class="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Score Detail</span>
-        <UiDialogTitle
-          class="truncate"
-          :title="mediaName"
-        >
-          {{ mediaName }}
-        </UiDialogTitle>
-        <div class="flex items-center gap-2 mt-1">
+        <div class="flex items-center justify-between gap-2">
+          <UiDialogTitle
+            class="truncate flex-1"
+            :title="mediaName"
+          >
+            {{ mediaName }}
+          </UiDialogTitle>
           <UiBadge
             variant="secondary"
-            class="capitalize"
+            class="capitalize shrink-0"
           >
             {{ mediaType }}
           </UiBadge>
-          <span
-            class="text-3xl font-bold tabular-nums tracking-tight"
-            :class="scoreColorClass"
-          >
-            {{ score.toFixed(2) }}
-          </span>
         </div>
       </UiDialogHeader>
 
       <!-- Body -->
-      <div class="max-h-[60vh] overflow-y-auto space-y-5">
-        <!-- Stacked Bar (reuse ScoreBreakdown in lg mode) -->
-        <div v-if="scoreDetails">
-          <ScoreBreakdown
-            :reason="reasonFromScore"
-            :score-details="scoreDetails"
-            size="lg"
-          />
-        </div>
-
-        <!-- Factor Table -->
-        <div v-if="weightFactors.length > 0">
-          <h3 class="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
-            Score Factors
-          </h3>
-          <div class="rounded-lg border border-border/50 overflow-hidden bg-card/80">
-            <UiTable>
-              <UiTableHeader>
-                <UiTableRow class="bg-primary/5 dark:bg-primary/10">
-                  <UiTableHead class="text-xs">
-                    Factor
-                  </UiTableHead>
-                  <UiTableHead class="text-xs text-right">
-                    Raw
-                  </UiTableHead>
-                  <UiTableHead class="text-xs text-right">
-                    Weight
-                  </UiTableHead>
-                  <UiTableHead class="text-xs text-right">
-                    Contribution
-                  </UiTableHead>
-                </UiTableRow>
-              </UiTableHeader>
-              <UiTableBody>
-                <UiTableRow
-                  v-for="f in weightFactors"
-                  :key="f.name"
-                >
-                  <UiTableCell class="font-medium">
-                    <span class="inline-flex items-center gap-1.5">
-                      <span
-                        class="w-2 h-2 rounded-full flex-shrink-0"
-                        :style="{ backgroundColor: factorColor(f.name) }"
-                      />
-                      {{ f.name }}
-                    </span>
-                  </UiTableCell>
-                  <UiTableCell class="text-right font-mono tabular-nums text-muted-foreground">
-                    {{ f.rawScore.toFixed(2) }}
-                  </UiTableCell>
-                  <UiTableCell class="text-right font-mono tabular-nums text-muted-foreground">
-                    {{ f.weight }}
-                  </UiTableCell>
-                  <UiTableCell class="text-right font-mono tabular-nums font-semibold">
-                    {{ f.contribution.toFixed(3) }}
-                  </UiTableCell>
-                </UiTableRow>
-              </UiTableBody>
-            </UiTable>
+      <div class="max-h-[60vh] overflow-y-auto space-y-4">
+        <!-- Protected Item (always_keep) -->
+        <div
+          v-if="isProtected"
+          class="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3"
+        >
+          <div class="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+            <span class="text-sm">🛡️</span>
+            <span class="text-sm font-medium">{{ protectedRuleName }}</span>
+          </div>
+          <p
+            v-if="protectedMatchedValue"
+            class="text-[11px] text-muted-foreground truncate"
+            :title="protectedMatchedValue"
+          >
+            Actual: {{ protectedMatchedValue }}
+          </p>
+          <p class="text-xs text-muted-foreground">
+            Score overridden — item is immune to deletion
+          </p>
+          <div class="flex items-center gap-2 pt-2 border-t border-emerald-500/20">
+            <span class="text-xs text-muted-foreground">Final Score:</span>
+            <span class="text-lg font-bold text-emerald-500 tabular-nums font-mono">Protected</span>
           </div>
         </div>
 
+        <!-- Weighted Score Section -->
+        <div
+          v-if="!isProtected && weightFactors.length > 0"
+          class="rounded-lg border border-border/50 bg-card/80 p-4 space-y-3"
+        >
+          <h3 class="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Weighted Score
+          </h3>
+          <!-- Factor rows -->
+          <div class="space-y-1.5">
+            <div
+              v-for="f in weightFactors"
+              :key="f.name"
+              class="flex items-center justify-between text-sm"
+            >
+              <span class="flex items-center gap-2">
+                <span
+                  class="w-2 h-2 rounded-full shrink-0"
+                  :style="{ backgroundColor: factorColor(f.name) }"
+                />
+                <span class="text-muted-foreground">{{ f.name }}</span>
+              </span>
+              <span class="font-mono tabular-nums text-foreground">
+                <span class="text-muted-foreground">{{ f.rawScore.toFixed(2) }} × {{ f.weight }}</span>
+                <span class="mx-1.5 text-muted-foreground/50">=</span>
+                <span class="font-semibold">{{ f.contribution.toFixed(3) }}</span>
+              </span>
+            </div>
+          </div>
+          <!-- Base score total -->
+          <div class="flex items-center justify-between pt-2 border-t border-border/50">
+            <span class="text-xs font-medium text-muted-foreground">Base Score</span>
+            <span class="font-mono tabular-nums font-bold text-foreground">{{ baseScore.toFixed(3) }}</span>
+          </div>
+          <!-- Normalization note -->
+          <p class="text-[10px] text-muted-foreground/60 leading-relaxed">
+            Weights are relative — contributions are proportional to slider values, normalized across a total weight of {{ totalWeight }}.
+          </p>
+        </div>
+
         <!-- Custom Rules Section -->
-        <div v-if="ruleFactors.length > 0">
-          <h3 class="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+        <div
+          v-if="!isProtected && ruleFactors.length > 0"
+          class="rounded-lg border border-border/50 bg-card/80 p-4 space-y-3"
+        >
+          <h3 class="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Custom Rules
           </h3>
-          <div class="flex flex-wrap gap-1.5">
-            <UiBadge
+          <!-- Rule modifier rows -->
+          <div class="space-y-2.5">
+            <div
               v-for="f in ruleFactors"
               :key="f.name"
-              :variant="f.name.includes('Protect') ? 'outline' : 'destructive'"
             >
-              {{ f.name }}
-            </UiBadge>
+              <div class="flex items-center justify-between text-sm">
+                <span class="flex items-center gap-2 min-w-0">
+                  <span class="text-xs shrink-0">{{ ruleIcon(f.name) }}</span>
+                  <span class="text-muted-foreground truncate">{{ f.name }}</span>
+                </span>
+                <span class="font-mono tabular-nums font-semibold text-foreground shrink-0 ml-2">× {{ f.rawScore.toFixed(2) }}</span>
+              </div>
+              <!-- Matched value -->
+              <p
+                v-if="f.matchedValue"
+                class="text-[11px] text-muted-foreground/70 ml-6 mt-0.5 truncate"
+                :title="f.matchedValue"
+              >
+                Actual: {{ f.matchedValue }}
+              </p>
+            </div>
+          </div>
+          <!-- Combined modifier -->
+          <div
+            v-if="ruleFactors.length > 1"
+            class="flex items-center justify-between pt-2 border-t border-border/50"
+          >
+            <span class="text-xs font-medium text-muted-foreground">Combined Modifier</span>
+            <span class="font-mono tabular-nums text-muted-foreground">
+              {{ ruleFactors.map(f => f.rawScore.toFixed(2)).join(' × ') }} = <span class="font-bold text-foreground">{{ ruleModifier.toFixed(3) }}</span>
+            </span>
+          </div>
+          <div
+            v-else
+            class="flex items-center justify-between pt-2 border-t border-border/50"
+          >
+            <span class="text-xs font-medium text-muted-foreground">Rule Modifier</span>
+            <span class="font-mono tabular-nums font-bold text-foreground">{{ ruleModifier.toFixed(3) }}</span>
+          </div>
+        </div>
+
+        <!-- Final Score -->
+        <div
+          v-if="!isProtected"
+          class="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-2"
+        >
+          <h3 class="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Final Score
+          </h3>
+          <div
+            v-if="ruleFactors.length > 0"
+            class="font-mono text-sm tabular-nums text-muted-foreground"
+          >
+            {{ baseScore.toFixed(3) }} <span class="text-[10px]">(base)</span> × {{ ruleModifier.toFixed(3) }} <span class="text-[10px]">(modifier)</span> = <span
+              class="font-bold text-lg"
+              :class="scoreColorClass"
+            >{{ score.toFixed(2) }}</span>
+          </div>
+          <div
+            v-else
+            class="flex items-center gap-2"
+          >
+            <span class="text-xs text-muted-foreground">No rules applied</span>
+            <span class="mx-1 text-muted-foreground/50">→</span>
+            <span class="text-primary font-medium text-xs">Score:</span>
+            <span
+              class="font-mono tabular-nums font-bold text-lg"
+              :class="scoreColorClass"
+            >
+              {{ score.toFixed(2) }}
+            </span>
           </div>
         </div>
       </div>
@@ -144,6 +209,7 @@ interface ScoreFactor {
   weight: number
   contribution: number
   type: string
+  matchedValue?: string
 }
 
 interface Props {
@@ -173,6 +239,16 @@ function factorColor(name: string): string {
   return FACTOR_COLORS[name] || '#6b7280'
 }
 
+function ruleIcon(name: string): string {
+  if (name.includes('Always keep')) return '🛡️'
+  if (name.includes('Prefer keep')) return '🟢'
+  if (name.includes('Lean keep')) return '🔵'
+  if (name.includes('Lean remove')) return '🟡'
+  if (name.includes('Prefer remove')) return '🟠'
+  if (name.includes('Always remove')) return '🔴'
+  return '📋'
+}
+
 // Parse factors
 const parsedFactors = computed<ScoreFactor[]>(() => {
   if (!props.scoreDetails) return []
@@ -188,8 +264,31 @@ const parsedFactors = computed<ScoreFactor[]>(() => {
 const weightFactors = computed(() => parsedFactors.value.filter(f => f.type === 'weight'))
 const ruleFactors = computed(() => parsedFactors.value.filter(f => f.type === 'rule'))
 
-// Build a reason string from score for ScoreBreakdown
-const reasonFromScore = computed(() => `Score: ${props.score.toFixed(2)}`)
+const totalWeight = computed(() =>
+  weightFactors.value.reduce((sum, f) => sum + f.weight, 0)
+)
+
+const baseScore = computed(() =>
+  weightFactors.value.reduce((sum, f) => sum + f.contribution, 0)
+)
+
+const ruleModifier = computed(() =>
+  ruleFactors.value.reduce((mod, f) => mod * f.rawScore, 1.0)
+)
+
+const isProtected = computed(() => {
+  return ruleFactors.value.some(f => f.name.includes('Always keep')) && props.score === 0
+})
+
+const protectedRuleName = computed(() => {
+  const factor = ruleFactors.value.find(f => f.name.includes('Always keep'))
+  return factor?.name || 'Protected by rule'
+})
+
+const protectedMatchedValue = computed(() => {
+  const factor = ruleFactors.value.find(f => f.name.includes('Always keep'))
+  return factor?.matchedValue || ''
+})
 
 // Score color class
 const scoreColorClass = computed(() => {

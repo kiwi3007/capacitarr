@@ -2,7 +2,7 @@ import type { InAppNotification } from '~/types/api'
 
 /**
  * Composable for in-app notification management.
- * Provides unread count polling, notification list, and read/mark-all helpers.
+ * Provides unread count polling, notification list, and read/mark-all/clear helpers.
  */
 export function useNotifications() {
   const api = useApi()
@@ -58,6 +58,17 @@ export function useNotifications() {
     }
   }
 
+  /** Delete all in-app notifications */
+  async function clearAll() {
+    try {
+      await api('/api/v1/notifications', { method: 'DELETE' })
+      notifications.value = []
+      unreadCount.value = 0
+    } catch {
+      // Silently fail
+    }
+  }
+
   /** Start polling unread count every 30 seconds */
   function startPolling() {
     stopPolling()
@@ -81,6 +92,7 @@ export function useNotifications() {
     fetchNotifications,
     markAsRead,
     markAllAsRead,
+    clearAll,
     startPolling,
     stopPolling
   }

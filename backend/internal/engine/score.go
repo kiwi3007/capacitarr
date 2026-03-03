@@ -14,11 +14,12 @@ import (
 
 // ScoreFactor represents a single dimension of the scoring breakdown
 type ScoreFactor struct {
-	Name         string  `json:"name"`         // "Watch History", "File Size", etc.
-	RawScore     float64 `json:"rawScore"`     // 0.0-1.0 before weighting
-	Weight       int     `json:"weight"`       // weight applied (0-10)
-	Contribution float64 `json:"contribution"` // normalized contribution to final score
-	Type         string  `json:"type"`         // "weight" or "rule"
+	Name         string  `json:"name"`                   // "Watch History", "File Size", etc.
+	RawScore     float64 `json:"rawScore"`               // 0.0-1.0 before weighting
+	Weight       int     `json:"weight"`                 // weight applied (0-10)
+	Contribution float64 `json:"contribution"`           // normalized contribution to final score
+	Type         string  `json:"type"`                   // "weight" or "rule"
+	MatchedValue string  `json:"matchedValue,omitempty"` // actual item value that triggered a rule match
 }
 
 // EvaluatedItem contains the media item, its deletion score, and explanation

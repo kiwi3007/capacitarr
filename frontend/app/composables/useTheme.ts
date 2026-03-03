@@ -11,16 +11,18 @@ export interface ThemeMeta {
   label: string
   hue: number
   type: 'analogous' | 'complementary' | 'monochrome'
+  /** Actual light-mode primary color (oklch) for accurate swatch display */
+  primaryColor: string
 }
 
 /** All available themes with display metadata */
 export const THEMES: ThemeMeta[] = [
-  { id: 'violet', label: 'Violet', hue: 293, type: 'analogous' },
-  { id: 'ocean', label: 'Ocean', hue: 230, type: 'analogous' },
-  { id: 'emerald', label: 'Emerald', hue: 160, type: 'analogous' },
-  { id: 'sunset', label: 'Sunset', hue: 55, type: 'complementary' },
-  { id: 'rose', label: 'Rose', hue: 350, type: 'complementary' },
-  { id: 'slate', label: 'Slate', hue: 260, type: 'monochrome' }
+  { id: 'violet', label: 'Violet', hue: 293, type: 'analogous', primaryColor: 'oklch(0.606 0.25 292.717)' },
+  { id: 'ocean', label: 'Ocean', hue: 230, type: 'analogous', primaryColor: 'oklch(0.55 0.2 230)' },
+  { id: 'emerald', label: 'Emerald', hue: 160, type: 'analogous', primaryColor: 'oklch(0.55 0.2 160)' },
+  { id: 'sunset', label: 'Sunset', hue: 55, type: 'complementary', primaryColor: 'oklch(0.70 0.17 55)' },
+  { id: 'rose', label: 'Rose', hue: 350, type: 'complementary', primaryColor: 'oklch(0.60 0.22 350)' },
+  { id: 'slate', label: 'Slate', hue: 260, type: 'monochrome', primaryColor: 'oklch(0.45 0.03 260)' }
 ]
 
 const STORAGE_KEY = 'capacitarr-theme'

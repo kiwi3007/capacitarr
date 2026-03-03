@@ -35,7 +35,7 @@
         </UiTabsTrigger>
         <UiTabsTrigger
           value="advanced"
-          class="text-destructive data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground"
+          class="border-destructive/40 bg-destructive/5 text-destructive hover:bg-destructive/10 data-[state=active]:bg-destructive data-[state=active]:text-white data-[state=active]:border-destructive"
         >
           {{ $t('settings.advanced') }}
         </UiTabsTrigger>
@@ -127,7 +127,7 @@
                 >
                   <span
                     class="w-6 h-6 rounded-full"
-                    :style="{ backgroundColor: `oklch(0.6 0.2 ${t.hue})` }"
+                    :style="{ backgroundColor: t.primaryColor }"
                   />
                   <span class="text-xs font-medium">{{ t.label }}</span>
                 </button>

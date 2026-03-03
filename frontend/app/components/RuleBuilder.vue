@@ -124,82 +124,84 @@
 
         <!-- Combobox (tags, genres — suggestions + custom input) -->
         <template v-else-if="valueInputMode === 'combobox'">
-          <div class="flex items-center gap-1.5">
-            <UiPopover v-model:open="comboboxOpen">
-              <UiPopoverTrigger as-child>
-                <UiButton
-                  variant="outline"
-                  role="combobox"
-                  :aria-expanded="comboboxOpen"
-                  :disabled="!form.operator"
-                  class="w-full justify-between font-normal h-9"
-                >
-                  <span :class="form.value ? 'text-foreground' : 'text-muted-foreground'">
-                    {{ form.value || 'Type or select…' }}
-                  </span>
-                  <ChevronsUpDownIcon class="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </UiButton>
-              </UiPopoverTrigger>
-              <UiPopoverContent
-                class="w-[--reka-popover-trigger-width] p-0"
-                align="start"
+          <UiPopover v-model:open="comboboxOpen">
+            <UiPopoverTrigger as-child>
+              <UiButton
+                variant="outline"
+                role="combobox"
+                :aria-expanded="comboboxOpen"
+                :disabled="!form.operator"
+                class="w-full justify-between font-normal h-9"
               >
-                <UiCommand :filter-function="comboboxFilterFn">
-                  <UiCommandInput
-                    v-model="comboboxSearch"
-                    placeholder="Search or type custom…"
-                    @keydown.enter.prevent="onComboboxEnter"
-                  />
-                  <UiCommandList>
-                    <UiCommandEmpty>
-                      <button
-                        v-if="comboboxSearch"
-                        class="w-full text-left px-2 py-1.5 text-sm cursor-pointer hover:bg-accent rounded-sm"
-                        @click="selectComboboxValue(comboboxSearch)"
-                      >
-                        Use "{{ comboboxSearch }}"
-                      </button>
-                      <span
-                        v-else
-                        class="text-muted-foreground text-xs"
-                      >No results</span>
-                    </UiCommandEmpty>
-                    <UiCommandGroup>
-                      <UiCommandItem
-                        v-for="sug in comboboxSuggestions"
-                        :key="sug.value"
-                        :value="sug.value"
-                        @select="selectComboboxValue(sug.value)"
-                      >
-                        {{ sug.label }}
-                      </UiCommandItem>
-                    </UiCommandGroup>
-                    <!-- Custom value option at bottom when search doesn't match a suggestion -->
-                    <UiCommandGroup
-                      v-if="comboboxSearch && !comboboxSearchMatchesSuggestion"
-                    >
-                      <UiCommandItem
-                        :value="'__custom__' + comboboxSearch"
-                        class="text-primary"
-                        @select="selectComboboxValue(comboboxSearch)"
-                      >
-                        Use custom: "{{ comboboxSearch }}"
-                      </UiCommandItem>
-                    </UiCommandGroup>
-                  </UiCommandList>
-                </UiCommand>
-              </UiPopoverContent>
-            </UiPopover>
-            <!-- Clear button -->
-            <button
-              v-if="form.value"
-              class="shrink-0 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-              title="Clear value"
-              @click="form.value = ''"
+                <span
+                  class="truncate"
+                  :class="form.value ? 'text-foreground' : 'text-muted-foreground'"
+                >
+                  {{ form.value || 'Type or select…' }}
+                </span>
+                <span class="flex items-center gap-0.5 shrink-0 ml-1">
+                  <button
+                    v-if="form.value"
+                    class="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+                    title="Clear value"
+                    @click.stop="form.value = ''"
+                  >
+                    <XIcon class="w-3.5 h-3.5" />
+                  </button>
+                  <ChevronsUpDownIcon class="h-4 w-4 opacity-50" />
+                </span>
+              </UiButton>
+            </UiPopoverTrigger>
+            <UiPopoverContent
+              class="w-[--reka-popover-trigger-width] p-0"
+              align="start"
             >
-              <XIcon class="w-4 h-4" />
-            </button>
-          </div>
+              <UiCommand :filter-function="comboboxFilterFn">
+                <UiCommandInput
+                  v-model="comboboxSearch"
+                  placeholder="Search or type custom…"
+                  @keydown.enter.stop.prevent="onComboboxEnter"
+                />
+                <UiCommandList>
+                  <UiCommandEmpty>
+                    <button
+                      v-if="comboboxSearch"
+                      class="w-full text-left px-2 py-1.5 text-sm cursor-pointer hover:bg-accent rounded-sm"
+                      @click="selectComboboxValue(comboboxSearch)"
+                    >
+                      Use "{{ comboboxSearch }}"
+                    </button>
+                    <span
+                      v-else
+                      class="text-muted-foreground text-xs"
+                    >No results</span>
+                  </UiCommandEmpty>
+                  <UiCommandGroup>
+                    <UiCommandItem
+                      v-for="sug in comboboxSuggestions"
+                      :key="sug.value"
+                      :value="sug.value"
+                      @select="selectComboboxValue(sug.value)"
+                    >
+                      {{ sug.label }}
+                    </UiCommandItem>
+                  </UiCommandGroup>
+                  <!-- Custom value option at bottom when search doesn't match a suggestion -->
+                  <UiCommandGroup
+                    v-if="comboboxSearch && !comboboxSearchMatchesSuggestion"
+                  >
+                    <UiCommandItem
+                      :value="'__custom__' + comboboxSearch"
+                      class="text-primary"
+                      @select="selectComboboxValue(comboboxSearch)"
+                    >
+                      Use custom: "{{ comboboxSearch }}"
+                    </UiCommandItem>
+                  </UiCommandGroup>
+                </UiCommandList>
+              </UiCommand>
+            </UiPopoverContent>
+          </UiPopover>
         </template>
 
         <!-- Free-text input (numbers and text) with optional suffix -->

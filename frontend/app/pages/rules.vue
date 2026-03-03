@@ -407,6 +407,7 @@
               </UiTooltipProvider>
               <!-- Effect badge -->
               <UiBadge
+                variant="outline"
                 :class="effectBadgeClass(rule.effect || legacyEffect(rule.type, rule.intensity))"
                 class="shrink-0"
               >
@@ -1010,12 +1011,12 @@ const effectLabelMap: Record<string, string> = {
 }
 
 const effectBadgeClassMap: Record<string, string> = {
-  always_keep: 'bg-emerald-500 text-white hover:bg-emerald-500',
-  prefer_keep: 'bg-teal-400 text-white hover:bg-teal-400',
-  lean_keep: 'bg-sky-400 text-white hover:bg-sky-400',
-  lean_remove: 'bg-amber-400 text-amber-900 hover:bg-amber-400',
-  prefer_remove: 'bg-orange-500 text-white hover:bg-orange-500',
-  always_remove: 'bg-red-500 text-white hover:bg-red-500'
+  always_keep: 'bg-transparent border-emerald-600/60 text-emerald-700 dark:text-emerald-300',
+  prefer_keep: 'bg-transparent border-green-500/50 text-green-600 dark:text-green-400',
+  lean_keep: 'bg-transparent border-sky-500/50 text-sky-600 dark:text-sky-400',
+  lean_remove: 'bg-transparent border-amber-500/50 text-amber-700 dark:text-amber-400',
+  prefer_remove: 'bg-transparent border-orange-500/50 text-orange-600 dark:text-orange-400',
+  always_remove: 'bg-transparent border-red-600/60 text-red-700 dark:text-red-400'
 }
 
 const effectIconMap: Record<string, string> = {
@@ -1132,7 +1133,23 @@ function rulesCouldOverlap(a: CustomRule, b: CustomRule): boolean {
     return a.value === b.value
   }
 
-  // For contains/!contains and mixed operators, conservatively assume overlap
+  // Mutual exclusion: positive match vs negation of the same value
+  const aVal = a.value.toLowerCase()
+  const bVal = b.value.toLowerCase()
+
+  // contains X vs !contains X → mutually exclusive
+  if (a.operator === 'contains' && b.operator === '!contains' && aVal === bVal) return false
+  if (a.operator === '!contains' && b.operator === 'contains' && aVal === bVal) return false
+
+  // == X vs != X → mutually exclusive
+  if (a.operator === '==' && b.operator === '!=' && aVal === bVal) return false
+  if (a.operator === '!=' && b.operator === '==' && aVal === bVal) return false
+
+  // == X vs !contains X → mutually exclusive (exact value always contains itself)
+  if (a.operator === '==' && b.operator === '!contains' && aVal.includes(bVal)) return false
+  if (a.operator === '!contains' && b.operator === '==' && bVal.includes(aVal)) return false
+
+  // For all other mixed operators, conservatively assume overlap
   return true
 }
 

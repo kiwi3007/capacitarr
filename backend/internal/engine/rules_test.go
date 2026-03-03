@@ -286,7 +286,7 @@ func TestApplyRules(t *testing.T) {
 				{Field: "seriesstatus", Operator: "==", Value: "ended", Effect: "lean_remove"},
 			},
 			isAbs:    false,
-			modifier: 1.2,
+			modifier: 1.5,
 		},
 		{
 			name: "Prefer remove modifier",
@@ -295,7 +295,7 @@ func TestApplyRules(t *testing.T) {
 				{Field: "seriesstatus", Operator: "==", Value: "ended", Effect: "prefer_remove"},
 			},
 			isAbs:    false,
-			modifier: 2.0,
+			modifier: 3.0,
 		},
 		{
 			name: "Always remove by seriesstatus",
@@ -321,10 +321,10 @@ func TestApplyRules(t *testing.T) {
 			item: baseItem,
 			rules: []db.CustomRule{
 				{Field: "rating", Operator: ">", Value: "8.0", Effect: "lean_keep"},            // ×0.5
-				{Field: "seriesstatus", Operator: "==", Value: "ended", Effect: "lean_remove"}, // ×1.2
+				{Field: "seriesstatus", Operator: "==", Value: "ended", Effect: "lean_remove"}, // ×1.5
 			},
 			isAbs:    false,
-			modifier: 0.6, // 0.5 × 1.2
+			modifier: 0.75, // 0.5 × 1.5
 		},
 		{
 			name: "Always keep wins over always remove",

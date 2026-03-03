@@ -404,7 +404,7 @@ func TestEvaluateMedia_RuleModifiersApplied(t *testing.T) {
 	}
 	prefs := db.PreferenceSet{RatingWeight: 10}
 	rules := []db.CustomRule{
-		{Field: "rating", Operator: "<", Value: "5", Effect: "prefer_remove"}, // ×2.0
+		{Field: "rating", Operator: "<", Value: "5", Effect: "prefer_remove"}, // ×3.0
 	}
 
 	result := EvaluateMedia(items, prefs, rules)
@@ -413,7 +413,7 @@ func TestEvaluateMedia_RuleModifiersApplied(t *testing.T) {
 	}
 
 	// Without the rule, score = 0.7 (rating 3/10 → 1.0 - 0.3 = 0.7)
-	// With prefer_remove (×2.0), score = 0.7 × 2.0 = 1.4
+	// With prefer_remove (×3.0), score = 0.7 × 3.0 = 2.1
 	// The score can exceed 1.0 when modifiers are applied
 	if result[0].Score < 1.0 {
 		t.Errorf("Expected score > 1.0 with prefer_remove modifier, got %v", result[0].Score)

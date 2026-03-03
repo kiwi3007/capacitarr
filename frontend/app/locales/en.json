@@ -34,6 +34,7 @@
   "nav.notifications": "Notifications",
   "nav.noNotifications": "No notifications yet",
   "nav.markAllRead": "Mark all as read",
+  "nav.clearAll": "Clear all",
   "nav.about": "About Capacitarr",
   "nav.aboutDescription": "Automated media library capacity management — score, rank, and clean up your *arr libraries.",
   "nav.builtBy": "Built by {name}",

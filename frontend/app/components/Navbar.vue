@@ -83,21 +83,32 @@
             </UiPopoverTrigger>
             <UiPopoverContent
               align="end"
-              class="w-80 p-0"
+              class="w-80 p-0 bg-popover"
             >
               <div class="flex items-center justify-between px-4 py-3 border-b border-border">
                 <h4 class="text-sm font-semibold">
                   {{ $t('nav.notifications') }}
                 </h4>
-                <UiButton
-                  v-if="unreadCount > 0"
-                  variant="ghost"
-                  size="sm"
-                  class="h-auto py-1 px-2 text-xs"
-                  @click="markAllAsRead"
-                >
-                  {{ $t('nav.markAllRead') }}
-                </UiButton>
+                <div class="flex items-center gap-1">
+                  <UiButton
+                    v-if="unreadCount > 0"
+                    variant="ghost"
+                    size="sm"
+                    class="h-auto py-1 px-2 text-xs"
+                    @click="markAllAsRead"
+                  >
+                    {{ $t('nav.markAllRead') }}
+                  </UiButton>
+                  <UiButton
+                    v-if="notifications.length > 0"
+                    variant="ghost"
+                    size="sm"
+                    class="h-auto py-1 px-2 text-xs text-destructive hover:text-destructive"
+                    @click="clearAll"
+                  >
+                    {{ $t('nav.clearAll') }}
+                  </UiButton>
+                </div>
               </div>
               <UiScrollArea class="max-h-80">
                 <div
@@ -333,6 +344,7 @@ const {
   fetchNotifications,
   markAsRead,
   markAllAsRead,
+  clearAll,
   startPolling,
   stopPolling
 } = useNotifications()
@@ -398,8 +410,8 @@ function logout() {
   router.push('/login')
 }
 
-/** Map theme hue to a swatch color for the dropdown */
+/** Return the actual primary color for the theme swatch */
 function themeSwatchColor(t: ThemeMeta): string {
-  return `oklch(0.6 0.2 ${t.hue})`
+  return t.primaryColor
 }
 </script>
