@@ -1,5 +1,5 @@
 # ── Stage 1: Frontend build ────────────────────────────────────────────────────
-FROM node:22-alpine AS frontend-builder
+FROM --platform=$BUILDPLATFORM node:22-alpine AS frontend-builder
 WORKDIR /app/frontend
 
 RUN corepack enable && corepack prepare pnpm@10.29.3 --activate
@@ -12,9 +12,8 @@ COPY frontend/ ./
 RUN pnpm run build
 
 # ── Stage 2: Backend build ─────────────────────────────────────────────────────
-FROM golang:1.25-alpine AS backend-builder
+FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS backend-builder
 WORKDIR /app
-RUN apk add --no-cache gcc musl-dev sqlite-dev
 
 # Copy dependency manifests first for layer caching
 COPY backend/go.mod backend/go.sum ./backend/
@@ -27,7 +26,8 @@ WORKDIR /app/backend
 ARG APP_VERSION=dev
 ARG BUILD_DATE=unknown
 ARG COMMIT_SHA=unknown
-RUN CGO_ENABLED=1 GOOS=linux go build \
+ARG TARGETOS TARGETARCH
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
     -ldflags="-w -s -X main.version=${APP_VERSION} -X main.commit=${COMMIT_SHA} -X main.buildDate=${BUILD_DATE}" \
     -o capacitarr main.go
 
@@ -39,7 +39,7 @@ LABEL org.opencontainers.image.title="Capacitarr" \
       org.opencontainers.image.description="Media server capacity management" \
       org.opencontainers.image.source="https://gitlab.com/starshadow/software/capacitarr"
 
-RUN apk add --no-cache ca-certificates tzdata sqlite-libs su-exec curl
+RUN apk add --no-cache ca-certificates tzdata su-exec curl
 
 COPY --from=backend-builder /app/backend/capacitarr /app/capacitarr
 COPY entrypoint.sh /app/entrypoint.sh
