@@ -268,6 +268,25 @@
                 </UiSelectContent>
               </UiSelect>
             </div>
+
+            <!-- Snooze Duration -->
+            <div class="space-y-1.5">
+              <div class="flex items-center gap-2">
+                <UiLabel>{{ $t('settings.snoozeDurationHours') }}</UiLabel>
+                <SaveIndicator :status="saveStatus.snoozeDuration" />
+              </div>
+              <p class="text-xs text-muted-foreground mb-1">
+                {{ $t('settings.snoozeDurationDesc') }}
+              </p>
+              <UiInput
+                :model-value="String(snoozeDurationHours)"
+                type="number"
+                min="1"
+                class="w-full max-w-xs"
+                @update:model-value="(v: string | number) => { snoozeDurationHours = Math.max(1, Number(v)) }"
+                @change="autoSavePreference('snoozeDuration', 'snoozeDurationHours', snoozeDurationHours)"
+              />
+            </div>
           </UiCardContent>
         </UiCard>
       </UiTabsContent>
@@ -1589,6 +1608,7 @@ const { addToast } = useToast()
 // Engine behavior state
 const engineExecutionMode = ref('dry-run')
 const engineTiebreakerMethod = ref('size_desc')
+const snoozeDurationHours = ref(24)
 
 const executionModes = [
   { value: 'dry-run', label: 'Dry Run', description: 'Log only, no deletions' },
@@ -1621,7 +1641,8 @@ const saveStatus = reactive<Record<string, 'idle' | 'saving' | 'saved' | 'error'
   executionMode: 'idle',
   tiebreaker: 'idle',
   deletionsEnabled: 'idle',
-  logLevel: 'idle'
+  logLevel: 'idle',
+  snoozeDuration: 'idle'
 })
 
 // Password change state
@@ -1959,6 +1980,9 @@ async function fetchPreferences() {
     }
     if (prefs?.logLevel) {
       logLevel.value = prefs.logLevel
+    }
+    if ((prefs as PreferenceSet & { snoozeDurationHours?: number })?.snoozeDurationHours !== undefined) {
+      snoozeDurationHours.value = (prefs as PreferenceSet & { snoozeDurationHours?: number }).snoozeDurationHours!
     }
   } catch {
     // Silently ignored — UI has no further handling

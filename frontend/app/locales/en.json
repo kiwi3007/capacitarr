@@ -156,6 +156,9 @@
   "rules.approvalAction": "Action",
   "rules.approve": "Approve",
   "rules.reject": "Reject",
+  "rules.snoozedUntil": "💤 Snoozed until {time}",
+  "rules.undoSnooze": "↩ Undo",
+  "rules.deleting": "🔄 Deleting…",
 
   "nav.changeLanguage": "Change language",
 
@@ -219,6 +222,8 @@
   "settings.deletionsSimulated": "All deletions are simulated (Dry-Delete)",
   "settings.deletionsActiveAlert": "Deletions are active",
   "settings.deletionsActiveAlertDesc": "Media flagged by the scoring engine will be permanently deleted from disk. Disable this setting to return to simulation mode.",
+  "settings.snoozeDurationHours": "Snooze Duration (hours)",
+  "settings.snoozeDurationDesc": "How long rejected items are snoozed before they can be re-evaluated",
   "settings.pollInterval": "Poll Interval",
   "settings.pollIntervalDesc": "How often Capacitarr checks your integrations",
   "settings.pollIntervalHint": "The poller adjusts dynamically — no restart required.",
