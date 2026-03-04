@@ -1747,6 +1747,7 @@ const deletionLineIndex = computed<number | null>(() => {
   let cumulative = 0
   for (let i = 0; i < groups.length; i++) {
     const group = groups[i]
+    if (!group) continue
     // Skip protected items — the engine wouldn't delete them
     if (group.entry.isProtected) continue
     // Accumulate group entry size plus any season sizes

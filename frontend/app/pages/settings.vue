@@ -77,7 +77,7 @@
               <UiLabel>{{ $t('settings.timezone') }}</UiLabel>
               <UiSelect
                 :model-value="displayTimezone"
-                @update:model-value="(v: string) => setTimezone(String(v))"
+                @update:model-value="(v: AcceptableValue) => setTimezone(String(v))"
               >
                 <UiSelectTrigger class="w-full max-w-xs">
                   <UiSelectValue placeholder="Select timezone" />
@@ -151,7 +151,7 @@
               </p>
               <UiSelect
                 :model-value="currentLocale"
-                @update:model-value="(v: string) => setLocale(v)"
+                @update:model-value="(v: AcceptableValue) => setLocale(String(v) as typeof currentLocale)"
               >
                 <UiSelectTrigger class="w-full max-w-xs">
                   <UiSelectValue :placeholder="$t('settings.language')" />
@@ -1531,6 +1531,7 @@ import {
   BellIcon, MessageSquareIcon, HashIcon, TerminalIcon
 } from 'lucide-vue-next'
 import type { IntegrationConfig, NotificationChannel, PreferenceSet, ConnectionTestResult, ApiKeyResponse, ApiError } from '~/types/api'
+import type { AcceptableValue } from 'reka-ui'
 import { PlexOAuth } from '~/utils/plexOAuth'
 
 // ─── i18n ─────────────────────────────────────────────────────────────────────
@@ -2272,7 +2273,7 @@ async function updateChannelEvent(channel: NotificationChannel, field: string, v
       body: updated
     })
     // Update local state
-    ;(channel as Record<string, unknown>)[field] = value
+    ;(channel as unknown as Record<string, unknown>)[field] = value
   } catch {
     addToast('Failed to update channel', 'error')
   }
