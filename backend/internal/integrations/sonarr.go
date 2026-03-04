@@ -34,58 +34,14 @@ func (s *SonarrClient) TestConnection() error {
 	return err
 }
 
-// sonarrDiskSpace maps the Sonarr diskspace API response
-type sonarrDiskSpace struct {
-	Path       string `json:"path"`
-	TotalSpace int64  `json:"totalSpace"`
-	FreeSpace  int64  `json:"freeSpace"`
-}
-
 // GetDiskSpace returns disk usage information reported by Sonarr.
 func (s *SonarrClient) GetDiskSpace() ([]DiskSpace, error) {
-	body, err := s.doRequest("/api/v3/diskspace")
-	if err != nil {
-		return nil, err
-	}
-
-	var result []sonarrDiskSpace
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse diskspace: %w", err)
-	}
-
-	disks := make([]DiskSpace, len(result))
-	for i, d := range result {
-		disks[i] = DiskSpace{
-			Path:       d.Path,
-			TotalBytes: d.TotalSpace,
-			FreeBytes:  d.FreeSpace,
-		}
-	}
-	return disks, nil
-}
-
-// sonarrRootFolder maps the root folder API response
-type sonarrRootFolder struct {
-	Path string `json:"path"`
+	return arrFetchDiskSpace(s.doRequest, "/api/v3")
 }
 
 // GetRootFolders returns the configured root folder paths from Sonarr.
 func (s *SonarrClient) GetRootFolders() ([]string, error) {
-	body, err := s.doRequest("/api/v3/rootfolder")
-	if err != nil {
-		return nil, err
-	}
-
-	var folders []sonarrRootFolder
-	if err := json.Unmarshal(body, &folders); err != nil {
-		return nil, fmt.Errorf("failed to parse root folders: %w", err)
-	}
-
-	paths := make([]string, len(folders))
-	for i, f := range folders {
-		paths[i] = f.Path
-	}
-	return paths, nil
+	return arrFetchRootFolders(s.doRequest, "/api/v3")
 }
 
 // sonarrSeries maps the Sonarr series API response
@@ -121,46 +77,18 @@ type sonarrSeason struct {
 	} `json:"statistics"`
 }
 
-// sonarrQualityProfile maps quality profile names
-type sonarrQualityProfile struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
-}
-
-// sonarrTag maps tag names
-type sonarrTag struct {
-	ID    int    `json:"id"`
-	Label string `json:"label"`
-}
-
 // GetMediaItems fetches all series and seasons from Sonarr with quality and tag metadata.
 func (s *SonarrClient) GetMediaItems() ([]MediaItem, error) {
 	// Fetch quality profiles
-	profileBody, err := s.doRequest("/api/v3/qualityprofile")
+	profileMap, err := arrFetchQualityProfileMap(s.doRequest, "/api/v3")
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch quality profiles: %w", err)
-	}
-	var profiles []sonarrQualityProfile
-	if err := json.Unmarshal(profileBody, &profiles); err != nil {
-		return nil, fmt.Errorf("failed to parse quality profiles: %w", err)
-	}
-	profileMap := make(map[int]string)
-	for _, p := range profiles {
-		profileMap[p.ID] = p.Name
+		return nil, err
 	}
 
 	// Fetch tags
-	tagBody, err := s.doRequest("/api/v3/tag")
+	tagMap, err := arrFetchTagMap(s.doRequest, "/api/v3")
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch tags: %w", err)
-	}
-	var tags []sonarrTag
-	if err := json.Unmarshal(tagBody, &tags); err != nil {
-		return nil, fmt.Errorf("failed to parse tags: %w", err)
-	}
-	tagMap := make(map[int]string)
-	for _, t := range tags {
-		tagMap[t.ID] = t.Label
+		return nil, err
 	}
 
 	// Fetch all series
@@ -180,12 +108,7 @@ func (s *SonarrClient) GetMediaItems() ([]MediaItem, error) {
 			continue
 		}
 
-		tagNames := make([]string, 0, len(show.Tags))
-		for _, tid := range show.Tags {
-			if name, ok := tagMap[tid]; ok {
-				tagNames = append(tagNames, name)
-			}
-		}
+		tagNames := arrResolveTagNames(show.Tags, tagMap)
 
 		var addedAt *time.Time
 		if show.Added != "" {
@@ -246,56 +169,17 @@ func (s *SonarrClient) GetMediaItems() ([]MediaItem, error) {
 
 // GetQualityProfiles returns available quality profiles from Sonarr.
 func (s *SonarrClient) GetQualityProfiles() ([]NameValue, error) {
-	body, err := s.doRequest("/api/v3/qualityprofile")
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch quality profiles: %w", err)
-	}
-	var profiles []sonarrQualityProfile
-	if err := json.Unmarshal(body, &profiles); err != nil {
-		return nil, fmt.Errorf("failed to parse quality profiles: %w", err)
-	}
-	result := make([]NameValue, len(profiles))
-	for i, p := range profiles {
-		result[i] = NameValue{Value: p.Name, Label: p.Name}
-	}
-	return result, nil
+	return arrFetchQualityProfiles(s.doRequest, "/api/v3")
 }
 
 // GetTags returns all tags configured in Sonarr.
 func (s *SonarrClient) GetTags() ([]NameValue, error) {
-	body, err := s.doRequest("/api/v3/tag")
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch tags: %w", err)
-	}
-	var tags []sonarrTag
-	if err := json.Unmarshal(body, &tags); err != nil {
-		return nil, fmt.Errorf("failed to parse tags: %w", err)
-	}
-	result := make([]NameValue, len(tags))
-	for i, t := range tags {
-		result[i] = NameValue{Value: t.Label, Label: t.Label}
-	}
-	return result, nil
+	return arrFetchTags(s.doRequest, "/api/v3")
 }
 
 // GetLanguages returns all languages configured in Sonarr.
 func (s *SonarrClient) GetLanguages() ([]NameValue, error) {
-	body, err := s.doRequest("/api/v3/language")
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch languages: %w", err)
-	}
-	var langs []struct {
-		ID   int    `json:"id"`
-		Name string `json:"name"`
-	}
-	if err := json.Unmarshal(body, &langs); err != nil {
-		return nil, fmt.Errorf("failed to parse languages: %w", err)
-	}
-	result := make([]NameValue, len(langs))
-	for i, l := range langs {
-		result[i] = NameValue{Value: l.Name, Label: l.Name}
-	}
-	return result, nil
+	return arrFetchLanguages(s.doRequest, "/api/v3")
 }
 
 // DeleteMediaItem removes a series or season and its files from disk via the Sonarr API.
@@ -367,24 +251,6 @@ func (s *SonarrClient) DeleteMediaItem(item MediaItem) error {
 		return fmt.Errorf("unsupported media type for sonarr deletion: %s", item.Type)
 	}
 
-	req, err := http.NewRequestWithContext(context.Background(), "DELETE", s.URL+endpoint, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("X-Api-Key", s.APIKey)
-
-	resp, err := sharedHTTPClient.Do(req) //nolint:gosec // G704: URL is from admin-configured integration settings
-	if err != nil {
-		return fmt.Errorf("connection failed: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode == 401 {
-		return fmt.Errorf("unauthorized: invalid API key")
-	}
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("unexpected status: %d", resp.StatusCode)
-	}
-
-	return nil
+	// Show-level deletion uses arrSimpleDelete
+	return arrSimpleDelete(s.URL, s.APIKey, endpoint)
 }

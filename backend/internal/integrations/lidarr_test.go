@@ -62,7 +62,7 @@ func TestLidarrClient_TestConnection_ServerError(t *testing.T) {
 func TestLidarrClient_GetDiskSpace(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/diskspace" {
-			resp := []lidarrDiskSpace{
+			resp := []arrDiskSpace{
 				{Path: "/media/music", TotalSpace: 1000000000000, FreeSpace: 300000000000},
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -99,7 +99,7 @@ func TestLidarrClient_GetMediaItems(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
 		case testLidarrPathQuality:
-			resp := []lidarrQualityProfile{
+			resp := []arrQualityProfile{
 				{ID: 1, Name: "Lossless"},
 				{ID: 2, Name: "Standard"},
 			}
@@ -107,7 +107,7 @@ func TestLidarrClient_GetMediaItems(t *testing.T) {
 				t.Fatalf("Failed to encode response: %v", err)
 			}
 		case testLidarrPathTag:
-			resp := []lidarrTag{
+			resp := []arrTag{
 				{ID: 1, Label: "favorite"},
 				{ID: 2, Label: "jazz"},
 			}
@@ -279,7 +279,7 @@ func TestLidarrClient_GetMediaItems_EmptyResults(t *testing.T) {
 func TestLidarrClient_GetRootFolders(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/rootfolder" {
-			resp := []lidarrRootFolder{
+			resp := []arrRootFolder{
 				{Path: "/media/music"},
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -305,7 +305,7 @@ func TestLidarrClient_GetRootFolders(t *testing.T) {
 func TestLidarrClient_GetQualityProfiles(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == testLidarrPathQuality {
-			resp := []lidarrQualityProfile{{ID: 1, Name: "Lossless"}, {ID: 2, Name: "Standard"}}
+			resp := []arrQualityProfile{{ID: 1, Name: "Lossless"}, {ID: 2, Name: "Standard"}}
 			w.Header().Set("Content-Type", "application/json")
 			if err := json.NewEncoder(w).Encode(resp); err != nil {
 				t.Fatalf("Failed to encode: %v", err)
@@ -332,7 +332,7 @@ func TestLidarrClient_GetQualityProfiles(t *testing.T) {
 func TestLidarrClient_GetTags(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == testLidarrPathTag {
-			resp := []lidarrTag{{ID: 1, Label: "rock"}}
+			resp := []arrTag{{ID: 1, Label: "rock"}}
 			w.Header().Set("Content-Type", "application/json")
 			if err := json.NewEncoder(w).Encode(resp); err != nil {
 				t.Fatalf("Failed to encode: %v", err)

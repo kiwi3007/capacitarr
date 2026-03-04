@@ -13,24 +13,7 @@ import (
 	"capacitarr/internal/integrations"
 )
 
-// Integration type constants used across route handlers.
-const (
-	intTypeSonarr    = "sonarr"
-	intTypeRadarr    = "radarr"
-	intTypeLidarr    = "lidarr"
-	intTypeReadarr   = "readarr"
-	intTypePlex      = "plex"
-	intTypeTautulli  = "tautulli"
-	intTypeOverseerr = "overseerr"
-	intTypeJellyfin  = "jellyfin"
-	intTypeEmby      = "emby"
-)
 
-// URL scheme constants for webhook/URL validation.
-const (
-	schemeHTTP  = "http"
-	schemeHTTPS = "https"
-)
 
 // RegisterIntegrationRoutes adds integration management endpoints
 func RegisterIntegrationRoutes(g *echo.Group, database *gorm.DB) {

@@ -75,7 +75,7 @@ func TestSonarrClient_TestConnection_Timeout(t *testing.T) {
 func TestSonarrClient_GetDiskSpace(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v3/diskspace" {
-			resp := []sonarrDiskSpace{
+			resp := []arrDiskSpace{
 				{Path: "/media/tv", TotalSpace: 1000000000000, FreeSpace: 300000000000},
 				{Path: "/media/anime", TotalSpace: 500000000000, FreeSpace: 100000000000},
 			}
@@ -113,7 +113,7 @@ func TestSonarrClient_GetMediaItems(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
 		case testRadarrPathQuality:
-			resp := []sonarrQualityProfile{
+			resp := []arrQualityProfile{
 				{ID: 1, Name: "HD-1080p"},
 				{ID: 2, Name: "Ultra-HD"},
 			}
@@ -121,7 +121,7 @@ func TestSonarrClient_GetMediaItems(t *testing.T) {
 				t.Fatalf("Failed to encode response: %v", err)
 			}
 		case testRadarrPathTag:
-			resp := []sonarrTag{
+			resp := []arrTag{
 				{ID: 1, Label: "anime"},
 				{ID: 2, Label: "classic"},
 			}
@@ -285,7 +285,7 @@ func TestSonarrClient_GetMediaItems_EmptyResults(t *testing.T) {
 func TestSonarrClient_GetRootFolders(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v3/rootfolder" {
-			resp := []sonarrRootFolder{
+			resp := []arrRootFolder{
 				{Path: "/media/tv"},
 				{Path: "/media/anime"},
 			}
@@ -315,7 +315,7 @@ func TestSonarrClient_GetRootFolders(t *testing.T) {
 func TestSonarrClient_GetQualityProfiles(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == testRadarrPathQuality {
-			resp := []sonarrQualityProfile{
+			resp := []arrQualityProfile{
 				{ID: 1, Name: "HD-1080p"},
 				{ID: 2, Name: "Ultra-HD"},
 			}
@@ -345,7 +345,7 @@ func TestSonarrClient_GetQualityProfiles(t *testing.T) {
 func TestSonarrClient_GetTags(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == testRadarrPathTag {
-			resp := []sonarrTag{
+			resp := []arrTag{
 				{ID: 1, Label: "anime"},
 			}
 			w.Header().Set("Content-Type", "application/json")

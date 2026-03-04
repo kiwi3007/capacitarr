@@ -1,10 +1,8 @@
 package integrations
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -35,58 +33,14 @@ func (l *LidarrClient) TestConnection() error {
 	return err
 }
 
-// lidarrDiskSpace maps the Lidarr diskspace API response
-type lidarrDiskSpace struct {
-	Path       string `json:"path"`
-	TotalSpace int64  `json:"totalSpace"`
-	FreeSpace  int64  `json:"freeSpace"`
-}
-
 // GetDiskSpace returns disk usage information reported by Lidarr.
 func (l *LidarrClient) GetDiskSpace() ([]DiskSpace, error) {
-	body, err := l.doRequest("/api/v1/diskspace")
-	if err != nil {
-		return nil, err
-	}
-
-	var result []lidarrDiskSpace
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse diskspace: %w", err)
-	}
-
-	disks := make([]DiskSpace, len(result))
-	for i, d := range result {
-		disks[i] = DiskSpace{
-			Path:       d.Path,
-			TotalBytes: d.TotalSpace,
-			FreeBytes:  d.FreeSpace,
-		}
-	}
-	return disks, nil
-}
-
-// lidarrRootFolder maps the root folder API response
-type lidarrRootFolder struct {
-	Path string `json:"path"`
+	return arrFetchDiskSpace(l.doRequest, "/api/v1")
 }
 
 // GetRootFolders returns the configured root folder paths from Lidarr.
 func (l *LidarrClient) GetRootFolders() ([]string, error) {
-	body, err := l.doRequest("/api/v1/rootfolder")
-	if err != nil {
-		return nil, err
-	}
-
-	var folders []lidarrRootFolder
-	if err := json.Unmarshal(body, &folders); err != nil {
-		return nil, fmt.Errorf("failed to parse root folders: %w", err)
-	}
-
-	paths := make([]string, len(folders))
-	for i, f := range folders {
-		paths[i] = f.Path
-	}
-	return paths, nil
+	return arrFetchRootFolders(l.doRequest, "/api/v1")
 }
 
 // lidarrArtist maps the Lidarr artist API response (relevant fields)
@@ -109,46 +63,18 @@ type lidarrArtist struct {
 	} `json:"statistics"`
 }
 
-// lidarrQualityProfile maps quality profile names
-type lidarrQualityProfile struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
-}
-
-// lidarrTag maps tag names
-type lidarrTag struct {
-	ID    int    `json:"id"`
-	Label string `json:"label"`
-}
-
 // GetMediaItems fetches all artists and their albums from Lidarr.
 func (l *LidarrClient) GetMediaItems() ([]MediaItem, error) {
 	// Fetch quality profiles for name lookup
-	profileBody, err := l.doRequest("/api/v1/qualityprofile")
+	profileMap, err := arrFetchQualityProfileMap(l.doRequest, "/api/v1")
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch quality profiles: %w", err)
-	}
-	var profiles []lidarrQualityProfile
-	if err := json.Unmarshal(profileBody, &profiles); err != nil {
-		return nil, fmt.Errorf("failed to parse quality profiles: %w", err)
-	}
-	profileMap := make(map[int]string)
-	for _, p := range profiles {
-		profileMap[p.ID] = p.Name
+		return nil, err
 	}
 
 	// Fetch tags for name lookup
-	tagBody, err := l.doRequest("/api/v1/tag")
+	tagMap, err := arrFetchTagMap(l.doRequest, "/api/v1")
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch tags: %w", err)
-	}
-	var tags []lidarrTag
-	if err := json.Unmarshal(tagBody, &tags); err != nil {
-		return nil, fmt.Errorf("failed to parse tags: %w", err)
-	}
-	tagMap := make(map[int]string)
-	for _, t := range tags {
-		tagMap[t.ID] = t.Label
+		return nil, err
 	}
 
 	// Fetch all artists
@@ -171,13 +97,7 @@ func (l *LidarrClient) GetMediaItems() ([]MediaItem, error) {
 		// Lidarr ratings are 0-10 scale, normalize to 0-1
 		rating := a.Ratings.Value / 10.0
 
-		// Map tag IDs to names
-		tagNames := make([]string, 0, len(a.Tags))
-		for _, tid := range a.Tags {
-			if name, ok := tagMap[tid]; ok {
-				tagNames = append(tagNames, name)
-			}
-		}
+		tagNames := arrResolveTagNames(a.Tags, tagMap)
 
 		var addedAt *time.Time
 		if a.Added != "" {
@@ -208,36 +128,12 @@ func (l *LidarrClient) GetMediaItems() ([]MediaItem, error) {
 
 // GetQualityProfiles returns available quality profiles from Lidarr.
 func (l *LidarrClient) GetQualityProfiles() ([]NameValue, error) {
-	body, err := l.doRequest("/api/v1/qualityprofile")
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch quality profiles: %w", err)
-	}
-	var profiles []lidarrQualityProfile
-	if err := json.Unmarshal(body, &profiles); err != nil {
-		return nil, fmt.Errorf("failed to parse quality profiles: %w", err)
-	}
-	result := make([]NameValue, len(profiles))
-	for i, p := range profiles {
-		result[i] = NameValue{Value: p.Name, Label: p.Name}
-	}
-	return result, nil
+	return arrFetchQualityProfiles(l.doRequest, "/api/v1")
 }
 
 // GetTags returns all tags configured in Lidarr.
 func (l *LidarrClient) GetTags() ([]NameValue, error) {
-	body, err := l.doRequest("/api/v1/tag")
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch tags: %w", err)
-	}
-	var tags []lidarrTag
-	if err := json.Unmarshal(body, &tags); err != nil {
-		return nil, fmt.Errorf("failed to parse tags: %w", err)
-	}
-	result := make([]NameValue, len(tags))
-	for i, t := range tags {
-		result[i] = NameValue{Value: t.Label, Label: t.Label}
-	}
-	return result, nil
+	return arrFetchTags(l.doRequest, "/api/v1")
 }
 
 // GetLanguages returns nil because Lidarr does not support language lookup.
@@ -249,24 +145,5 @@ func (l *LidarrClient) GetLanguages() ([]NameValue, error) {
 // DeleteMediaItem removes an artist and its files from disk via the Lidarr API.
 func (l *LidarrClient) DeleteMediaItem(item MediaItem) error {
 	endpoint := fmt.Sprintf("/api/v1/artist/%s?deleteFiles=true", item.ExternalID)
-	req, err := http.NewRequestWithContext(context.Background(), "DELETE", l.URL+endpoint, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("X-Api-Key", l.APIKey)
-
-	resp, err := sharedHTTPClient.Do(req) //nolint:gosec // G704: URL is from admin-configured integration settings
-	if err != nil {
-		return fmt.Errorf("connection failed: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode == 401 {
-		return fmt.Errorf("unauthorized: invalid API key")
-	}
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("unexpected status: %d", resp.StatusCode)
-	}
-
-	return nil
+	return arrSimpleDelete(l.URL, l.APIKey, endpoint)
 }

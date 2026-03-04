@@ -55,7 +55,7 @@ func TestReadarrClient_TestConnection_ServerError(t *testing.T) {
 func TestReadarrClient_GetDiskSpace(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/diskspace" {
-			resp := []readarrDiskSpace{
+			resp := []arrDiskSpace{
 				{Path: "/media/books", TotalSpace: 500000000000, FreeSpace: 200000000000},
 				{Path: "/media/audiobooks", TotalSpace: 1000000000000, FreeSpace: 750000000000},
 			}

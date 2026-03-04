@@ -1,10 +1,8 @@
 package integrations
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -34,58 +32,14 @@ func (r *RadarrClient) TestConnection() error {
 	return err
 }
 
-// radarrDiskSpace maps the Radarr diskspace API response
-type radarrDiskSpace struct {
-	Path       string `json:"path"`
-	TotalSpace int64  `json:"totalSpace"`
-	FreeSpace  int64  `json:"freeSpace"`
-}
-
 // GetDiskSpace returns disk usage information reported by Radarr.
 func (r *RadarrClient) GetDiskSpace() ([]DiskSpace, error) {
-	body, err := r.doRequest("/api/v3/diskspace")
-	if err != nil {
-		return nil, err
-	}
-
-	var result []radarrDiskSpace
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse diskspace: %w", err)
-	}
-
-	disks := make([]DiskSpace, len(result))
-	for i, d := range result {
-		disks[i] = DiskSpace{
-			Path:       d.Path,
-			TotalBytes: d.TotalSpace,
-			FreeBytes:  d.FreeSpace,
-		}
-	}
-	return disks, nil
-}
-
-// radarrRootFolder maps the root folder API response
-type radarrRootFolder struct {
-	Path string `json:"path"`
+	return arrFetchDiskSpace(r.doRequest, "/api/v3")
 }
 
 // GetRootFolders returns the configured root folder paths from Radarr.
 func (r *RadarrClient) GetRootFolders() ([]string, error) {
-	body, err := r.doRequest("/api/v3/rootfolder")
-	if err != nil {
-		return nil, err
-	}
-
-	var folders []radarrRootFolder
-	if err := json.Unmarshal(body, &folders); err != nil {
-		return nil, fmt.Errorf("failed to parse root folders: %w", err)
-	}
-
-	paths := make([]string, len(folders))
-	for i, f := range folders {
-		paths[i] = f.Path
-	}
-	return paths, nil
+	return arrFetchRootFolders(r.doRequest, "/api/v3")
 }
 
 // radarrMovie maps the Radarr movie API response (relevant fields)
@@ -111,46 +65,18 @@ type radarrMovie struct {
 	Added            string   `json:"added"`
 }
 
-// radarrQualityProfile maps quality profile names
-type radarrQualityProfile struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
-}
-
-// radarrTag maps tag names
-type radarrTag struct {
-	ID    int    `json:"id"`
-	Label string `json:"label"`
-}
-
 // GetMediaItems fetches all movies from Radarr with quality and tag metadata.
 func (r *RadarrClient) GetMediaItems() ([]MediaItem, error) {
 	// Fetch quality profiles for name lookup
-	profileBody, err := r.doRequest("/api/v3/qualityprofile")
+	profileMap, err := arrFetchQualityProfileMap(r.doRequest, "/api/v3")
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch quality profiles: %w", err)
-	}
-	var profiles []radarrQualityProfile
-	if err := json.Unmarshal(profileBody, &profiles); err != nil {
-		return nil, fmt.Errorf("failed to parse quality profiles: %w", err)
-	}
-	profileMap := make(map[int]string)
-	for _, p := range profiles {
-		profileMap[p.ID] = p.Name
+		return nil, err
 	}
 
 	// Fetch tags for name lookup
-	tagBody, err := r.doRequest("/api/v3/tag")
+	tagMap, err := arrFetchTagMap(r.doRequest, "/api/v3")
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch tags: %w", err)
-	}
-	var tags []radarrTag
-	if err := json.Unmarshal(tagBody, &tags); err != nil {
-		return nil, fmt.Errorf("failed to parse tags: %w", err)
-	}
-	tagMap := make(map[int]string)
-	for _, t := range tags {
-		tagMap[t.ID] = t.Label
+		return nil, err
 	}
 
 	// Fetch all movies
@@ -176,13 +102,7 @@ func (r *RadarrClient) GetMediaItems() ([]MediaItem, error) {
 			rating = m.Ratings.TMDB.Value
 		}
 
-		// Map tag IDs to names
-		tagNames := make([]string, 0, len(m.Tags))
-		for _, tid := range m.Tags {
-			if name, ok := tagMap[tid]; ok {
-				tagNames = append(tagNames, name)
-			}
-		}
+		tagNames := arrResolveTagNames(m.Tags, tagMap)
 
 		var addedAt *time.Time
 		if m.Added != "" {
@@ -214,79 +134,21 @@ func (r *RadarrClient) GetMediaItems() ([]MediaItem, error) {
 
 // GetQualityProfiles returns available quality profiles from Radarr.
 func (r *RadarrClient) GetQualityProfiles() ([]NameValue, error) {
-	body, err := r.doRequest("/api/v3/qualityprofile")
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch quality profiles: %w", err)
-	}
-	var profiles []radarrQualityProfile
-	if err := json.Unmarshal(body, &profiles); err != nil {
-		return nil, fmt.Errorf("failed to parse quality profiles: %w", err)
-	}
-	result := make([]NameValue, len(profiles))
-	for i, p := range profiles {
-		result[i] = NameValue{Value: p.Name, Label: p.Name}
-	}
-	return result, nil
+	return arrFetchQualityProfiles(r.doRequest, "/api/v3")
 }
 
 // GetTags returns all tags configured in Radarr.
 func (r *RadarrClient) GetTags() ([]NameValue, error) {
-	body, err := r.doRequest("/api/v3/tag")
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch tags: %w", err)
-	}
-	var tags []radarrTag
-	if err := json.Unmarshal(body, &tags); err != nil {
-		return nil, fmt.Errorf("failed to parse tags: %w", err)
-	}
-	result := make([]NameValue, len(tags))
-	for i, t := range tags {
-		result[i] = NameValue{Value: t.Label, Label: t.Label}
-	}
-	return result, nil
+	return arrFetchTags(r.doRequest, "/api/v3")
 }
 
 // GetLanguages returns all languages configured in Radarr.
 func (r *RadarrClient) GetLanguages() ([]NameValue, error) {
-	body, err := r.doRequest("/api/v3/language")
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch languages: %w", err)
-	}
-	var langs []struct {
-		ID   int    `json:"id"`
-		Name string `json:"name"`
-	}
-	if err := json.Unmarshal(body, &langs); err != nil {
-		return nil, fmt.Errorf("failed to parse languages: %w", err)
-	}
-	result := make([]NameValue, len(langs))
-	for i, l := range langs {
-		result[i] = NameValue{Value: l.Name, Label: l.Name}
-	}
-	return result, nil
+	return arrFetchLanguages(r.doRequest, "/api/v3")
 }
 
 // DeleteMediaItem removes a movie and its files from disk via the Radarr API.
 func (r *RadarrClient) DeleteMediaItem(item MediaItem) error {
 	endpoint := fmt.Sprintf("/api/v3/movie/%s?deleteFiles=true", item.ExternalID)
-	req, err := http.NewRequestWithContext(context.Background(), "DELETE", r.URL+endpoint, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("X-Api-Key", r.APIKey)
-
-	resp, err := sharedHTTPClient.Do(req) //nolint:gosec // G704: URL is from admin-configured integration settings
-	if err != nil {
-		return fmt.Errorf("connection failed: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode == 401 {
-		return fmt.Errorf("unauthorized: invalid API key")
-	}
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("unexpected status: %d", resp.StatusCode)
-	}
-
-	return nil
+	return arrSimpleDelete(r.URL, r.APIKey, endpoint)
 }
