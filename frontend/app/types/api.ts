@@ -8,18 +8,18 @@
 // ---------------------------------------------------------------------------
 
 export interface IntegrationConfig {
-  id: number
-  type: string
-  name: string
-  url: string
-  apiKey: string
-  enabled: boolean
-  mediaSizeBytes: number
-  mediaCount: number
-  lastSync?: string | null
-  lastError?: string
-  createdAt: string
-  updatedAt: string
+  id: number;
+  type: string;
+  name: string;
+  url: string;
+  apiKey: string;
+  enabled: boolean;
+  mediaSizeBytes: number;
+  mediaCount: number;
+  lastSync?: string | null;
+  lastError?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -27,14 +27,14 @@ export interface IntegrationConfig {
 // ---------------------------------------------------------------------------
 
 export interface DiskGroup {
-  id: number
-  mountPath: string
-  totalBytes: number
-  usedBytes: number
-  thresholdPct: number
-  targetPct: number
-  createdAt: string
-  updatedAt: string
+  id: number;
+  mountPath: string;
+  totalBytes: number;
+  usedBytes: number;
+  thresholdPct: number;
+  targetPct: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -42,20 +42,20 @@ export interface DiskGroup {
 // ---------------------------------------------------------------------------
 
 export interface PreferenceSet {
-  id: number
-  logLevel: string
-  auditLogRetentionDays: number
-  pollIntervalSeconds: number
-  watchHistoryWeight: number
-  lastWatchedWeight: number
-  fileSizeWeight: number
-  ratingWeight: number
-  timeInLibraryWeight: number
-  seriesStatusWeight: number
-  executionMode: string
-  tiebreakerMethod: string
-  deletionsEnabled: boolean
-  updatedAt: string
+  id: number;
+  logLevel: string;
+  auditLogRetentionDays: number;
+  pollIntervalSeconds: number;
+  watchHistoryWeight: number;
+  lastWatchedWeight: number;
+  fileSizeWeight: number;
+  ratingWeight: number;
+  timeInLibraryWeight: number;
+  seriesStatusWeight: number;
+  executionMode: string;
+  tiebreakerMethod: string;
+  deletionsEnabled: boolean;
+  updatedAt: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -63,20 +63,20 @@ export interface PreferenceSet {
 // ---------------------------------------------------------------------------
 
 export interface CustomRule {
-  id: number
-  integrationId?: number | null
-  field: string
-  operator: string
-  value: string
-  effect: string
-  enabled: boolean
-  sortOrder: number
+  id: number;
+  integrationId?: number | null;
+  field: string;
+  operator: string;
+  value: string;
+  effect: string;
+  enabled: boolean;
+  sortOrder: number;
   /** @deprecated Legacy field — kept for migration compatibility */
-  type?: string
+  type?: string;
   /** @deprecated Legacy field — kept for migration compatibility */
-  intensity?: string
-  createdAt: string
-  updatedAt: string
+  intensity?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -84,21 +84,22 @@ export interface CustomRule {
 // ---------------------------------------------------------------------------
 
 export interface AuditLog {
-  id: number
-  mediaName: string
-  mediaType: string
-  reason: string
-  scoreDetails: string
-  action: string
-  sizeBytes: number
-  createdAt: string
+  id: number;
+  mediaName: string;
+  mediaType: string;
+  reason: string;
+  scoreDetails: string;
+  action: string;
+  sizeBytes: number;
+  snoozedUntil?: string;
+  createdAt: string;
 }
 
 export interface AuditResponse {
-  data: AuditLog[]
-  total: number
-  limit: number
-  offset: number
+  data: AuditLog[];
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -106,21 +107,21 @@ export interface AuditResponse {
 // ---------------------------------------------------------------------------
 
 export interface WorkerStats {
-  executionMode: string
-  isRunning: boolean
-  pollIntervalSeconds: number
-  queueDepth: number
-  lastRunEvaluated: number
-  lastRunFlagged: number
-  lastRunFreedBytes: number
-  lastRunEpoch: number
-  currentlyDeleting: string
-  protectedCount: number
-  evaluated: number
-  actioned: number
-  freedBytes: number
-  processed: number
-  failed: number
+  executionMode: string;
+  isRunning: boolean;
+  pollIntervalSeconds: number;
+  queueDepth: number;
+  lastRunEvaluated: number;
+  lastRunFlagged: number;
+  lastRunFreedBytes: number;
+  lastRunEpoch: number;
+  currentlyDeleting: string;
+  protectedCount: number;
+  evaluated: number;
+  actioned: number;
+  freedBytes: number;
+  processed: number;
+  failed: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -128,12 +129,12 @@ export interface WorkerStats {
 // ---------------------------------------------------------------------------
 
 export interface DashboardStats {
-  totalBytesReclaimed: number
-  totalItemsRemoved: number
-  totalEngineRuns: number
-  protectedCount: number
-  growthBytesPerWeek: number
-  hasGrowthData: boolean
+  totalBytesReclaimed: number;
+  totalItemsRemoved: number;
+  totalEngineRuns: number;
+  protectedCount: number;
+  growthBytesPerWeek: number;
+  hasGrowthData: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -141,59 +142,59 @@ export interface DashboardStats {
 // ---------------------------------------------------------------------------
 
 export interface MediaItem {
-  externalId: string
-  integrationId: number
-  type: string
-  title: string
-  year?: number
-  sizeBytes: number
-  path: string
-  seasonNumber?: number
-  episodeCount?: number
-  showTitle?: string
-  seriesStatus?: string
-  qualityProfile?: string
-  rating?: number
-  genre?: string
-  monitored: boolean
-  playCount?: number
-  lastPlayed?: string | null
-  addedAt?: string | null
-  tags?: string[]
-  isRequested?: boolean
-  requestedBy?: string
-  requestCount?: number
-  tmdbId?: number
-  language?: string
+  externalId: string;
+  integrationId: number;
+  type: string;
+  title: string;
+  year?: number;
+  sizeBytes: number;
+  path: string;
+  seasonNumber?: number;
+  episodeCount?: number;
+  showTitle?: string;
+  seriesStatus?: string;
+  qualityProfile?: string;
+  rating?: number;
+  genre?: string;
+  monitored: boolean;
+  playCount?: number;
+  lastPlayed?: string | null;
+  addedAt?: string | null;
+  tags?: string[];
+  isRequested?: boolean;
+  requestedBy?: string;
+  requestCount?: number;
+  tmdbId?: number;
+  language?: string;
 }
 
 export interface ScoreFactor {
-  name: string
-  rawScore: number
-  weight: number
-  contribution: number
-  type: string
+  name: string;
+  rawScore: number;
+  weight: number;
+  contribution: number;
+  type: string;
 }
 
 export interface EvaluatedItem {
-  item: MediaItem
-  score: number
-  isProtected: boolean
-  reason: string
-  factors: ScoreFactor[]
+  item: MediaItem;
+  score: number;
+  isProtected: boolean;
+  reason: string;
+  factors: ScoreFactor[];
 }
 
 export interface PreviewResponse {
-  items: EvaluatedItem[]
-  diskContext: DiskContext | null
+  items: EvaluatedItem[];
+  diskContext: DiskContext | null;
 }
 
 export interface DiskContext {
-  totalBytes: number
-  usedBytes: number
-  targetPct: number
-  thresholdPct: number
-  bytesToFree: number
+  totalBytes: number;
+  usedBytes: number;
+  targetPct: number;
+  thresholdPct: number;
+  bytesToFree: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -201,18 +202,18 @@ export interface DiskContext {
 // ---------------------------------------------------------------------------
 
 export interface LibraryHistoryRow {
-  ID: number
-  Timestamp: string
-  TotalCapacity: number
-  UsedCapacity: number
-  Resolution: string
-  DiskGroupID?: number | null
-  CreatedAt: string
+  id: number;
+  timestamp: string;
+  totalCapacity: number;
+  usedCapacity: number;
+  resolution: string;
+  diskGroupId?: number | null;
+  createdAt: string;
 }
 
 export interface MetricsHistoryResponse {
-  status: string
-  data: LibraryHistoryRow[]
+  status: string;
+  data: LibraryHistoryRow[];
 }
 
 // ---------------------------------------------------------------------------
@@ -220,8 +221,8 @@ export interface MetricsHistoryResponse {
 // ---------------------------------------------------------------------------
 
 export interface ConnectionTestResult {
-  success: boolean
-  error?: string
+  success: boolean;
+  error?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -229,7 +230,7 @@ export interface ConnectionTestResult {
 // ---------------------------------------------------------------------------
 
 export interface ApiKeyResponse {
-  api_key: string
+  api_key: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -238,9 +239,9 @@ export interface ApiKeyResponse {
 
 export interface ApiError {
   data?: {
-    error?: string
-  }
-  message?: string
+    error?: string;
+  };
+  message?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -248,9 +249,9 @@ export interface ApiError {
 // ---------------------------------------------------------------------------
 
 export interface SparklineTooltipOpts {
-  seriesIndex: number
-  dataPointIndex: number
-  w: unknown
+  seriesIndex: number;
+  dataPointIndex: number;
+  w: unknown;
 }
 
 // ---------------------------------------------------------------------------
@@ -258,13 +259,13 @@ export interface SparklineTooltipOpts {
 // ---------------------------------------------------------------------------
 
 export interface SelectedDetailItem {
-  mediaName: string
-  mediaType: string
-  _score: number
-  scoreDetails: string
-  sizeBytes: number
-  action: string
-  createdAt: string
+  mediaName: string;
+  mediaType: string;
+  _score: number;
+  scoreDetails: string;
+  sizeBytes: number;
+  action: string;
+  createdAt: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -272,17 +273,17 @@ export interface SelectedDetailItem {
 // ---------------------------------------------------------------------------
 
 export interface NotificationChannel {
-  id: number
-  type: 'discord' | 'slack' | 'inapp'
-  name: string
-  webhookUrl?: string
-  enabled: boolean
-  onThresholdBreach: boolean
-  onDeletionExecuted: boolean
-  onEngineError: boolean
-  onEngineComplete: boolean
-  createdAt: string
-  updatedAt: string
+  id: number;
+  type: 'discord' | 'slack' | 'inapp';
+  name: string;
+  webhookUrl?: string;
+  enabled: boolean;
+  onThresholdBreach: boolean;
+  onDeletionExecuted: boolean;
+  onEngineError: boolean;
+  onEngineComplete: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -290,11 +291,11 @@ export interface NotificationChannel {
 // ---------------------------------------------------------------------------
 
 export interface InAppNotification {
-  id: number
-  title: string
-  message: string
-  severity: 'info' | 'warning' | 'error' | 'success'
-  read: boolean
-  eventType: string
-  createdAt: string
+  id: number;
+  title: string;
+  message: string;
+  severity: 'info' | 'warning' | 'error' | 'success';
+  read: boolean;
+  eventType: string;
+  createdAt: string;
 }

@@ -677,12 +677,6 @@
                       />
                     </span>
                   </UiTableHead>
-                  <UiTableHead
-                    v-if="isApprovalMode"
-                    class="w-24 text-center"
-                  >
-                    {{ $t('rules.approvalAction') }}
-                  </UiTableHead>
                 </UiTableRow>
               </UiTableHeader>
               <UiTableBody>
@@ -696,7 +690,7 @@
                     class="pointer-events-none"
                   >
                     <UiTableCell
-                      :colspan="isApprovalMode ? 6 : 5"
+                      :colspan="5"
                       class="!p-0"
                     >
                       <div class="flex items-center gap-2 px-4 py-1.5 bg-destructive/10 border-y border-destructive/30">
@@ -708,10 +702,7 @@
                   </UiTableRow>
                   <UiTableRow
                     class="cursor-pointer"
-                    :class="[
-                      deletionLineIndex !== null && groupIdx >= deletionLineIndex ? 'opacity-40' : '',
-                      isApprovalMode ? approvalRowClass(group.entry) : ''
-                    ]"
+                    :class="deletionLineIndex !== null && groupIdx >= deletionLineIndex ? 'opacity-40' : ''"
                     @click="selectPreviewItem(group.entry); group.seasons.length > 0 && togglePreviewGroup(group.key)"
                   >
                     <UiTableCell class="w-12 text-center">
@@ -752,77 +743,13 @@
                     <UiTableCell class="text-right font-mono text-xs tabular-nums">
                       {{ formatBytes(group.entry.item.sizeBytes) }}
                     </UiTableCell>
-                    <UiTableCell
-                      v-if="isApprovalMode"
-                      class="text-center"
-                      @click.stop
-                    >
-                      <!-- Snoozed: check FIRST to prevent re-queued entries from overriding active snooze -->
-                      <div
-                        v-if="isSnoozed(group.entry)"
-                        class="flex items-center justify-center gap-1"
-                      >
-                        <span class="text-sm" title="Snoozed">💤</span>
-                        <UiButton
-                          variant="ghost"
-                          size="sm"
-                          class="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                          title="Undo snooze"
-                          :disabled="!!approvalLoading[getSnoozedInfo(group.entry)!.id]"
-                          @click="unsnoozeItem(group.entry)"
-                        >
-                          <span class="text-sm">↩</span>
-                        </UiButton>
-                      </div>
-                      <!-- Approved/Deleting: spinner + text -->
-                      <div
-                        v-else-if="isApprovedOrDeleting(group.entry)"
-                        class="flex items-center justify-center gap-1.5"
-                      >
-                        <LoaderCircleIcon class="w-3.5 h-3.5 animate-spin text-muted-foreground" />
-                        <span class="text-xs text-muted-foreground">{{ $t('rules.deleting') }}</span>
-                      </div>
-                      <!-- Pending approval: approve/reject buttons -->
-                      <div
-                        v-else-if="getPendingApprovalId(group.entry)"
-                        class="flex items-center justify-center gap-1"
-                      >
-                        <UiButton
-                          variant="ghost"
-                          size="sm"
-                          class="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-100 dark:hover:bg-green-900/30"
-                          :disabled="!!approvalLoading[getPendingApprovalId(group.entry)!]"
-                          :aria-label="$t('rules.approve')"
-                          @click="approveItem(group.entry)"
-                        >
-                          <CheckIcon class="h-4 w-4" />
-                        </UiButton>
-                        <UiButton
-                          variant="ghost"
-                          size="sm"
-                          class="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30"
-                          :disabled="!!approvalLoading[getPendingApprovalId(group.entry)!]"
-                          :aria-label="$t('rules.reject')"
-                          @click="rejectItem(group.entry)"
-                        >
-                          <XIcon class="h-4 w-4" />
-                        </UiButton>
-                      </div>
-                      <span
-                        v-else
-                        class="text-xs text-muted-foreground"
-                      >—</span>
-                    </UiTableCell>
                   </UiTableRow>
                   <template v-if="expandedPreviewGroups.has(group.key)">
                     <UiTableRow
                       v-for="(season, sIdx) in group.seasons"
                       :key="`${group.key}-s${sIdx}`"
                       class="bg-muted/30 cursor-pointer"
-                      :class="[
-                        deletionLineIndex !== null && groupIdx >= deletionLineIndex ? 'opacity-40' : '',
-                        isApprovalMode ? approvalRowClass(season) : ''
-                      ]"
+                      :class="deletionLineIndex !== null && groupIdx >= deletionLineIndex ? 'opacity-40' : ''"
                       @click.stop="selectPreviewItem(season)"
                     >
                       <UiTableCell class="w-12" />
@@ -853,67 +780,6 @@
                       </UiTableCell>
                       <UiTableCell class="text-right font-mono text-xs tabular-nums text-muted-foreground">
                         {{ formatBytes(season.item.sizeBytes) }}
-                      </UiTableCell>
-                      <UiTableCell
-                        v-if="isApprovalMode"
-                        class="text-center"
-                        @click.stop
-                      >
-                        <!-- Snoozed: check FIRST to prevent re-queued entries from overriding active snooze -->
-                        <div
-                          v-if="isSnoozed(season)"
-                          class="flex items-center justify-center gap-1"
-                        >
-                          <span class="text-sm" title="Snoozed">💤</span>
-                          <UiButton
-                            variant="ghost"
-                            size="sm"
-                            class="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                            title="Undo snooze"
-                            :disabled="!!approvalLoading[getSnoozedInfo(season)!.id]"
-                            @click="unsnoozeItem(season)"
-                          >
-                            <span class="text-sm">↩</span>
-                          </UiButton>
-                        </div>
-                        <!-- Approved/Deleting: spinner + text -->
-                        <div
-                          v-else-if="isApprovedOrDeleting(season)"
-                          class="flex items-center justify-center gap-1.5"
-                        >
-                          <LoaderCircleIcon class="w-3.5 h-3.5 animate-spin text-muted-foreground" />
-                          <span class="text-xs text-muted-foreground">{{ $t('rules.deleting') }}</span>
-                        </div>
-                        <!-- Pending approval: approve/reject buttons -->
-                        <div
-                          v-else-if="getPendingApprovalId(season)"
-                          class="flex items-center justify-center gap-1"
-                        >
-                          <UiButton
-                            variant="ghost"
-                            size="sm"
-                            class="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-100 dark:hover:bg-green-900/30"
-                            :disabled="!!approvalLoading[getPendingApprovalId(season)!]"
-                            :aria-label="$t('rules.approve')"
-                            @click="approveItem(season)"
-                          >
-                            <CheckIcon class="h-4 w-4" />
-                          </UiButton>
-                          <UiButton
-                            variant="ghost"
-                            size="sm"
-                            class="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30"
-                            :disabled="!!approvalLoading[getPendingApprovalId(season)!]"
-                            :aria-label="$t('rules.reject')"
-                            @click="rejectItem(season)"
-                          >
-                            <XIcon class="h-4 w-4" />
-                          </UiButton>
-                        </div>
-                        <span
-                          v-else
-                          class="text-xs text-muted-foreground"
-                        >—</span>
                       </UiTableCell>
                     </UiTableRow>
                   </template>
@@ -961,7 +827,7 @@ import {
   diskStatusTextClass,
   diskStatusFillColor
 } from '~/utils/format'
-import type { DiskGroup, IntegrationConfig, CustomRule, PreferenceSet, EvaluatedItem, PreviewResponse, SelectedDetailItem, ApiError, AuditLog, AuditResponse } from '~/types/api'
+import type { DiskGroup, IntegrationConfig, CustomRule, PreferenceSet, EvaluatedItem, PreviewResponse, SelectedDetailItem, ApiError } from '~/types/api'
 
 const api = useApi()
 const { addToast } = useToast()
@@ -1212,7 +1078,7 @@ function fieldLabel(field: string): string {
 }
 
 // Show "days" suffix for date-aware operators in rule cards
-function ruleValueSuffix(rule: { field: string; operator: string }): string {
+function ruleValueSuffix(rule: { field: string, operator: string }): string {
   if (['in_last', 'over_ago'].includes(rule.operator) && ['lastplayed', 'timeinlibrary'].includes(rule.field)) {
     return ' days'
   }
@@ -1428,8 +1294,6 @@ function selectPreviewItem(entry: EvaluatedItem) {
 
 onMounted(async () => {
   await Promise.all([fetchPreferences(), fetchRules(), fetchPreview(), fetchDiskGroups(), fetchIntegrations()])
-  // Fetch pending approvals after preferences are loaded (needs executionMode)
-  await fetchPendingApprovals()
 })
 
 async function fetchDiskGroups() {
@@ -1588,202 +1452,11 @@ async function fetchPreview() {
   }
 }
 
-// ─── Approval Mode ────────────────────────────────────────────────────────────
-// When executionMode is "approval", show approve/reject buttons in the
-// deletion priority table for items that have pending audit entries.
-
-const isApprovalMode = computed(() => prefs.executionMode === 'approval')
-
-// Map of media name → audit log ID for entries with action "Queued for Approval"
-const pendingApprovals = ref(new Map<string, number>())
-const approvalLoading = ref<Record<number, boolean>>({})
-
-// Snoozed items: media name → { id, snoozedUntil }
-interface SnoozedInfo { id: number, snoozedUntil: string }
-const snoozedApprovals = ref(new Map<string, SnoozedInfo>())
-
-// Approved/Deleting items: media name → audit log ID
-const approvedItems = ref(new Map<string, number>())
-
-async function fetchPendingApprovals() {
-  if (!isApprovalMode.value) {
-    pendingApprovals.value = new Map()
-    snoozedApprovals.value = new Map()
-    approvedItems.value = new Map()
-    return
-  }
-  try {
-    // Fetch pending approvals
-    const pendingData = await api('/api/v1/audit?action=Queued+for+Approval&limit=1000') as AuditResponse
-    const pendingMap = new Map<string, number>()
-    for (const entry of (pendingData.data || [])) {
-      pendingMap.set(entry.mediaName, entry.id)
-    }
-    pendingApprovals.value = pendingMap
-
-    // Fetch rejected/snoozed items
-    const rejectedData = await api('/api/v1/audit?action=Rejected&limit=1000') as AuditResponse
-    const snoozedMap = new Map<string, SnoozedInfo>()
-    for (const entry of (rejectedData.data || [])) {
-      const snoozedUntil = (entry as AuditLog & { snoozedUntil?: string }).snoozedUntil
-      if (snoozedUntil && new Date(snoozedUntil) > new Date()) {
-        snoozedMap.set(entry.mediaName, { id: entry.id, snoozedUntil })
-      }
-    }
-    snoozedApprovals.value = snoozedMap
-
-    // Fetch approved items (waiting to be deleted)
-    const approvedData = await api('/api/v1/audit?action=Approved&limit=1000') as AuditResponse
-    const approvedMap = new Map<string, number>()
-    for (const entry of (approvedData.data || [])) {
-      approvedMap.set(entry.mediaName, entry.id)
-    }
-    approvedItems.value = approvedMap
-  } catch {
-    // Non-critical — approval buttons just won't appear
-  }
-}
-
-function getPendingApprovalId(entry: EvaluatedItem): number | null {
-  const title = entry.item?.title
-  if (!title) return null
-  return pendingApprovals.value.get(title) ?? null
-}
-
-function isSnoozed(entry: EvaluatedItem): boolean {
-  const title = entry.item?.title
-  if (!title) return false
-  const info = snoozedApprovals.value.get(title)
-  if (!info) return false
-  return new Date(info.snoozedUntil) > new Date()
-}
-
-function getSnoozedInfo(entry: EvaluatedItem): SnoozedInfo | null {
-  const title = entry.item?.title
-  if (!title) return null
-  return snoozedApprovals.value.get(title) ?? null
-}
-
-function formatSnoozeTime(isoDate: string): string {
-  return new Date(isoDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-}
-
-function isApprovedOrDeleting(entry: EvaluatedItem): boolean {
-  const title = entry.item?.title
-  if (!title) return false
-  return approvedItems.value.has(title)
-}
-
-/** Row opacity class based on approval state */
-function approvalRowClass(entry: EvaluatedItem): string {
-  if (isApprovedOrDeleting(entry)) return 'opacity-50'
-  if (isSnoozed(entry)) return 'opacity-60'
-  return ''
-}
-
-async function approveItem(entry: EvaluatedItem) {
-  const auditId = getPendingApprovalId(entry)
-  if (!auditId) return
-  approvalLoading.value[auditId] = true
-  try {
-    await api(`/api/v1/audit/${auditId}/approve`, { method: 'POST' })
-    addToast('Item approved for deletion', 'success')
-    await fetchPendingApprovals()
-  } catch {
-    addToast('Failed to approve item', 'error')
-  } finally {
-    approvalLoading.value[auditId] = false
-  }
-}
-
-async function rejectItem(entry: EvaluatedItem) {
-  const auditId = getPendingApprovalId(entry)
-  if (!auditId) return
-  approvalLoading.value[auditId] = true
-  try {
-    await api(`/api/v1/audit/${auditId}/reject`, { method: 'POST' })
-    addToast('Item rejected', 'info')
-    await fetchPendingApprovals()
-  } catch {
-    addToast('Failed to reject item', 'error')
-  } finally {
-    approvalLoading.value[auditId] = false
-  }
-}
-
-async function unsnoozeItem(entry: EvaluatedItem) {
-  const info = getSnoozedInfo(entry)
-  if (!info) return
-  approvalLoading.value[info.id] = true
-  try {
-    await api(`/api/v1/audit/${info.id}/unsnooze`, { method: 'POST' })
-    addToast('Snooze removed — item re-queued for approval', 'success')
-    await fetchPendingApprovals()
-  } catch {
-    addToast('Failed to unsnooze item', 'error')
-  } finally {
-    approvalLoading.value[info.id] = false
-  }
-}
-
 // ─── Preview Show/Season Grouping ─────────────────────────────────────────────
-interface PreviewGroup {
-  key: string
-  entry: EvaluatedItem
-  seasons: EvaluatedItem[]
-}
+// Grouping logic extracted to utils/groupPreview.ts — shared with useApprovalQueue.ts
 
 const groupedPreview = computed<PreviewGroup[]>(() => {
-  const items = preview.value
-  const groups: PreviewGroup[] = []
-  // Map from show name → index in groups array
-  const showMap = new Map<string, number>()
-
-  // Two-pass approach: first pass collects shows, second pass groups seasons
-  // Pass 1: identify all show entries and create groups for them
-  for (const item of items) {
-    if (item.item?.type === 'show') {
-      const key = `preview-${item.item.title}-show`
-      showMap.set(item.item.title, groups.length)
-      groups.push({ key, entry: item, seasons: [] })
-    }
-  }
-
-  // Pass 2: attach seasons to their parent show, or create a synthetic show group
-  for (const item of items) {
-    if (item.item?.type === 'season' && item.item?.title?.includes(' - Season ')) {
-      const showName = item.item.title.split(' - Season ')[0]
-      const groupIdx = showMap.get(showName)
-      if (groupIdx !== undefined && groups[groupIdx]) {
-        groups[groupIdx].seasons.push(item)
-      } else {
-        // Season without a parent show entry — create a synthetic group using the season as the parent
-        const syntheticKey = `preview-${showName}-show-synthetic`
-        if (!showMap.has(showName)) {
-          showMap.set(showName, groups.length)
-          // Use the first season as the group entry but display the show name
-          const syntheticEntry = {
-            ...item,
-            item: { ...item.item, title: showName, type: 'show' }
-          }
-          groups.push({ key: syntheticKey, entry: syntheticEntry, seasons: [item] })
-        } else {
-          // Already created a synthetic group, just add the season
-          const existingIdx = showMap.get(showName)!
-          groups[existingIdx].seasons.push(item)
-        }
-      }
-    } else if (item.item?.type !== 'show') {
-      // Non-show, non-season items (movies, artists, books, etc.)
-      const key = `preview-${item.item?.title}-${item.item?.type}`
-      groups.push({ key, entry: item, seasons: [] })
-    }
-    // Shows already handled in pass 1
-  }
-
-  // Filter out show-level entries with no seasons — they're only useful as grouping parents
-  // A show with 0 seasons in the preview has nothing actionable to display
-  return groups.filter(g => !(g.entry.item?.type === 'show' && g.seasons.length === 0))
+  return groupEvaluatedItems(preview.value)
 })
 
 // Filtered preview: applies search, type, status filters and sorting to groupedPreview
@@ -1887,13 +1560,13 @@ const deletionLineIndex = computed<number | null>(() => {
   for (let i = 0; i < groups.length; i++) {
     const group = groups[i]
     if (!group) continue
-    // Skip protected or snoozed items — the engine wouldn't delete them
-    if (group.entry.isProtected || isSnoozed(group.entry)) continue
+    // Skip protected items — the engine wouldn't delete them
+    if (group.entry.isProtected) continue
     // Accumulate group entry size plus any season sizes
     cumulative += group.entry.item?.sizeBytes ?? 0
     if (group.seasons.length > 0) {
       for (const season of group.seasons) {
-        if (!season.isProtected && !isSnoozed(season)) {
+        if (!season.isProtected) {
           cumulative += season.item?.sizeBytes ?? 0
         }
       }

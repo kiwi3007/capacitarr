@@ -91,19 +91,30 @@ func TestReadarrClient_GetDiskSpace(t *testing.T) {
 func TestReadarrClient_GetMediaItems(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		if r.URL.Path == "/api/v1/book" {
+		switch r.URL.Path {
+		case "/api/v1/qualityprofile":
+			_, _ = w.Write([]byte(`[{"id":1,"name":"eBook"},{"id":2,"name":"Audiobook"}]`))
+		case "/api/v1/tag":
+			_, _ = w.Write([]byte(`[{"id":1,"label":"sci-fi"},{"id":2,"label":"classic"}]`))
+		case "/api/v1/book":
 			resp := []readarrBook{
 				{
-					ID:         1,
-					Title:      "Dune",
-					AuthorID:   10,
-					SizeOnDisk: 2000000,
-					Added:      "2024-03-01T10:30:00Z",
-					Monitored:  true,
-					Path:       "/media/books/Dune",
+					ID:               1,
+					Title:            "Dune",
+					AuthorID:         10,
+					SizeOnDisk:       2000000,
+					Added:            "2024-03-01T10:30:00Z",
+					Monitored:        true,
+					Path:             "/media/books/Dune",
+					QualityProfileID: 1,
+					Tags:             []int{1, 2},
+					Genres:           []string{"Science Fiction", "Adventure"},
 					Author: struct {
 						AuthorName string `json:"authorName"`
 					}{AuthorName: "Frank Herbert"},
+					Ratings: struct {
+						Value float64 `json:"value"`
+					}{Value: 8.5},
 				},
 				{
 					// Book with no file on disk — should be skipped
@@ -112,24 +123,30 @@ func TestReadarrClient_GetMediaItems(t *testing.T) {
 					SizeOnDisk: 0,
 				},
 				{
-					ID:         3,
-					Title:      "Neuromancer",
-					AuthorID:   20,
-					SizeOnDisk: 1500000,
-					Added:      "2024-04-15T08:00:00Z",
-					Monitored:  false,
-					Path:       "/media/books/Neuromancer",
+					ID:               3,
+					Title:            "Neuromancer",
+					AuthorID:         20,
+					SizeOnDisk:       1500000,
+					Added:            "2024-04-15T08:00:00Z",
+					Monitored:        false,
+					Path:             "/media/books/Neuromancer",
+					QualityProfileID: 2,
+					Tags:             []int{1},
+					Genres:           []string{"Cyberpunk"},
 					Author: struct {
 						AuthorName string `json:"authorName"`
 					}{AuthorName: "William Gibson"},
+					Ratings: struct {
+						Value float64 `json:"value"`
+					}{Value: 7.9},
 				},
 			}
 			if err := json.NewEncoder(w).Encode(resp); err != nil {
 				t.Fatalf("Failed to encode response: %v", err)
 			}
-			return
+		default:
+			w.WriteHeader(http.StatusNotFound)
 		}
-		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer srv.Close()
 
@@ -167,6 +184,18 @@ func TestReadarrClient_GetMediaItems(t *testing.T) {
 	if dune.AddedAt == nil {
 		t.Error("Expected non-nil AddedAt for Dune")
 	}
+	if dune.QualityProfile != "eBook" {
+		t.Errorf("Expected quality profile 'eBook', got %q", dune.QualityProfile)
+	}
+	if dune.Rating != 8.5 {
+		t.Errorf("Expected rating 8.5, got %f", dune.Rating)
+	}
+	if len(dune.Tags) != 2 || dune.Tags[0] != "sci-fi" || dune.Tags[1] != "classic" {
+		t.Errorf("Expected tags [sci-fi, classic], got %v", dune.Tags)
+	}
+	if dune.Genre != "Science Fiction" {
+		t.Errorf("Expected genre 'Science Fiction', got %q", dune.Genre)
+	}
 
 	// Second book
 	neuro := items[1]
@@ -176,16 +205,27 @@ func TestReadarrClient_GetMediaItems(t *testing.T) {
 	if neuro.Monitored {
 		t.Error("Expected Neuromancer to be unmonitored")
 	}
+	if neuro.QualityProfile != "Audiobook" {
+		t.Errorf("Expected quality profile 'Audiobook', got %q", neuro.QualityProfile)
+	}
+	if len(neuro.Tags) != 1 || neuro.Tags[0] != "sci-fi" {
+		t.Errorf("Expected tags [sci-fi], got %v", neuro.Tags)
+	}
 }
 
 func TestReadarrClient_GetMediaItems_MalformedJSON(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		if r.URL.Path == "/api/v1/book" {
+		switch r.URL.Path {
+		case "/api/v1/qualityprofile":
+			_, _ = w.Write([]byte(`[]`))
+		case "/api/v1/tag":
+			_, _ = w.Write([]byte(`[]`))
+		case "/api/v1/book":
 			_, _ = w.Write([]byte(`{not valid json}`))
-			return
+		default:
+			w.WriteHeader(http.StatusNotFound)
 		}
-		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer srv.Close()
 
@@ -199,11 +239,16 @@ func TestReadarrClient_GetMediaItems_MalformedJSON(t *testing.T) {
 func TestReadarrClient_GetMediaItems_EmptyResults(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		if r.URL.Path == "/api/v1/book" {
+		switch r.URL.Path {
+		case "/api/v1/qualityprofile":
 			_, _ = w.Write([]byte(`[]`))
-			return
+		case "/api/v1/tag":
+			_, _ = w.Write([]byte(`[]`))
+		case "/api/v1/book":
+			_, _ = w.Write([]byte(`[]`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
 		}
-		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer srv.Close()
 

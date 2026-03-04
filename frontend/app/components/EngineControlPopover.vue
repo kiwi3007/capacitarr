@@ -98,7 +98,7 @@
         <UiButton
           class="w-full"
           :disabled="runNowLoading"
-          @click="triggerRunNow"
+          @click="handleRunNow"
         >
           <LoaderCircleIcon
             v-if="runNowLoading"
@@ -193,8 +193,41 @@ async function confirmAutoMode() {
   await setMode('auto')
 }
 
+// --- Run-status polling ---
+// After triggering "Run Now", poll stats every 3s so the popover shows the
+// engine-running animation and detects completion (fires the toast via the
+// shared composable's wasRunning → !nowRunning logic).
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
+function startRunPolling() {
+  stopRunPolling()
+  pollTimer = setInterval(() => fetchStats(), 3000)
+}
+
+function stopRunPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
+// Wrap triggerRunNow to start polling afterwards
+async function handleRunNow() {
+  await triggerRunNow()
+  startRunPolling()
+}
+
+// Auto-stop polling when the engine finishes
+watch(isRunning, (running) => {
+  if (!running) stopRunPolling()
+})
+
 // Fetch stats on mount
 onMounted(() => {
   fetchStats()
+})
+
+onUnmounted(() => {
+  stopRunPolling()
 })
 </script>

@@ -72,112 +72,77 @@
             </div>
           </UiCardHeader>
           <UiCardContent class="pt-5 space-y-5">
-            <!-- Date & Time -->
-            <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Date & Time
-            </p>
-
-            <!-- Timezone -->
-            <div class="space-y-1.5">
-              <UiLabel>{{ $t('settings.timezone') }}</UiLabel>
-              <UiSelect
-                :model-value="displayTimezone"
-                @update:model-value="(v: AcceptableValue) => setTimezone(String(v))"
-              >
-                <UiSelectTrigger class="w-full max-w-xs">
-                  <UiSelectValue placeholder="Select timezone" />
-                </UiSelectTrigger>
-                <UiSelectContent>
-                  <UiSelectItem value="local">
-                    Local (Browser)
-                  </UiSelectItem>
-                  <UiSelectItem value="UTC">
-                    Remote (Server / UTC)
-                  </UiSelectItem>
-                </UiSelectContent>
-              </UiSelect>
-            </div>
-
-            <!-- Clock Format -->
-            <div class="space-y-1.5">
-              <UiLabel>{{ $t('settings.clockFormat') }}</UiLabel>
-              <div class="flex gap-2">
-                <UiButton
-                  :variant="displayClockFormat === '12h' ? 'default' : 'outline'"
-                  size="sm"
-                  @click="setClockFormat('12h')"
-                >
-                  {{ $t('settings.clock12h') }}
-                </UiButton>
-                <UiButton
-                  :variant="displayClockFormat === '24h' ? 'default' : 'outline'"
-                  size="sm"
-                  @click="setClockFormat('24h')"
-                >
-                  {{ $t('settings.clock24h') }}
-                </UiButton>
-              </div>
-            </div>
-
-            <!-- Exact Dates Toggle -->
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-sm font-medium">{{ $t('settings.exactDates') }}</p>
-                <p class="text-xs text-muted-foreground">{{ $t('settings.exactDatesDesc') }}</p>
-              </div>
-              <UiSwitch :checked="showExactDates" @update:checked="setShowExactDates" />
-            </div>
-
-            <UiSeparator />
-
-            <!-- Theme -->
-            <div class="space-y-2">
-              <UiLabel>{{ $t('settings.theme') }}</UiLabel>
-              <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                <button
-                  v-for="t in themeList"
-                  :key="t.id"
-                  class="flex flex-col items-center gap-1.5 rounded-lg border-2 px-3 py-2.5 transition-colors"
-                  :class="currentTheme === t.id ? 'border-primary bg-primary/5' : 'border-transparent hover:bg-accent'"
-                  @click="setTheme(t.id)"
-                >
-                  <span
-                    class="w-6 h-6 rounded-full"
-                    :style="{ backgroundColor: t.primaryColor }"
-                  />
-                  <span class="text-xs font-medium">{{ t.label }}</span>
-                </button>
-              </div>
-            </div>
-
-            <!-- Language -->
-            <div class="space-y-1.5">
-              <UiLabel>{{ $t('settings.language') }}</UiLabel>
-              <p class="text-xs text-muted-foreground mb-1">
-                {{ $t('settings.languageDesc') }}
-              </p>
-              <UiSelect
-                :model-value="currentLocale"
-                @update:model-value="(v: AcceptableValue) => setLocale(String(v) as typeof currentLocale)"
-              >
-                <UiSelectTrigger class="w-full max-w-xs">
-                  <UiSelectValue :placeholder="$t('settings.language')" />
-                </UiSelectTrigger>
-                <UiSelectContent>
-                  <UiSelectItem
-                    v-for="loc in availableLocales"
-                    :key="loc.code"
-                    :value="loc.code"
+            <!-- Date & Time preferences — uniform toggle pairs -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+              <!-- Timezone -->
+              <div class="space-y-1.5">
+                <UiLabel>{{ $t('settings.timezone') }}</UiLabel>
+                <div class="flex gap-1">
+                  <UiButton
+                    :variant="displayTimezone === 'local' ? 'default' : 'outline'"
+                    size="sm"
+                    class="flex-1"
+                    @click="setTimezone('local')"
                   >
-                    {{ loc.name }}
-                  </UiSelectItem>
-                </UiSelectContent>
-              </UiSelect>
-            </div>
+                    {{ $t('settings.timezoneLocal') }}
+                  </UiButton>
+                  <UiButton
+                    :variant="displayTimezone === 'UTC' ? 'default' : 'outline'"
+                    size="sm"
+                    class="flex-1"
+                    @click="setTimezone('UTC')"
+                  >
+                    {{ $t('settings.timezoneUTC') }}
+                  </UiButton>
+                </div>
+              </div>
 
-            <p class="text-xs text-muted-foreground/70">
-              {{ $t('settings.themeHint') }}
-            </p>
+              <!-- Clock Format -->
+              <div class="space-y-1.5">
+                <UiLabel>{{ $t('settings.clockFormat') }}</UiLabel>
+                <div class="flex gap-1">
+                  <UiButton
+                    :variant="displayClockFormat === '12h' ? 'default' : 'outline'"
+                    size="sm"
+                    class="flex-1"
+                    @click="setClockFormat('12h')"
+                  >
+                    {{ $t('settings.clock12h') }}
+                  </UiButton>
+                  <UiButton
+                    :variant="displayClockFormat === '24h' ? 'default' : 'outline'"
+                    size="sm"
+                    class="flex-1"
+                    @click="setClockFormat('24h')"
+                  >
+                    {{ $t('settings.clock24h') }}
+                  </UiButton>
+                </div>
+              </div>
+
+              <!-- Date Style -->
+              <div class="space-y-1.5">
+                <UiLabel>{{ $t('settings.exactDates') }}</UiLabel>
+                <div class="flex gap-1">
+                  <UiButton
+                    :variant="!showExactDates ? 'default' : 'outline'"
+                    size="sm"
+                    class="flex-1"
+                    @click="setShowExactDates(false)"
+                  >
+                    {{ $t('settings.dateRelative') }}
+                  </UiButton>
+                  <UiButton
+                    :variant="showExactDates ? 'default' : 'outline'"
+                    size="sm"
+                    class="flex-1"
+                    @click="setShowExactDates(true)"
+                  >
+                    {{ $t('settings.dateExact') }}
+                  </UiButton>
+                </div>
+              </div>
+            </div>
           </UiCardContent>
         </UiCard>
 
@@ -236,56 +201,88 @@
               </div>
             </div>
 
-            <!-- Score Tiebreaker -->
-            <div class="space-y-1.5">
-              <div class="flex items-center gap-2">
-                <UiLabel>{{ $t('settings.scoreTiebreaker') }}</UiLabel>
-                <SaveIndicator :status="saveStatus.tiebreaker" />
+            <!-- Score Tiebreaker + Snooze Duration — side by side -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <!-- Score Tiebreaker -->
+              <div class="space-y-1.5">
+                <div class="flex items-center gap-2">
+                  <UiLabel>{{ $t('settings.scoreTiebreaker') }}</UiLabel>
+                  <SaveIndicator :status="saveStatus.tiebreaker" />
+                </div>
+                <p class="text-xs text-muted-foreground mb-1">
+                  When items have the same score, how should they be ordered?
+                </p>
+                <UiSelect v-model="engineTiebreakerMethod">
+                  <UiSelectTrigger class="w-full">
+                    <UiSelectValue placeholder="Select tiebreaker" />
+                  </UiSelectTrigger>
+                  <UiSelectContent>
+                    <UiSelectItem value="size_desc">
+                      Largest first (free more space)
+                    </UiSelectItem>
+                    <UiSelectItem value="size_asc">
+                      Smallest first
+                    </UiSelectItem>
+                    <UiSelectItem value="name_asc">
+                      Alphabetical (A → Z)
+                    </UiSelectItem>
+                    <UiSelectItem value="oldest_first">
+                      Oldest in library first
+                    </UiSelectItem>
+                    <UiSelectItem value="newest_first">
+                      Newest in library first
+                    </UiSelectItem>
+                  </UiSelectContent>
+                </UiSelect>
               </div>
-              <p class="text-xs text-muted-foreground mb-1">
-                When items have the same score, how should they be ordered?
-              </p>
-              <UiSelect v-model="engineTiebreakerMethod">
-                <UiSelectTrigger class="w-full max-w-xs">
-                  <UiSelectValue placeholder="Select tiebreaker" />
-                </UiSelectTrigger>
-                <UiSelectContent>
-                  <UiSelectItem value="size_desc">
-                    Largest first (free more space)
-                  </UiSelectItem>
-                  <UiSelectItem value="size_asc">
-                    Smallest first
-                  </UiSelectItem>
-                  <UiSelectItem value="name_asc">
-                    Alphabetical (A → Z)
-                  </UiSelectItem>
-                  <UiSelectItem value="oldest_first">
-                    Oldest in library first
-                  </UiSelectItem>
-                  <UiSelectItem value="newest_first">
-                    Newest in library first
-                  </UiSelectItem>
-                </UiSelectContent>
-              </UiSelect>
-            </div>
 
-            <!-- Snooze Duration -->
-            <div class="space-y-1.5">
-              <div class="flex items-center gap-2">
-                <UiLabel>{{ $t('settings.snoozeDurationHours') }}</UiLabel>
-                <SaveIndicator :status="saveStatus.snoozeDuration" />
+              <!-- Snooze Duration -->
+              <div class="space-y-1.5">
+                <div class="flex items-center gap-2">
+                  <UiLabel>{{ $t('settings.snoozeDurationHours') }}</UiLabel>
+                  <SaveIndicator :status="saveStatus.snoozeDuration" />
+                </div>
+                <p class="text-xs text-muted-foreground mb-1">
+                  {{ $t('settings.snoozeDurationDesc') }}
+                </p>
+                <UiSelect
+                  :model-value="String(snoozeDurationHours)"
+                  @update:model-value="(v: AcceptableValue) => { snoozeDurationHours = Number(v); autoSavePreference('snoozeDuration', 'snoozeDurationHours', Number(v)) }"
+                >
+                  <UiSelectTrigger class="w-full">
+                    <UiSelectValue placeholder="Select duration" />
+                  </UiSelectTrigger>
+                  <UiSelectContent>
+                    <UiSelectItem value="1">
+                      1 hour
+                    </UiSelectItem>
+                    <UiSelectItem value="6">
+                      6 hours
+                    </UiSelectItem>
+                    <UiSelectItem value="12">
+                      12 hours
+                    </UiSelectItem>
+                    <UiSelectItem value="24">
+                      24 hours (1 day)
+                    </UiSelectItem>
+                    <UiSelectItem value="48">
+                      48 hours (2 days)
+                    </UiSelectItem>
+                    <UiSelectItem value="72">
+                      72 hours (3 days)
+                    </UiSelectItem>
+                    <UiSelectItem value="168">
+                      1 week
+                    </UiSelectItem>
+                    <UiSelectItem value="336">
+                      2 weeks
+                    </UiSelectItem>
+                    <UiSelectItem value="720">
+                      30 days
+                    </UiSelectItem>
+                  </UiSelectContent>
+                </UiSelect>
               </div>
-              <p class="text-xs text-muted-foreground mb-1">
-                {{ $t('settings.snoozeDurationDesc') }}
-              </p>
-              <UiInput
-                :model-value="String(snoozeDurationHours)"
-                type="number"
-                min="1"
-                class="w-full max-w-xs"
-                @update:model-value="(v: string | number) => { snoozeDurationHours = Math.max(1, Number(v)) }"
-                @change="autoSavePreference('snoozeDuration', 'snoozeDurationHours', snoozeDurationHours)"
-              />
             </div>
           </UiCardContent>
         </UiCard>
@@ -635,7 +632,7 @@
               class="space-y-2"
             >
               <div class="flex items-center gap-2">
-                <code class="flex-1 px-3 py-2 bg-muted rounded-lg text-sm font-mono break-all">{{ apiKey }}</code>
+                <code class="flex-1 px-3 py-2 bg-muted rounded-lg text-sm font-mono break-all">{{ apiKeyDisplay }}</code>
                 <UiButton
                   v-if="!apiKey.startsWith('••')"
                   variant="outline"
@@ -649,7 +646,7 @@
                 v-if="apiKey.startsWith('••')"
                 class="text-xs text-muted-foreground"
               >
-                An API key exists but cannot be displayed (it is stored as a hash). Generate a new key to see it.
+                {{ $t('settings.apiKeyHashedHint') }}
               </p>
             </div>
             <div
@@ -1570,10 +1567,6 @@ import type { AcceptableValue } from 'reka-ui'
 import { PlexOAuth } from '~/utils/plexOAuth'
 
 // ─── i18n ─────────────────────────────────────────────────────────────────────
-const { locale: currentLocale, setLocale, locales } = useI18n()
-const availableLocales = computed(() =>
-  (locales.value as Array<{ code: string, name: string }>).map(l => ({ code: l.code, name: l.name }))
-)
 
 // ─── SaveIndicator functional component ──────────────────────────────────────
 const SaveIndicator = defineComponent({
@@ -1604,7 +1597,6 @@ const SaveIndicator = defineComponent({
 
 const api = useApi()
 const { timezone: displayTimezone, clockFormat: displayClockFormat, showExactDates, setTimezone, setClockFormat, setShowExactDates } = useDisplayPrefs()
-const { theme: currentTheme, setTheme, themes: themeList } = useTheme()
 
 const loading = ref(true)
 const integrations = ref<IntegrationConfig[]>([])
@@ -1685,7 +1677,19 @@ const resettingData = ref(false)
 
 // API Key state
 const apiKey = ref('')
+const apiKeyHint = ref('')
 const generatingApiKey = ref(false)
+
+// Display the API key with masked hint if it's hashed
+const apiKeyDisplay = computed(() => {
+  if (!apiKey.value) return ''
+  // Freshly generated key — show full plaintext
+  if (!apiKey.value.startsWith('••')) return apiKey.value
+  // Hashed key with hint — show masked with last 4 chars
+  if (apiKeyHint.value) return '••••••••••••••••••••••••••••' + apiKeyHint.value
+  // Hashed key without hint (legacy) — all bullets
+  return apiKey.value
+})
 
 const formState = reactive({
   type: 'sonarr',
@@ -2132,12 +2136,13 @@ async function generateApiKey() {
 
 async function fetchApiKey() {
   try {
-    const result = await api('/api/v1/auth/apikey') as { has_key?: boolean; api_key?: string }
+    const result = await api('/api/v1/auth/apikey') as { has_key?: boolean; api_key?: string; hint?: string }
     if (result?.api_key) {
       apiKey.value = result.api_key
     } else if (result?.has_key) {
       // Key exists but is hashed — show masked placeholder
       apiKey.value = '••••••••••••••••••••••••••••••••'
+      if (result.hint) apiKeyHint.value = result.hint
     }
   } catch {
     // Silently fail — no API key yet

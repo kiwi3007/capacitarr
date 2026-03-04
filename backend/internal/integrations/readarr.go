@@ -81,7 +81,7 @@ func (r *ReadarrClient) GetRootFolders() ([]string, error) {
 	return paths, nil
 }
 
-// readarrBook maps a Readarr book response
+// readarrBook maps a Readarr book API response (relevant fields)
 type readarrBook struct {
 	ID       int    `json:"id"`
 	Title    string `json:"title"`
@@ -93,10 +93,57 @@ type readarrBook struct {
 	Added      string `json:"added"`
 	Monitored  bool   `json:"monitored"`
 	Path       string `json:"path"`
+	Ratings    struct {
+		Value float64 `json:"value"`
+	} `json:"ratings"`
+	Genres           []string `json:"genres"`
+	Tags             []int    `json:"tags"`
+	QualityProfileID int      `json:"qualityProfileId"`
 }
 
-// GetMediaItems returns all books as MediaItems for scoring
+// readarrQualityProfile maps quality profile names
+type readarrQualityProfile struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+// readarrTag maps tag names
+type readarrTag struct {
+	ID    int    `json:"id"`
+	Label string `json:"label"`
+}
+
+// GetMediaItems fetches all books from Readarr with quality, tag, and rating metadata.
 func (r *ReadarrClient) GetMediaItems() ([]MediaItem, error) {
+	// Fetch quality profiles for name lookup
+	profileBody, err := r.doRequest("/api/v1/qualityprofile")
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch quality profiles: %w", err)
+	}
+	var profiles []readarrQualityProfile
+	if err := json.Unmarshal(profileBody, &profiles); err != nil {
+		return nil, fmt.Errorf("failed to parse quality profiles: %w", err)
+	}
+	profileMap := make(map[int]string)
+	for _, p := range profiles {
+		profileMap[p.ID] = p.Name
+	}
+
+	// Fetch tags for name lookup
+	tagBody, err := r.doRequest("/api/v1/tag")
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch tags: %w", err)
+	}
+	var tags []readarrTag
+	if err := json.Unmarshal(tagBody, &tags); err != nil {
+		return nil, fmt.Errorf("failed to parse tags: %w", err)
+	}
+	tagMap := make(map[int]string)
+	for _, t := range tags {
+		tagMap[t.ID] = t.Label
+	}
+
+	// Fetch all books
 	body, err := r.doRequest("/api/v1/book")
 	if err != nil {
 		return nil, err
@@ -120,14 +167,32 @@ func (r *ReadarrClient) GetMediaItems() ([]MediaItem, error) {
 			}
 		}
 
+		// Resolve tag IDs to names
+		var tagNames []string
+		for _, tid := range b.Tags {
+			if name, ok := tagMap[tid]; ok {
+				tagNames = append(tagNames, name)
+			}
+		}
+
+		// Pick genre string from first genre if available
+		genre := ""
+		if len(b.Genres) > 0 {
+			genre = b.Genres[0]
+		}
+
 		items = append(items, MediaItem{
-			ExternalID: fmt.Sprintf("%d", b.ID),
-			Title:      b.Title,
-			Type:       MediaTypeBook,
-			SizeBytes:  b.SizeOnDisk,
-			AddedAt:    addedAt,
-			Monitored:  b.Monitored,
-			Path:       b.Path,
+			ExternalID:     fmt.Sprintf("%d", b.ID),
+			Title:          b.Title,
+			Type:           MediaTypeBook,
+			SizeBytes:      b.SizeOnDisk,
+			AddedAt:        addedAt,
+			Monitored:      b.Monitored,
+			Path:           b.Path,
+			Rating:         b.Ratings.Value,
+			Genre:          genre,
+			Tags:           tagNames,
+			QualityProfile: profileMap[b.QualityProfileID],
 		})
 	}
 	return items, nil

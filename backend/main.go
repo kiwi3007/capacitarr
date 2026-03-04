@@ -30,7 +30,7 @@ import (
 	"capacitarr/routes"
 )
 
-//go:embed frontend/dist/*
+//go:embed all:frontend/dist
 var embeddedFiles embed.FS
 
 // getSubFS strips the "frontend/dist" prefix from the embedded filesystem

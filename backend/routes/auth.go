@@ -228,9 +228,14 @@ func RegisterAuthRoutes(public *echo.Group, protected *echo.Group, database *gor
 		}
 		plaintextKey := hex.EncodeToString(keyBytes)
 
-		// Store only the SHA-256 hash — the plaintext is returned once and never stored
+		// Store only the SHA-256 hash — the plaintext is returned once and never stored.
+		// Also persist the last 4 characters as a hint for identification.
 		hashedKey := HashAPIKey(plaintextKey)
-		if err := database.Model(&db.AuthConfig{}).Where("username = ?", username).Update("api_key", hashedKey).Error; err != nil {
+		hint := plaintextKey[len(plaintextKey)-4:]
+		if err := database.Model(&db.AuthConfig{}).Where("username = ?", username).Updates(map[string]interface{}{
+			"api_key":      hashedKey,
+			"api_key_hint": hint,
+		}).Error; err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Database error"})
 		}
 
@@ -250,8 +255,12 @@ func RegisterAuthRoutes(public *echo.Group, protected *echo.Group, database *gor
 		}
 
 		// Never return the actual API key (it's hashed in the DB). Instead
-		// return whether a key has been generated so the UI can show status.
+		// return whether a key has been generated and the last 4 chars hint
+		// so the UI can show a recognisable masked version.
 		hasKey := user.APIKey != ""
-		return c.JSON(http.StatusOK, map[string]interface{}{"has_key": hasKey})
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"has_key": hasKey,
+			"hint":    user.APIKeyHint,
+		})
 	})
 }

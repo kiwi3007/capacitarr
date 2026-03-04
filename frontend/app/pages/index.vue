@@ -37,11 +37,7 @@
             <UiSelectValue placeholder="Time range" />
           </UiSelectTrigger>
           <UiSelectContent>
-            <UiSelectItem
-              v-for="opt in dateRangeOptions"
-              :key="opt.value"
-              :value="opt.value"
-            >
+            <UiSelectItem v-for="opt in dateRangeOptions" :key="opt.value" :value="opt.value">
               {{ opt.label }}
             </UiSelectItem>
           </UiSelectContent>
@@ -51,11 +47,7 @@
             <UiSelectValue placeholder="Chart mode" />
           </UiSelectTrigger>
           <UiSelectContent>
-            <UiSelectItem
-              v-for="opt in chartModeOptions"
-              :key="opt.value"
-              :value="opt.value"
-            >
+            <UiSelectItem v-for="opt in chartModeOptions" :key="opt.value" :value="opt.value">
               {{ opt.label }}
             </UiSelectItem>
           </UiSelectContent>
@@ -65,11 +57,7 @@
             <UiSelectValue placeholder="Refresh" />
           </UiSelectTrigger>
           <UiSelectContent>
-            <UiSelectItem
-              v-for="opt in refreshOptions"
-              :key="opt.value"
-              :value="String(opt.value)"
-            >
+            <UiSelectItem v-for="opt in refreshOptions" :key="opt.value" :value="String(opt.value)">
               {{ opt.label }}
             </UiSelectItem>
           </UiSelectContent>
@@ -93,10 +81,7 @@
           class="rounded-lg px-3 py-2 mb-4 flex items-center gap-2 text-sm font-medium"
           :class="engineStatusBannerClass"
         >
-          <LoaderCircleIcon
-            v-if="engineIsRunning"
-            class="w-4 h-4 animate-spin shrink-0"
-          />
+          <LoaderCircleIcon v-if="engineIsRunning" class="w-4 h-4 animate-spin shrink-0" />
           <component
             :is="engineIsRunning ? ActivityIcon : CheckCircle2Icon"
             v-else
@@ -120,10 +105,7 @@
         <!-- Top row: title, run now, mode badge, evaluated/flagged -->
         <div class="flex flex-wrap items-center gap-2 mb-3">
           <div class="flex items-center gap-1.5 text-primary font-medium text-sm">
-            <component
-              :is="ActivityIcon"
-              class="w-4 h-4"
-            />
+            <component :is="ActivityIcon" class="w-4 h-4" />
             {{ $t('dashboard.engineActivity') }}
           </div>
           <UiButton
@@ -132,20 +114,12 @@
             :disabled="engineRunNowLoading"
             @click="engineTriggerRunNow"
           >
-            <LoaderCircleIcon
-              v-if="engineRunNowLoading"
-              class="w-3.5 h-3.5 animate-spin"
-            />
-            <PlayIcon
-              v-else
-              class="w-3.5 h-3.5"
-            />
+            <LoaderCircleIcon v-if="engineRunNowLoading" class="w-3.5 h-3.5 animate-spin" />
+            <PlayIcon v-else class="w-3.5 h-3.5" />
             {{ $t('dashboard.runNow') }}
           </UiButton>
           <span class="text-xs text-muted-foreground">
-            <template v-if="engineIsRunning">
-              🔄 {{ $t('dashboard.engineRunning') }}
-            </template>
+            <template v-if="engineIsRunning"> 🔄 {{ $t('dashboard.engineRunning') }} </template>
             <template v-else-if="engineLastRunEpoch">
               <i18n-t keypath="dashboard.lastRun" tag="span">
                 <template #time>
@@ -158,21 +132,25 @@
             </template>
           </span>
           <UiBadge
-            :variant="engineExecutionMode === 'auto' ? 'destructive' : engineExecutionMode === 'approval' ? 'outline' : 'secondary'"
+            :variant="
+              engineExecutionMode === 'auto'
+                ? 'destructive'
+                : engineExecutionMode === 'approval'
+                  ? 'outline'
+                  : 'secondary'
+            "
             class="ml-auto"
           >
             {{ engineModeLabel(engineExecutionMode) }}
           </UiBadge>
           <span class="text-xs text-muted-foreground">
-            {{ $t('dashboard.evaluated') }} {{ engineLastRunEvaluated?.toLocaleString() ?? 0 }} · {{ $t('dashboard.flagged') }} {{ engineLastRunFlagged?.toLocaleString() ?? 0 }}
+            {{ $t('dashboard.evaluated') }} {{ engineLastRunEvaluated?.toLocaleString() ?? 0 }} ·
+            {{ $t('dashboard.flagged') }} {{ engineLastRunFlagged?.toLocaleString() ?? 0 }}
           </span>
         </div>
 
         <!-- Sparkline: items flagged + deleted per engine run -->
-        <div
-          v-if="flaggedSeries.length > 0 || deletedSeries.length > 0"
-          class="mb-3"
-        >
+        <div v-if="flaggedSeries.length > 0 || deletedSeries.length > 0" class="mb-3">
           <div class="flex items-center gap-3 mb-1">
             <span class="text-[11px] text-muted-foreground/70">
               {{ $t('dashboard.engineActivity') }} · {{ dateRangeLabel }}
@@ -199,7 +177,9 @@
           <!-- Would Free / Freed -->
           <div class="rounded-lg bg-muted px-3 py-2">
             <div class="text-[11px] text-muted-foreground mb-0.5">
-              {{ engineExecutionMode === 'auto' ? $t('dashboard.freed') : $t('dashboard.wouldFree') }}
+              {{
+                engineExecutionMode === 'auto' ? $t('dashboard.freed') : $t('dashboard.wouldFree')
+              }}
             </div>
             <div class="text-sm font-bold tabular-nums">
               {{ formatBytes(engineStats.lastRunFreedBytes ?? 0) }}
@@ -239,7 +219,9 @@
                 </span>
               </template>
               <template v-else-if="engineExecutionMode === 'dry-run'">
-                <span class="text-muted-foreground text-xs">{{ $t('dashboard.dryRunNoDelete') }}</span>
+                <span class="text-muted-foreground text-xs">{{
+                  $t('dashboard.dryRunNoDelete')
+                }}</span>
               </template>
               <template v-else-if="(engineStats.queueDepth ?? 0) === 0">
                 <span class="text-muted-foreground">{{ $t('common.idle') }}</span>
@@ -261,11 +243,11 @@
       </UiCardContent>
     </UiCard>
 
+    <!-- Approval Queue (only in approval mode) -->
+    <ApprovalQueueCard v-if="approvalQueueVisible" />
+
     <!-- Per-Disk-Group Sections -->
-    <div
-      v-if="diskGroups.length > 0"
-      class="space-y-6 mb-8"
-    >
+    <div v-if="diskGroups.length > 0" class="space-y-6 mb-8">
       <DiskGroupSection
         v-for="group in diskGroups"
         :key="group.id"
@@ -279,24 +261,22 @@
     </div>
 
     <!-- Summary Cards (informational, at the bottom) -->
-    <div
-      class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8"
-      data-stagger
-    >
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8" data-stagger>
       <!-- Total Storage -->
       <UiCard
         v-motion
         :initial="{ opacity: 0, y: 12 }"
-        :enter="{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24, delay: 100 } }"
+        :enter="{
+          opacity: 1,
+          y: 0,
+          transition: { type: 'spring', stiffness: 260, damping: 24, delay: 100 },
+        }"
         data-slot="stat-card"
       >
         <UiCardContent class="pt-5">
           <div class="flex items-center gap-3 font-medium text-sm mb-3">
             <div data-slot="stat-icon">
-              <component
-                :is="ServerIcon"
-                class="w-4 h-4"
-              />
+              <component :is="ServerIcon" class="w-4 h-4" />
             </div>
             <span class="text-primary">{{ $t('dashboard.totalStorage') }}</span>
           </div>
@@ -313,16 +293,17 @@
       <UiCard
         v-motion
         :initial="{ opacity: 0, y: 12 }"
-        :enter="{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24, delay: 160 } }"
+        :enter="{
+          opacity: 1,
+          y: 0,
+          transition: { type: 'spring', stiffness: 260, damping: 24, delay: 160 },
+        }"
         data-slot="stat-card"
       >
         <UiCardContent class="pt-5">
           <div class="flex items-center gap-3 font-medium text-sm mb-3">
             <div data-slot="stat-icon">
-              <component
-                :is="ChartPieIcon"
-                class="w-4 h-4"
-              />
+              <component :is="ChartPieIcon" class="w-4 h-4" />
             </div>
             <span class="text-primary">{{ $t('dashboard.usedCapacity') }}</span>
           </div>
@@ -330,7 +311,11 @@
             {{ formatBytes(totalUsed) }}
           </div>
           <p class="text-sm text-muted-foreground mt-1">
-            {{ $t('dashboard.utilization', { pct: totalCapacity > 0 ? Math.round((totalUsed / totalCapacity) * 100) : 0 }) }}
+            {{
+              $t('dashboard.utilization', {
+                pct: totalCapacity > 0 ? Math.round((totalUsed / totalCapacity) * 100) : 0,
+              })
+            }}
           </p>
         </UiCardContent>
       </UiCard>
@@ -339,16 +324,17 @@
       <UiCard
         v-motion
         :initial="{ opacity: 0, y: 12 }"
-        :enter="{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24, delay: 220 } }"
+        :enter="{
+          opacity: 1,
+          y: 0,
+          transition: { type: 'spring', stiffness: 260, damping: 24, delay: 220 },
+        }"
         data-slot="stat-card"
       >
         <UiCardContent class="pt-5">
           <div class="flex items-center gap-3 font-medium text-sm mb-3">
             <div data-slot="stat-icon">
-              <component
-                :is="HardDriveIcon"
-                class="w-4 h-4"
-              />
+              <component :is="HardDriveIcon" class="w-4 h-4" />
             </div>
             <span class="text-primary">{{ $t('dashboard.integrations') }}</span>
           </div>
@@ -356,31 +342,33 @@
             {{ enabledIntegrations.length }}
           </div>
           <p class="text-sm text-muted-foreground mt-1">
-            {{ $t('dashboard.syncedRecently', { count: enabledIntegrations.filter(i => i.lastSync).length }) }}
+            {{
+              $t('dashboard.syncedRecently', {
+                count: enabledIntegrations.filter((i) => i.lastSync).length,
+              })
+            }}
           </p>
         </UiCardContent>
       </UiCard>
     </div>
 
     <!-- Lifetime Stats Cards (Row 2) -->
-    <div
-      class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8"
-      data-stagger
-    >
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8" data-stagger>
       <!-- Total Space Reclaimed -->
       <UiCard
         v-motion
         :initial="{ opacity: 0, y: 12 }"
-        :enter="{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24, delay: 280 } }"
+        :enter="{
+          opacity: 1,
+          y: 0,
+          transition: { type: 'spring', stiffness: 260, damping: 24, delay: 280 },
+        }"
         data-slot="stat-card"
       >
         <UiCardContent class="pt-5">
           <div class="flex items-center gap-3 font-medium text-sm mb-3">
             <div data-slot="stat-icon">
-              <component
-                :is="Trash2Icon"
-                class="w-4 h-4"
-              />
+              <component :is="Trash2Icon" class="w-4 h-4" />
             </div>
             <span class="text-primary">{{ $t('dashboard.spaceReclaimed') }}</span>
           </div>
@@ -397,16 +385,17 @@
       <UiCard
         v-motion
         :initial="{ opacity: 0, y: 12 }"
-        :enter="{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24, delay: 340 } }"
+        :enter="{
+          opacity: 1,
+          y: 0,
+          transition: { type: 'spring', stiffness: 260, damping: 24, delay: 340 },
+        }"
         data-slot="stat-card"
       >
         <UiCardContent class="pt-5">
           <div class="flex items-center gap-3 font-medium text-sm mb-3">
             <div data-slot="stat-icon">
-              <component
-                :is="ShieldCheckIcon"
-                class="w-4 h-4"
-              />
+              <component :is="ShieldCheckIcon" class="w-4 h-4" />
             </div>
             <span class="text-primary">{{ $t('dashboard.protectedItems') }}</span>
           </div>
@@ -423,16 +412,17 @@
       <UiCard
         v-motion
         :initial="{ opacity: 0, y: 12 }"
-        :enter="{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24, delay: 400 } }"
+        :enter="{
+          opacity: 1,
+          y: 0,
+          transition: { type: 'spring', stiffness: 260, damping: 24, delay: 400 },
+        }"
         data-slot="stat-card"
       >
         <UiCardContent class="pt-5">
           <div class="flex items-center gap-3 font-medium text-sm mb-3">
             <div data-slot="stat-icon">
-              <component
-                :is="TrendingUpIcon"
-                class="w-4 h-4"
-              />
+              <component :is="TrendingUpIcon" class="w-4 h-4" />
             </div>
             <span class="text-primary">{{ $t('dashboard.growthRate') }}</span>
           </div>
@@ -440,7 +430,11 @@
             {{ formattedGrowthRate }}
           </div>
           <p class="text-sm text-muted-foreground mt-1">
-            {{ dashboardStats?.hasGrowthData ? $t('dashboard.overLastWeek') : $t('dashboard.notEnoughData') }}
+            {{
+              dashboardStats?.hasGrowthData
+                ? $t('dashboard.overLastWeek')
+                : $t('dashboard.notEnoughData')
+            }}
           </p>
         </UiCardContent>
       </UiCard>
@@ -454,10 +448,7 @@
       :enter="{ opacity: 1, y: 0 }"
       class="rounded-xl border-2 border-dashed border-border p-12 text-center mb-8"
     >
-      <component
-        :is="HardDriveIcon"
-        class="w-12 h-12 text-muted-foreground/40 mx-auto mb-4"
-      />
+      <component :is="HardDriveIcon" class="w-12 h-12 text-muted-foreground/40 mx-auto mb-4" />
       <h3 class="text-muted-foreground font-medium mb-1.5">
         {{ $t('dashboard.noDiskGroups') }}
       </h3>
@@ -469,11 +460,7 @@
     <!-- Skeleton Loading State -->
     <template v-if="loading">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
-        <UiCard
-          v-for="i in 3"
-          :key="i"
-          class="animate-pulse"
-        >
+        <UiCard v-for="i in 3" :key="i" class="animate-pulse">
           <UiCardContent class="pt-5">
             <div class="flex items-center gap-2 mb-3">
               <div class="w-4 h-4 rounded bg-muted" />
@@ -490,13 +477,30 @@
 </template>
 
 <script setup lang="ts">
-import { ServerIcon, ChartPieIcon, HardDriveIcon, LoaderCircleIcon, RefreshCwIcon, ActivityIcon, PlayIcon, CheckCircle2Icon, Trash2Icon, ShieldCheckIcon, TrendingUpIcon } from 'lucide-vue-next'
-import { formatBytes } from '~/utils/format'
-import type { DiskGroup, IntegrationConfig, DashboardStats, SparklineTooltipOpts } from '~/types/api'
+import {
+  ServerIcon,
+  ChartPieIcon,
+  HardDriveIcon,
+  LoaderCircleIcon,
+  RefreshCwIcon,
+  ActivityIcon,
+  PlayIcon,
+  CheckCircle2Icon,
+  Trash2Icon,
+  ShieldCheckIcon,
+  TrendingUpIcon,
+} from 'lucide-vue-next';
+import { formatBytes } from '~/utils/format';
+import type {
+  DiskGroup,
+  IntegrationConfig,
+  DashboardStats,
+  SparklineTooltipOpts,
+} from '~/types/api';
 
-const { t } = useI18n()
-const api = useApi()
-const { primaryColor, destructiveColor } = useThemeColors()
+const { t } = useI18n();
+const api = useApi();
+const { primaryColor, destructiveColor } = useThemeColors();
 
 // Use shared engine control composable for isRunning detection + toast on completion
 const {
@@ -508,21 +512,26 @@ const {
   isRunning: engineIsRunning,
   pollIntervalSeconds: enginePollInterval,
   runNowLoading: engineRunNowLoading,
+  runCompletionCounter: engineRunCompletionCounter,
   modeLabel: engineModeLabel,
   fetchStats: engineFetchStats,
-  triggerRunNow: engineTriggerRunNow
-} = useEngineControl()
+  triggerRunNow: engineTriggerRunNow,
+} = useEngineControl();
+
+// Approval queue (shown when execution mode is "approval")
+const { isApprovalMode, fetchQueue: fetchApprovalQueue } = useApprovalQueue();
+const approvalQueueVisible = computed(() => isApprovalMode.value);
 
 // Pull-to-refresh for touch devices
 const { isRefreshing, pullProgress, pullDistance } = usePullToRefresh(async () => {
-  await fetchDashboardData(true)
-  refreshKey.value++
-})
+  await fetchDashboardData(true);
+  refreshKey.value++;
+});
 
 const chartModeOptions = [
   { label: 'Percentage', value: 'percentage' },
-  { label: 'Raw (GB)', value: 'raw' }
-]
+  { label: 'Raw (GB)', value: 'raw' },
+];
 
 const dateRangeOptions = [
   { label: 'Last Hour', value: '1h' },
@@ -530,8 +539,8 @@ const dateRangeOptions = [
   { label: 'Last 24h', value: '24h' },
   { label: 'Last 7 Days', value: '7d' },
   { label: 'Last 30 Days', value: '30d' },
-  { label: 'All Time', value: 'all' }
-]
+  { label: 'All Time', value: 'all' },
+];
 
 const refreshOptions = [
   { label: '⏸ Paused', value: 0 },
@@ -542,167 +551,174 @@ const refreshOptions = [
   { label: '↻ 15s', value: 15000 },
   { label: '↻ 30s', value: 30000 },
   { label: '↻ 1m', value: 60000 },
-  { label: '↻ 5m', value: 300000 }
-]
+  { label: '↻ 5m', value: 300000 },
+];
 
-const chartMode = ref('percentage')
-const dateRange = ref('24h')
-const refreshIntervalStr = ref('15000')
-const refreshInterval = computed(() => Number(refreshIntervalStr.value))
-const diskGroups = ref<DiskGroup[]>([])
-const allIntegrations = ref<IntegrationConfig[]>([])
-const flaggedSeries = ref<{ x: string, y: number }[]>([])
-const deletedSeries = ref<{ x: string, y: number }[]>([])
-const dashboardStats = ref<DashboardStats | null>(null)
-const loading = ref(true)
-const lastUpdated = ref<Date | null>(null)
-const isAutoRefreshing = ref(false)
-const refreshKey = ref(0)
+const chartMode = ref('percentage');
+const dateRange = ref('24h');
+const refreshIntervalStr = ref('15000');
+const refreshInterval = computed(() => Number(refreshIntervalStr.value));
+const diskGroups = ref<DiskGroup[]>([]);
+const allIntegrations = ref<IntegrationConfig[]>([]);
+const flaggedSeries = ref<{ x: string; y: number }[]>([]);
+const deletedSeries = ref<{ x: string; y: number }[]>([]);
+const dashboardStats = ref<DashboardStats | null>(null);
+const loading = ref(true);
+const lastUpdated = ref<Date | null>(null);
+const isAutoRefreshing = ref(false);
+const refreshKey = ref(0);
 
 // Engine stats — alias from shared composable
-const engineStats = computed(() => engineControlStats.value)
+const engineStats = computed(() => engineControlStats.value);
 
-const enabledIntegrations = computed(() => allIntegrations.value.filter(i => i.enabled))
+const enabledIntegrations = computed(() => allIntegrations.value.filter((i) => i.enabled));
 
 const dateRangeLabel = computed(() => {
-  const match = dateRangeOptions.find(o => o.value === dateRange.value)
-  return match?.label ?? dateRange.value
-})
+  const match = dateRangeOptions.find((o) => o.value === dateRange.value);
+  return match?.label ?? dateRange.value;
+});
 
 const totalCapacity = computed(() =>
-  diskGroups.value.reduce((sum, g) => sum + (g.totalBytes || 0), 0)
-)
+  diskGroups.value.reduce((sum, g) => sum + (g.totalBytes || 0), 0),
+);
 
-const totalUsed = computed(() =>
-  diskGroups.value.reduce((sum, g) => sum + (g.usedBytes || 0), 0)
-)
+const totalUsed = computed(() => diskGroups.value.reduce((sum, g) => sum + (g.usedBytes || 0), 0));
 
 const formattedGrowthRate = computed(() => {
-  if (!dashboardStats.value?.hasGrowthData) return '—'
-  const bytes = dashboardStats.value.growthBytesPerWeek
-  const prefix = bytes >= 0 ? '+' : ''
-  return `${prefix}${formatBytes(Math.abs(bytes))} / week`
-})
+  if (!dashboardStats.value?.hasGrowthData) return '—';
+  const bytes = dashboardStats.value.growthBytesPerWeek;
+  const prefix = bytes >= 0 ? '+' : '';
+  return `${prefix}${formatBytes(Math.abs(bytes))} / week`;
+});
 
 // --- Status banner ---
 const engineStatusBannerClass = computed(() => {
   if (engineIsRunning.value) {
-    return 'bg-primary/10 text-primary border border-primary/20'
+    return 'bg-primary/10 text-primary border border-primary/20';
   }
-  return 'bg-muted text-muted-foreground'
-})
+  return 'bg-muted text-muted-foreground';
+});
 
 // engineStatusText removed — now rendered inline with <DateDisplay> component
 
 // --- Countdown to next run ---
-const nowEpoch = ref(Math.floor(Date.now() / 1000))
-let countdownTimer: ReturnType<typeof setInterval> | null = null
+const nowEpoch = ref(Math.floor(Date.now() / 1000));
+let countdownTimer: ReturnType<typeof setInterval> | null = null;
 
 onMounted(() => {
   countdownTimer = setInterval(() => {
-    nowEpoch.value = Math.floor(Date.now() / 1000)
-  }, 1000)
-})
+    nowEpoch.value = Math.floor(Date.now() / 1000);
+  }, 1000);
+});
 
 onUnmounted(() => {
-  if (countdownTimer) clearInterval(countdownTimer)
-})
+  if (countdownTimer) clearInterval(countdownTimer);
+});
 
 const countdownText = computed(() => {
-  if (engineIsRunning.value) return ''
-  if (!engineLastRunEpoch.value || !enginePollInterval.value) return ''
+  if (engineIsRunning.value) return '';
+  if (!engineLastRunEpoch.value || !enginePollInterval.value) return '';
 
-  const nextRunEpoch = engineLastRunEpoch.value + enginePollInterval.value
-  const remaining = nextRunEpoch - nowEpoch.value
+  const nextRunEpoch = engineLastRunEpoch.value + enginePollInterval.value;
+  const remaining = nextRunEpoch - nowEpoch.value;
 
-  if (remaining <= 0) return t('dashboard.nextRunImminent')
-  if (remaining < 60) return t('dashboard.nextRunSeconds', { seconds: remaining })
+  if (remaining <= 0) return t('dashboard.nextRunImminent');
+  if (remaining < 60) return t('dashboard.nextRunSeconds', { seconds: remaining });
   if (remaining < 3600) {
-    const mins = Math.floor(remaining / 60)
-    const secs = remaining % 60
-    return t('dashboard.nextRunMinSec', { min: mins, sec: secs })
+    const mins = Math.floor(remaining / 60);
+    const secs = remaining % 60;
+    return t('dashboard.nextRunMinSec', { min: mins, sec: secs });
   }
-  const hours = Math.floor(remaining / 3600)
-  const mins = Math.floor((remaining % 3600) / 60)
-  return t('dashboard.nextRunHourMin', { hour: hours, min: mins })
-})
+  const hours = Math.floor(remaining / 3600);
+  const mins = Math.floor((remaining % 3600) / 60);
+  return t('dashboard.nextRunHourMin', { hour: hours, min: mins });
+});
 
 // --- Auto refresh ---
-let autoRefreshTimer: ReturnType<typeof setInterval> | null = null
+let autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
 function startAutoRefresh() {
-  stopAutoRefresh()
+  stopAutoRefresh();
   if (refreshInterval.value > 0) {
     autoRefreshTimer = setInterval(async () => {
-      isAutoRefreshing.value = true
-      await fetchDashboardData(true)
-      refreshKey.value++
-      isAutoRefreshing.value = false
-    }, refreshInterval.value)
+      isAutoRefreshing.value = true;
+      await fetchDashboardData(true);
+      refreshKey.value++;
+      isAutoRefreshing.value = false;
+    }, refreshInterval.value);
   }
 }
 
 function stopAutoRefresh() {
   if (autoRefreshTimer) {
-    clearInterval(autoRefreshTimer)
-    autoRefreshTimer = null
+    clearInterval(autoRefreshTimer);
+    autoRefreshTimer = null;
   }
 }
 
 watch(refreshInterval, () => {
-  startAutoRefresh()
-})
+  startAutoRefresh();
+});
+
+// When the engine finishes a run (detected via navbar or dashboard Run Now, or scheduled),
+// immediately refresh all dashboard data so the UI reflects the latest state.
+watch(engineRunCompletionCounter, () => {
+  fetchDashboardData(true);
+  refreshKey.value++;
+});
 
 onMounted(async () => {
-  await fetchDashboardData()
-  startAutoRefresh()
-})
+  await fetchDashboardData();
+  startAutoRefresh();
+});
 
 onUnmounted(() => {
-  stopAutoRefresh()
-})
+  stopAutoRefresh();
+});
 
 async function fetchDashboardData(silent = false) {
-  if (!silent) loading.value = true
+  if (!silent) loading.value = true;
   try {
     const [groups, integrations, dStats] = await Promise.all([
       api('/api/v1/disk-groups'),
       api('/api/v1/integrations'),
-      api('/api/v1/dashboard-stats').catch(() => null)
-    ])
+      api('/api/v1/dashboard-stats').catch(() => null),
+    ]);
     // Fetch engine stats via the shared composable (handles toast on completion)
-    engineFetchStats()
+    engineFetchStats();
+    // Fetch approval queue (non-blocking, only runs in approval mode)
+    fetchApprovalQueue();
     // Fetch sparkline activity data in parallel (non-blocking)
-    fetchActivityData()
-    diskGroups.value = groups as DiskGroup[]
-    allIntegrations.value = integrations as IntegrationConfig[]
-    if (dStats) dashboardStats.value = dStats as DashboardStats
-    lastUpdated.value = new Date()
+    fetchActivityData();
+    diskGroups.value = groups as DiskGroup[];
+    allIntegrations.value = integrations as IntegrationConfig[];
+    if (dStats) dashboardStats.value = dStats as DashboardStats;
+    lastUpdated.value = new Date();
   } catch {
     // Silently ignored — UI has no further handling
   } finally {
-    if (!silent) loading.value = false
+    if (!silent) loading.value = false;
   }
 }
 
 // --- Sparkline: audit activity (flagged + deleted per time bucket) ---
 
 const sparklineSeries = computed(() => {
-  const series = []
+  const series = [];
   if (flaggedSeries.value.length > 0) {
-    series.push({ name: 'Flagged', data: flaggedSeries.value })
+    series.push({ name: 'Flagged', data: flaggedSeries.value });
   }
   if (deletedSeries.value.length > 0) {
-    series.push({ name: 'Deleted', data: deletedSeries.value })
+    series.push({ name: 'Deleted', data: deletedSeries.value });
   }
-  return series
-})
+  return series;
+});
 
 const sparklineOptions = computed(() => ({
   chart: {
     type: 'area' as const,
     sparkline: { enabled: true },
-    animations: { enabled: true, easing: 'easeinout', speed: 400 }
+    animations: { enabled: true, easing: 'easeinout', speed: 400 },
   },
   stroke: { curve: 'smooth' as const, width: 2 },
   colors: [primaryColor.value, destructiveColor.value],
@@ -712,8 +728,8 @@ const sparklineOptions = computed(() => ({
       shadeIntensity: 1,
       opacityFrom: 0.45,
       opacityTo: 0.05,
-      stops: [0, 100]
-    }
+      stops: [0, 100],
+    },
   },
   tooltip: {
     enabled: true,
@@ -721,26 +737,30 @@ const sparklineOptions = computed(() => ({
     x: { show: true },
     y: {
       formatter: (val: number, opts: SparklineTooltipOpts) => {
-        const label = opts?.seriesIndex === 1 ? 'deleted' : 'flagged'
-        return `${val} ${label}`
-      }
+        const label = opts?.seriesIndex === 1 ? 'deleted' : 'flagged';
+        return `${val} ${label}`;
+      },
     },
-    theme: 'dark'
+    theme: 'dark',
   },
-  xaxis: { type: 'category' as const }
-}))
+  xaxis: { type: 'category' as const },
+}));
 
 // Re-fetch activity sparkline when time range changes
 watch(dateRange, () => {
-  fetchActivityData()
-})
+  fetchActivityData();
+});
 
 async function fetchActivityData() {
-  const since = dateRange.value === 'all' ? '30d' : dateRange.value
+  const since = dateRange.value === 'all' ? '30d' : dateRange.value;
   try {
-    const data = await api(`/api/v1/audit/activity?since=${since}`) as { timestamp: string, flagged: number, deleted: number }[]
-    flaggedSeries.value = (data || []).map(p => ({ x: p.timestamp, y: p.flagged }))
-    deletedSeries.value = (data || []).map(p => ({ x: p.timestamp, y: p.deleted }))
+    const data = (await api(`/api/v1/audit/activity?since=${since}`)) as {
+      timestamp: string;
+      flagged: number;
+      deleted: number;
+    }[];
+    flaggedSeries.value = (data || []).map((p) => ({ x: p.timestamp, y: p.flagged }));
+    deletedSeries.value = (data || []).map((p) => ({ x: p.timestamp, y: p.deleted }));
   } catch {
     // silently ignore — sparkline is a nice-to-have
   }

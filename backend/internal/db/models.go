@@ -9,12 +9,13 @@ import (
 // hash (prefixed with "sha256:") — plaintext keys are shown once on generation
 // and never stored. Legacy plaintext keys are transparently upgraded on first use.
 type AuthConfig struct {
-	ID        uint   `gorm:"primarykey"`
-	Username  string `gorm:"uniqueIndex;not null"`
-	Password  string `gorm:"not null"` // bcrypt hash
-	APIKey    string `gorm:"index"`    // SHA-256 hash (sha256:<hex>) or legacy plaintext
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID         uint   `gorm:"primarykey"`
+	Username   string `gorm:"uniqueIndex;not null"`
+	Password   string `gorm:"not null"` // bcrypt hash
+	APIKey     string `gorm:"index"`    // SHA-256 hash (sha256:<hex>) or legacy plaintext
+	APIKeyHint string // Last 4 characters of the plaintext key for identification
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }
 
 // LibraryHistory stores historical capacity logs
