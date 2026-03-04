@@ -632,16 +632,25 @@
           <UiCardContent class="pt-5 space-y-4">
             <div
               v-if="apiKey"
-              class="flex items-center gap-2"
+              class="space-y-2"
             >
-              <code class="flex-1 px-3 py-2 bg-muted rounded-lg text-sm font-mono break-all">{{ apiKey }}</code>
-              <UiButton
-                variant="outline"
-                size="sm"
-                @click="copyApiKey"
+              <div class="flex items-center gap-2">
+                <code class="flex-1 px-3 py-2 bg-muted rounded-lg text-sm font-mono break-all">{{ apiKey }}</code>
+                <UiButton
+                  v-if="!apiKey.startsWith('••')"
+                  variant="outline"
+                  size="sm"
+                  @click="copyApiKey"
+                >
+                  {{ $t('common.copy') }}
+                </UiButton>
+              </div>
+              <p
+                v-if="apiKey.startsWith('••')"
+                class="text-xs text-muted-foreground"
               >
-                {{ $t('common.copy') }}
-              </UiButton>
+                An API key exists but cannot be displayed (it is stored as a hash). Generate a new key to see it.
+              </p>
             </div>
             <div
               v-else
@@ -2123,9 +2132,12 @@ async function generateApiKey() {
 
 async function fetchApiKey() {
   try {
-    const result = await api('/api/v1/auth/apikey') as ApiKeyResponse
+    const result = await api('/api/v1/auth/apikey') as { has_key?: boolean; api_key?: string }
     if (result?.api_key) {
       apiKey.value = result.api_key
+    } else if (result?.has_key) {
+      // Key exists but is hashed — show masked placeholder
+      apiKey.value = '••••••••••••••••••••••••••••••••'
     }
   } catch {
     // Silently fail — no API key yet
