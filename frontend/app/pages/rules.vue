@@ -757,9 +757,35 @@
                       class="text-center"
                       @click.stop
                     >
+                      <!-- Snoozed: check FIRST to prevent re-queued entries from overriding active snooze -->
+                      <div
+                        v-if="isSnoozed(group.entry)"
+                        class="flex flex-col items-center gap-1"
+                      >
+                        <span class="text-xs text-muted-foreground whitespace-nowrap">
+                          💤 {{ $t('rules.snoozedUntil', { time: formatSnoozeTime(getSnoozedInfo(group.entry)!.snoozedUntil) }) }}
+                        </span>
+                        <UiButton
+                          variant="ghost"
+                          size="sm"
+                          class="h-6 px-2 text-xs"
+                          :disabled="!!approvalLoading[getSnoozedInfo(group.entry)!.id]"
+                          @click="unsnoozeItem(group.entry)"
+                        >
+                          ↩ {{ $t('rules.undoSnooze') }}
+                        </UiButton>
+                      </div>
+                      <!-- Approved/Deleting: spinner + text -->
+                      <div
+                        v-else-if="isApprovedOrDeleting(group.entry)"
+                        class="flex items-center justify-center gap-1.5"
+                      >
+                        <LoaderCircleIcon class="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+                        <span class="text-xs text-muted-foreground">{{ $t('rules.deleting') }}</span>
+                      </div>
                       <!-- Pending approval: approve/reject buttons -->
                       <div
-                        v-if="getPendingApprovalId(group.entry)"
+                        v-else-if="getPendingApprovalId(group.entry)"
                         class="flex items-center justify-center gap-1"
                       >
                         <UiButton
@@ -781,32 +807,6 @@
                           @click="rejectItem(group.entry)"
                         >
                           <XIcon class="h-4 w-4" />
-                        </UiButton>
-                      </div>
-                      <!-- Approved/Deleting: spinner + text -->
-                      <div
-                        v-else-if="isApprovedOrDeleting(group.entry)"
-                        class="flex items-center justify-center gap-1.5"
-                      >
-                        <LoaderCircleIcon class="w-3.5 h-3.5 animate-spin text-muted-foreground" />
-                        <span class="text-xs text-muted-foreground">{{ $t('rules.deleting') }}</span>
-                      </div>
-                      <!-- Snoozed: time + undo button -->
-                      <div
-                        v-else-if="isSnoozed(group.entry)"
-                        class="flex flex-col items-center gap-1"
-                      >
-                        <span class="text-xs text-muted-foreground whitespace-nowrap">
-                          {{ $t('rules.snoozedUntil', { time: formatSnoozeTime(getSnoozedInfo(group.entry)!.snoozedUntil) }) }}
-                        </span>
-                        <UiButton
-                          variant="ghost"
-                          size="sm"
-                          class="h-6 px-2 text-xs"
-                          :disabled="!!approvalLoading[getSnoozedInfo(group.entry)!.id]"
-                          @click="unsnoozeItem(group.entry)"
-                        >
-                          {{ $t('rules.undoSnooze') }}
                         </UiButton>
                       </div>
                       <span
@@ -860,9 +860,35 @@
                         class="text-center"
                         @click.stop
                       >
+                        <!-- Snoozed: check FIRST to prevent re-queued entries from overriding active snooze -->
+                        <div
+                          v-if="isSnoozed(season)"
+                          class="flex flex-col items-center gap-1"
+                        >
+                          <span class="text-xs text-muted-foreground whitespace-nowrap">
+                            💤 {{ $t('rules.snoozedUntil', { time: formatSnoozeTime(getSnoozedInfo(season)!.snoozedUntil) }) }}
+                          </span>
+                          <UiButton
+                            variant="ghost"
+                            size="sm"
+                            class="h-6 px-2 text-xs"
+                            :disabled="!!approvalLoading[getSnoozedInfo(season)!.id]"
+                            @click="unsnoozeItem(season)"
+                          >
+                            ↩ {{ $t('rules.undoSnooze') }}
+                          </UiButton>
+                        </div>
+                        <!-- Approved/Deleting: spinner + text -->
+                        <div
+                          v-else-if="isApprovedOrDeleting(season)"
+                          class="flex items-center justify-center gap-1.5"
+                        >
+                          <LoaderCircleIcon class="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+                          <span class="text-xs text-muted-foreground">{{ $t('rules.deleting') }}</span>
+                        </div>
                         <!-- Pending approval: approve/reject buttons -->
                         <div
-                          v-if="getPendingApprovalId(season)"
+                          v-else-if="getPendingApprovalId(season)"
                           class="flex items-center justify-center gap-1"
                         >
                           <UiButton
@@ -884,32 +910,6 @@
                             @click="rejectItem(season)"
                           >
                             <XIcon class="h-4 w-4" />
-                          </UiButton>
-                        </div>
-                        <!-- Approved/Deleting: spinner + text -->
-                        <div
-                          v-else-if="isApprovedOrDeleting(season)"
-                          class="flex items-center justify-center gap-1.5"
-                        >
-                          <LoaderCircleIcon class="w-3.5 h-3.5 animate-spin text-muted-foreground" />
-                          <span class="text-xs text-muted-foreground">{{ $t('rules.deleting') }}</span>
-                        </div>
-                        <!-- Snoozed: time + undo button -->
-                        <div
-                          v-else-if="isSnoozed(season)"
-                          class="flex flex-col items-center gap-1"
-                        >
-                          <span class="text-xs text-muted-foreground whitespace-nowrap">
-                            {{ $t('rules.snoozedUntil', { time: formatSnoozeTime(getSnoozedInfo(season)!.snoozedUntil) }) }}
-                          </span>
-                          <UiButton
-                            variant="ghost"
-                            size="sm"
-                            class="h-6 px-2 text-xs"
-                            :disabled="!!approvalLoading[getSnoozedInfo(season)!.id]"
-                            @click="unsnoozeItem(season)"
-                          >
-                            {{ $t('rules.undoSnooze') }}
                           </UiButton>
                         </div>
                         <span
