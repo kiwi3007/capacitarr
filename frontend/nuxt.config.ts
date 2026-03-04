@@ -136,6 +136,9 @@ export default defineNuxtConfig({
       useCookie: true,
       cookieKey: 'capacitarr-locale',
       fallbackLocale: 'en'
+    },
+    bundle: {
+      optimizeTranslationDirective: false,
     }
   }
 })
