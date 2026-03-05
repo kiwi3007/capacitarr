@@ -5,7 +5,7 @@
 ## How It Works
 
 1. **Connect your integrations** — Sonarr, Radarr, Lidarr, Readarr, Plex, Jellyfin, Emby, Tautulli, and Overseerr.
-2. **Group services by shared disk** — Capacitarr tracks capacity per disk group.
+2. **Disk groups are auto-detected** — Capacitarr tracks capacity per root folder across your integrations.
 3. **Set a threshold** — choose when cleanup should trigger (e.g., disk ≥ 85%).
 4. **Adjust preference sliders** — tell the engine what you value (watch history, file size, rating, etc.).
 5. **Add protection rules** — mark content as untouchable based on quality, tags, genre, or any other property.

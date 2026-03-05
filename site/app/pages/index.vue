@@ -249,7 +249,7 @@ observe(ctaRef, ctaVisible)
             </div>
             <p class="about-text">
               Capacitarr is free, open-source software created by <strong>Ghent Starshadow</strong>.
-              Licensed under PolyForm Noncommercial 1.0.0 + CLA. Built with Go, Nuxt 3, and SQLite.
+              Licensed under PolyForm Noncommercial 1.0.0 + CLA. Built with Go, Nuxt 4, and SQLite.
             </p>
             <div class="about-ukraine">
               <img src="/flag-ua.svg" alt="Ukrainian flag" class="ukraine-flag">

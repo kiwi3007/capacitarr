@@ -19,11 +19,11 @@ const faqs: FaqItem[] = [
   },
   {
     question: 'How is deletion priority calculated?',
-    answer: 'Capacitarr uses a weighted scoring engine with 6 dimensions: age, file size, popularity, recency, rating, and availability. You control the weight of each factor. Items with the highest cleanup scores are removed first.',
+    answer: 'Capacitarr uses a weighted scoring engine with 6 dimensions: age, file size, popularity, recency, rating, and series status. You control the weight of each factor. Items with the highest cleanup scores are removed first.',
   },
   {
     question: 'Does it work with multiple disk groups?',
-    answer: 'Yes. You can define multiple disk groups, each with their own integrations, thresholds, and targets. This is ideal for setups where movies and TV shows live on different drives.',
+    answer: 'Yes. Capacitarr automatically detects disk groups from the root folders reported by your *arr integrations. If your movies and TV shows live on different drives, they appear as separate disk groups on the dashboard — each with their own capacity tracking, thresholds, and targets.',
   },
   {
     question: 'Is there an API?',

@@ -4,7 +4,7 @@
 
 **Intelligent media library capacity manager for the *arr ecosystem.**
 
-Capacitarr integrates with your *arr apps, media servers, and request managers to automatically manage disk capacity. When disk space runs low, it scores every media item across multiple dimensions — watch history, recency, file size, ratings, age, and availability — then removes the least-valuable items first. A visual rule builder lets you protect specific content from ever being deleted.
+Capacitarr integrates with your *arr apps, media servers, and request managers to automatically manage disk capacity. When disk space runs low, it scores every media item across multiple dimensions — watch history, recency, file size, ratings, age, and series status — then removes the least-valuable items first. A visual rule builder lets you protect specific content from ever being deleted.
 
 ## Features
 

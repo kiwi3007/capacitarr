@@ -651,7 +651,7 @@ const faqItems = [
 ];
 
 const techStack = {
-  frontend: ['Vue 3', 'Nuxt 3', 'Tailwind CSS v4', 'shadcn-vue', 'ApexCharts', 'Lucide Icons'],
+  frontend: ['Vue 3', 'Nuxt 4', 'Tailwind CSS v4', 'shadcn-vue', 'ApexCharts', 'Lucide Icons'],
   backend: ['Go 1.25', 'Echo HTTP', 'GORM + SQLite', 'Goose Migrations'],
   auth: ['JWT', 'bcrypt', 'API Key', 'Plex OAuth', 'Proxy Header'],
   infrastructure: ['Docker', 'Alpine Linux'],

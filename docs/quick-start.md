@@ -53,12 +53,15 @@ Open `http://localhost:2187` in your browser. On first launch you will be prompt
 4. Enter the URL and API key for your *arr instance
 5. Test the connection and save
 
-## 5. Create a Disk Group
+## 5. Configure Disk Thresholds
 
-1. Go to **Settings** → **Disk Groups**
-2. Create a new disk group and assign your integration(s) to it
-3. Set a **threshold** — the disk usage percentage that triggers cleanup evaluation (e.g., 85%)
-4. Set a **target** — the disk usage percentage the engine tries to reach (e.g., 75%)
+Capacitarr automatically detects disk groups from the root folders reported by your *arr integrations. No manual setup is needed — disk groups appear on the Dashboard as soon as integrations are connected and the engine runs.
+
+To configure when cleanup triggers:
+
+1. Navigate to the **Rules** page → **Disk Thresholds** section
+2. Set a **threshold** — the disk usage percentage that triggers cleanup evaluation (e.g., 85%)
+3. Set a **target** — the disk usage percentage the engine tries to reach (e.g., 75%)
 
 ## 6. Tune Your Weights
 
@@ -69,7 +72,7 @@ Navigate to the **Weights** page and adjust the scoring sliders to tell Capacita
 - **Popularity** — Less popular content scores higher
 - **Recency** — Recently watched/listened content is protected
 - **Rating** — Lower rated content scores higher
-- **Availability** — Content available from more sources scores higher
+- **Series Status** — Ended shows score higher for deletion than continuing shows
 
 ## 7. Preview & Run
 
