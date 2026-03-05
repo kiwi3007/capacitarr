@@ -261,9 +261,9 @@
       <div class="space-y-2">
         <p class="text-sm font-medium text-foreground">Reset Scraped Data</p>
         <p class="text-sm text-muted-foreground">
-          Clear all audit logs, capacity history, and engine stats. Disk group thresholds and targets
-          will be preserved. Integration configurations, preferences, and custom rules are preserved.
-          Data will be re-populated on the next engine run.
+          Clear all audit logs, capacity history, and engine stats. Disk group thresholds and
+          targets will be preserved. Integration configurations, preferences, and custom rules are
+          preserved. Data will be re-populated on the next engine run.
         </p>
         <UiButton variant="destructive" :disabled="resettingData" @click="showResetDialog = true">
           {{ resettingData ? 'Clearing…' : 'Clear All Scraped Data' }}
@@ -513,7 +513,7 @@ async function fetchPreferences() {
       checkForUpdatesEnabled.value = prefs.checkForUpdates;
     }
   } catch (err) {
-    console.warn('[SettingsAdvanced] fetchPreferences failed:', err)
+    console.warn('[SettingsAdvanced] fetchPreferences failed:', err);
   }
 }
 

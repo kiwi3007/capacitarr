@@ -309,7 +309,7 @@ async function fetchApiKey() {
       if (result.hint) apiKeyHint.value = result.hint;
     }
   } catch (err) {
-    console.warn('[SettingsSecurity] fetchApiKey failed:', err)
+    console.warn('[SettingsSecurity] fetchApiKey failed:', err);
   }
 }
 

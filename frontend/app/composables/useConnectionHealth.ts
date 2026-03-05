@@ -67,7 +67,7 @@ export function useConnectionHealth() {
           onConnectionRestored();
         }
       } catch (err) {
-        console.warn('[ConnectionHealth] health poll failed:', err)
+        console.warn('[ConnectionHealth] health poll failed:', err);
       }
     }, 5000);
   }

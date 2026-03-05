@@ -18,7 +18,9 @@
               <span class="text-[10px] text-muted-foreground/50 leading-none font-mono">
                 UI v{{ uiVersion }} · API {{ apiVersion || '···' }}
               </span>
-              <span class="text-[10px] text-muted-foreground/40 leading-none italic mt-0.5 inline-flex items-center gap-1">
+              <span
+                class="text-[10px] text-muted-foreground/40 leading-none italic mt-0.5 inline-flex items-center gap-1"
+              >
                 <img
                   src="~/assets/images/serenity.svg"
                   alt=""
@@ -142,7 +144,9 @@
               <UiButton variant="ghost" size="icon" :aria-label="$t('update.title')">
                 <span class="relative">
                   <component :is="ArrowUpCircleIcon" class="w-5 h-5 text-green-500" />
-                  <span class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-green-500 ring-2 ring-background" />
+                  <span
+                    class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-green-500 ring-2 ring-background"
+                  />
                 </span>
               </UiButton>
             </UiPopoverTrigger>

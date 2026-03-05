@@ -181,7 +181,7 @@ const factors = computed<ScoreFactor[]>(() => {
         return parsed as ScoreFactor[];
       }
     } catch (err) {
-      console.warn('[ScoreBreakdown] parseScoreDetails failed:', err)
+      console.warn('[ScoreBreakdown] parseScoreDetails failed:', err);
     }
   }
   return [];

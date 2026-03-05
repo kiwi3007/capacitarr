@@ -286,7 +286,7 @@ export class PlexOAuth {
     try {
       this.popup?.close();
     } catch (err) {
-      console.warn('[PlexOAuth] closePopup failed:', err)
+      console.warn('[PlexOAuth] closePopup failed:', err);
     }
     this.popup = null;
   }

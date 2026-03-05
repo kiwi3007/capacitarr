@@ -156,10 +156,12 @@
               {{ $t('dashboard.engineActivityTitle') }} · {{ $t('dashboard.last7Days') }}
             </span>
             <span class="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-              <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: chart1Color }" /> {{ $t('dashboard.flagged') }}
+              <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: chart1Color }" />
+              {{ $t('dashboard.flagged') }}
             </span>
             <span class="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-              <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: chart2Color }" /> {{ $t('dashboard.deleted') }}
+              <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: chart2Color }" />
+              {{ $t('dashboard.deleted') }}
             </span>
           </div>
           <ClientOnly>
@@ -178,19 +180,26 @@
           class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-2"
           @click="showMiniSparklines = !showMiniSparklines"
         >
-          <component :is="showMiniSparklines ? ChevronUpIcon : ChevronDownIcon" class="w-3.5 h-3.5" />
+          <component
+            :is="showMiniSparklines ? ChevronUpIcon : ChevronDownIcon"
+            class="w-3.5 h-3.5"
+          />
           {{ showMiniSparklines ? $t('dashboard.hideDetails') : $t('dashboard.showDetails') }}
         </button>
 
         <!-- Mini sparklines: duration + freed bytes -->
-        <div v-if="showMiniSparklines && engineHistoryData.length > 0" class="grid grid-cols-2 gap-3 mb-3">
+        <div
+          v-if="showMiniSparklines && engineHistoryData.length > 0"
+          class="grid grid-cols-2 gap-3 mb-3"
+        >
           <!-- Run Duration -->
           <div class="rounded-lg bg-muted px-3 py-2">
             <div class="text-[11px] text-muted-foreground mb-0.5">
               {{ $t('dashboard.runDuration') }} · {{ $t('dashboard.last7Days') }}
             </div>
             <div class="text-[11px] text-muted-foreground/70 mb-1">
-              {{ $t('dashboard.avgDuration', { avg: avgDurationMs + 'ms' }) }} · {{ $t('dashboard.maxDuration', { max: maxDurationMs + 'ms' }) }}
+              {{ $t('dashboard.avgDuration', { avg: avgDurationMs + 'ms' }) }} ·
+              {{ $t('dashboard.maxDuration', { max: maxDurationMs + 'ms' }) }}
             </div>
             <ClientOnly>
               <apexchart
@@ -611,14 +620,16 @@ const refreshIntervalStr = ref('15000');
 const refreshInterval = computed(() => Number(refreshIntervalStr.value));
 const diskGroups = ref<DiskGroup[]>([]);
 const allIntegrations = ref<IntegrationConfig[]>([]);
-const engineHistoryData = ref<Array<{
-  timestamp: string;
-  evaluated: number;
-  flagged: number;
-  deleted: number;
-  freedBytes: number;
-  durationMs: number;
-}>>([]);
+const engineHistoryData = ref<
+  Array<{
+    timestamp: string;
+    evaluated: number;
+    flagged: number;
+    deleted: number;
+    freedBytes: number;
+    durationMs: number;
+  }>
+>([]);
 const showMiniSparklines = ref(
   typeof localStorage !== 'undefined'
     ? localStorage.getItem('capacitarr:showMiniSparklines') !== 'false'
@@ -762,7 +773,7 @@ async function fetchDashboardData(silent = false) {
     if (dStats) dashboardStats.value = dStats as DashboardStats;
     lastUpdated.value = new Date();
   } catch (err) {
-    console.warn('[Dashboard] fetchDashboardData failed:', err)
+    console.warn('[Dashboard] fetchDashboardData failed:', err);
   } finally {
     if (!silent) loading.value = false;
   }
@@ -892,7 +903,7 @@ watch(dateRange, () => {
 async function fetchEngineHistory() {
   try {
     const range = dateRange.value || '7d';
-    const data = await api(`/api/v1/engine/history?range=${range}`) as Array<{
+    const data = (await api(`/api/v1/engine/history?range=${range}`)) as Array<{
       timestamp: string;
       evaluated: number;
       flagged: number;

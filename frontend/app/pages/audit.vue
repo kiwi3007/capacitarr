@@ -406,7 +406,7 @@ async function fetchLogs(append = false) {
       total.value = data.total;
     }
   } catch (err) {
-    console.warn('[Audit] fetchLogs failed:', err)
+    console.warn('[Audit] fetchLogs failed:', err);
   } finally {
     pending.value = false;
     loadingMore.value = false;

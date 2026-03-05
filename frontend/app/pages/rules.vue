@@ -65,7 +65,7 @@ async function fetchDiskGroups() {
   try {
     diskGroups.value = (await api('/api/v1/disk-groups')) as DiskGroup[];
   } catch (err) {
-    console.warn('[Rules] fetchDiskGroups failed:', err)
+    console.warn('[Rules] fetchDiskGroups failed:', err);
   }
 }
 
@@ -109,7 +109,7 @@ async function fetchPreferences() {
       Object.assign(prefs, data);
     }
   } catch (err) {
-    console.warn('[Rules] fetchPreferences failed:', err)
+    console.warn('[Rules] fetchPreferences failed:', err);
   }
 }
 
@@ -140,7 +140,7 @@ async function fetchIntegrations() {
   try {
     allIntegrations.value = (await api('/api/v1/integrations')) as IntegrationConfig[];
   } catch (err) {
-    console.warn('[Rules] fetchIntegrations failed:', err)
+    console.warn('[Rules] fetchIntegrations failed:', err);
   }
 }
 
@@ -148,7 +148,7 @@ async function fetchRules() {
   try {
     rules.value = (await api('/api/v1/custom-rules')) as CustomRule[];
   } catch (err) {
-    console.warn('[Rules] fetchRules failed:', err)
+    console.warn('[Rules] fetchRules failed:', err);
   }
 }
 
@@ -238,7 +238,7 @@ async function fetchPreview() {
     diskContext.value = data.diskContext || null;
     previewFetchedAt.value = new Date().toISOString();
   } catch (err) {
-    console.warn('[Rules] fetchPreview failed:', err)
+    console.warn('[Rules] fetchPreview failed:', err);
   } finally {
     previewLoading.value = false;
   }

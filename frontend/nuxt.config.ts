@@ -1,19 +1,19 @@
-import { readFileSync, existsSync } from 'node:fs'
-import { resolve } from 'node:path'
-import tailwindcss from '@tailwindcss/vite'
-import pkg from './package.json'
+import { readFileSync, existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+import tailwindcss from '@tailwindcss/vite';
+import pkg from './package.json';
 
 // Parse CONTRIBUTORS.md at build time to embed contributor names
 function parseContributors(): string[] {
-  const contributorsPath = resolve(__dirname, '../CONTRIBUTORS.md')
-  if (!existsSync(contributorsPath)) return []
-  const content = readFileSync(contributorsPath, 'utf-8')
-  const names: string[] = []
+  const contributorsPath = resolve(__dirname, '../CONTRIBUTORS.md');
+  if (!existsSync(contributorsPath)) return [];
+  const content = readFileSync(contributorsPath, 'utf-8');
+  const names: string[] = [];
   // Match lines like "- **Name** ..." under any section
   for (const match of content.matchAll(/^- \*\*(.+?)\*\*/gm)) {
-    if (match[1]) names.push(match[1].trim())
+    if (match[1]) names.push(match[1].trim());
   }
-  return names
+  return names;
 }
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
@@ -29,17 +29,17 @@ export default defineNuxtConfig({
       path: '~/components/ui',
       extensions: ['.vue'],
       prefix: 'Ui',
-      pathPrefix: false
+      pathPrefix: false,
     },
     {
       path: '~/components',
       extensions: ['.vue'],
-      ignore: ['**/ui/**']
-    }
+      ignore: ['**/ui/**'],
+    },
   ],
 
   devtools: {
-    enabled: true
+    enabled: true,
   },
 
   app: {
@@ -50,18 +50,16 @@ export default defineNuxtConfig({
       script: [
         {
           innerHTML: `(function(){var t=localStorage.getItem('capacitarr-theme')||'violet';var m=localStorage.getItem('capacitarr-color-mode');document.documentElement.setAttribute('data-theme',t);if(m==='dark'||(!m&&matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark')}var s=document.createElement('div');s.id='capacitarr-splash';s.innerHTML='<div class="icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg></div><span class="label">Loading Capacitarr\\u2026</span>';document.body.prepend(s)})();`,
-          type: 'text/javascript'
-        }
+          type: 'text/javascript',
+        },
       ],
       style: [
         {
-          innerHTML: `#capacitarr-splash{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;background:var(--color-background,#0e0e14);transition:opacity .3s ease}.dark #capacitarr-splash{background:#0e0e14}#capacitarr-splash .icon{width:3rem;height:3rem;border-radius:.75rem;background:var(--color-primary,#7c3aed);display:flex;align-items:center;justify-content:center;animation:splash-pulse 1.5s ease-in-out infinite}#capacitarr-splash .icon svg{width:1.5rem;height:1.5rem;color:white}#capacitarr-splash .label{font-size:.875rem;color:var(--color-muted-foreground,#71717a);font-family:system-ui,sans-serif}@keyframes splash-pulse{0%,100%{opacity:.7;transform:scale(1)}50%{opacity:1;transform:scale(1.05)}}#capacitarr-splash.fade-out{opacity:0;pointer-events:none}`
-        }
+          innerHTML: `#capacitarr-splash{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;background:var(--color-background,#0e0e14);transition:opacity .3s ease}.dark #capacitarr-splash{background:#0e0e14}#capacitarr-splash .icon{width:3rem;height:3rem;border-radius:.75rem;background:var(--color-primary,#7c3aed);display:flex;align-items:center;justify-content:center;animation:splash-pulse 1.5s ease-in-out infinite}#capacitarr-splash .icon svg{width:1.5rem;height:1.5rem;color:white}#capacitarr-splash .label{font-size:.875rem;color:var(--color-muted-foreground,#71717a);font-family:system-ui,sans-serif}@keyframes splash-pulse{0%,100%{opacity:.7;transform:scale(1)}50%{opacity:1;transform:scale(1.05)}}#capacitarr-splash.fade-out{opacity:0;pointer-events:none}`,
+        },
       ],
-      noscript: [
-        { innerHTML: '<style>#capacitarr-splash{display:none}</style>' }
-      ]
-    }
+      noscript: [{ innerHTML: '<style>#capacitarr-splash{display:none}</style>' }],
+    },
   },
 
   css: [
@@ -72,7 +70,7 @@ export default defineNuxtConfig({
     '@fontsource/geist-mono/400.css',
     '@fontsource/geist-mono/500.css',
     '@fontsource/geist-mono/600.css',
-    '~/assets/css/main.css'
+    '~/assets/css/main.css',
   ],
 
   runtimeConfig: {
@@ -80,27 +78,27 @@ export default defineNuxtConfig({
       apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL ?? '',
       appVersion: pkg.version || '0.0.0',
       appBuildDate: new Date().toISOString(),
-      contributors: parseContributors()
-    }
+      contributors: parseContributors(),
+    },
   },
 
   routeRules: {
-    '/': { prerender: true }
+    '/': { prerender: true },
   },
 
   compatibilityDate: '2025-01-15',
 
   vite: {
-    plugins: [tailwindcss()]
+    plugins: [tailwindcss()],
   },
 
   eslint: {
     config: {
       stylistic: {
         commaDangle: 'never',
-        braceStyle: '1tbs'
-      }
-    }
+        braceStyle: '1tbs',
+      },
+    },
   },
 
   i18n: {
@@ -126,7 +124,7 @@ export default defineNuxtConfig({
       { code: 'ja', name: '日本語', file: 'ja.json' },
       { code: 'ko', name: '한국어', file: 'ko.json' },
       { code: 'zh-CN', name: '简体中文', file: 'zh-CN.json' },
-      { code: 'zh-TW', name: '繁體中文', file: 'zh-TW.json' }
+      { code: 'zh-TW', name: '繁體中文', file: 'zh-TW.json' },
     ],
     defaultLocale: 'en',
     lazy: true,
@@ -135,10 +133,10 @@ export default defineNuxtConfig({
     detectBrowserLanguage: {
       useCookie: true,
       cookieKey: 'capacitarr-locale',
-      fallbackLocale: 'en'
+      fallbackLocale: 'en',
     },
     bundle: {
       optimizeTranslationDirective: false,
-    }
-  }
-})
+    },
+  },
+});

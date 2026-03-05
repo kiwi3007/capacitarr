@@ -1,8 +1,10 @@
 package routes
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -86,23 +88,32 @@ func fetchLatestRelease(appVersion string) versionCheckResult {
 		CheckedAt: time.Now(),
 	}
 
-	client := &http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest(http.MethodGet, gitlabReleasesURL, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, gitlabReleasesURL, nil)
 	if err != nil {
 		slog.Warn("Failed to create request for version check", "component", "version", "error", err)
 		return fallback
 	}
 	req.Header.Set("User-Agent", fmt.Sprintf("Capacitarr/%s", appVersion))
 
-	resp, err := client.Do(req)
+	client := &http.Client{}
+	resp, err := client.Do(req) //nolint:gosec // G704: URL is a hardcoded constant (gitlabReleasesURL), not user-tainted
 	if err != nil {
 		slog.Warn("Failed to fetch latest release from GitLab", "component", "version", "error", err)
 		return fallback
 	}
-	defer resp.Body.Close()
+	defer func() {
+		// Drain and close the body to allow connection reuse
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Warn("GitLab releases API returned non-200 status", "component", "version", "status", resp.StatusCode)
+		slog.Warn("GitLab releases API returned non-200 status", //nolint:gosec // G706: status code is a server-side integer, not user-tainted
+			"component", "version",
+			"status", strconv.Itoa(resp.StatusCode))
 		return fallback
 	}
 

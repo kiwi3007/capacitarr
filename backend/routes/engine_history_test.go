@@ -77,7 +77,9 @@ func TestEngineHistory_DefaultRange(t *testing.T) {
 	}
 
 	var points []map[string]interface{}
-	json.Unmarshal(rec.Body.Bytes(), &points)
+	if err := json.Unmarshal(rec.Body.Bytes(), &points); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
 
 	// Only the recent one should be returned (10 days ago is outside 7d range)
 	if len(points) != 1 {

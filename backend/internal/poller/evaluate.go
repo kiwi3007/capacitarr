@@ -140,15 +140,15 @@ func evaluateAndCleanDisk(group db.DiskGroup, allItems []integrations.MediaItem,
 			client, ok := serviceClients[ev.Item.IntegrationID]
 			if ok && client != nil {
 				// Queue for background deletion so we don't block the poller
-					select {
-					case deleteQueue <- deleteJob{
-						client:     client,
-						item:       ev.Item,
-						reason:     ev.Reason,
-						score:      ev.Score,
-						factors:    ev.Factors,
-						runStatsID: runStatsID,
-					}:
+				select {
+				case deleteQueue <- deleteJob{
+					client:     client,
+					item:       ev.Item,
+					reason:     ev.Reason,
+					score:      ev.Score,
+					factors:    ev.Factors,
+					runStatsID: runStatsID,
+				}:
 					bytesFreed += ev.Item.SizeBytes
 					continue // Skip the synchronous DB insert below, worker handles it
 				default:

@@ -279,7 +279,7 @@ async function fetchPreferences() {
       ).snoozeDurationHours!;
     }
   } catch (err) {
-    console.warn('[SettingsGeneral] fetchPreferences failed:', err)
+    console.warn('[SettingsGeneral] fetchPreferences failed:', err);
   }
 }
 

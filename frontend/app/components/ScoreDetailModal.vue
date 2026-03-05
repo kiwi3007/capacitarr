@@ -239,7 +239,7 @@ const parsedFactors = computed<ScoreFactor[]>(() => {
     const parsed = JSON.parse(props.scoreDetails);
     if (Array.isArray(parsed)) return parsed as ScoreFactor[];
   } catch (err) {
-    console.warn('[ScoreDetailModal] parseFactors failed:', err)
+    console.warn('[ScoreDetailModal] parseFactors failed:', err);
   }
   return [];
 });
