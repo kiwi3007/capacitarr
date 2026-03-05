@@ -182,6 +182,20 @@ func RegisterAuditRoutes(g *echo.Group, database *gorm.DB) {
 			})
 		}
 
+		// Safety check: block approvals when deletions are disabled
+		var prefs db.PreferenceSet
+		if err := database.FirstOrCreate(&prefs, db.PreferenceSet{ID: 1}).Error; err != nil {
+			slog.Error("Failed to load preferences for approval check", "error", err)
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "Failed to load preferences",
+			})
+		}
+		if !prefs.DeletionsEnabled {
+			return c.JSON(http.StatusConflict, map[string]string{
+				"error": "Deletions are currently disabled in settings. Enable deletions before approving items.",
+			})
+		}
+
 		if entry.IntegrationID == nil {
 			return c.JSON(http.StatusBadRequest, map[string]string{
 				"error": "Audit entry has no associated integration",

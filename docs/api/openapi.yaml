@@ -1014,6 +1014,80 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /audit/{id}/approve:
+    post:
+      operationId: approveAuditEntry
+      tags: [Audit]
+      summary: Approve a queued audit entry for deletion
+      description: |
+        Approves a "Queued for Approval" audit entry, moving it to "Approved"
+        status and queuing the associated media item for background deletion.
+
+        Requires that deletions are enabled in settings. If deletions are
+        disabled, the request is rejected with a `409 Conflict` response.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Audit log entry ID
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Item approved and queued for deletion
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "approved"
+        "400":
+          description: Bad request — entry is not queued for approval, has no integration, or integration type is unsupported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Entry is not queued for approval"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Audit entry not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Audit entry not found"
+        "409":
+          description: Conflict — deletions are disabled in settings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Deletions are currently disabled in settings. Enable deletions before approving items."
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "503":
+          description: Deletion queue is full
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Deletion queue is full, try again later"
+
   # ===========================================================================
   # Data
   # ===========================================================================

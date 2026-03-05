@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-05
 **Branch:** `fix/approval-queue-safety`
-**Status:** 🔲 Not Started
+**Status:** ✅ Complete
 **Size:** S–M (30–80 lines changed)
 
 ## Problem
@@ -73,25 +73,25 @@ sequenceDiagram
 
 | # | Task | Files | Status |
 |---|------|-------|--------|
-| 1 | Add `DeletionsEnabled` check to approve endpoint; return 409 if disabled | `backend/routes/audit.go` | 🔲 |
-| 2 | Create shared `RecoverOrphanedApprovals()` function | `backend/internal/poller/orphan.go` | 🔲 |
-| 2b | Call `RecoverOrphanedApprovals()` on application startup (after DB init, before HTTP server) | `backend/main.go` | 🔲 |
-| 2c | Call `RecoverOrphanedApprovals()` at the start of each engine poll cycle (before evaluation) | `backend/internal/poller/poller.go` | 🔲 |
-| 3 | Update frontend approve handler to display the 409 error message to the user | `frontend/app/composables/useApprovalQueue.ts` | 🔲 |
-| 4 | Add test: approve returns 409 when deletions disabled | `backend/routes/audit_test.go` | 🔲 |
-| 5 | Add test: orphan recovery reverts "Approved" entries on startup | `backend/routes/audit_test.go` or `backend/main_test.go` | 🔲 |
-| 6 | Update documentation: document approval queue behavior when deletions are disabled, orphan recovery, and the 409 error | `docs/configuration.md`, `docs/api/openapi.yaml` | 🔲 |
+| 1 | Add `DeletionsEnabled` check to approve endpoint; return 409 if disabled | `backend/routes/audit.go` | ✅ |
+| 2 | Create shared `RecoverOrphanedApprovals()` function | `backend/internal/poller/orphan.go` | ✅ |
+| 2b | Call `RecoverOrphanedApprovals()` on application startup (after DB init, before HTTP server) | `backend/main.go` | ✅ |
+| 2c | Call `RecoverOrphanedApprovals()` at the start of each engine poll cycle (before evaluation) | `backend/internal/poller/poller.go` | ✅ |
+| 3 | Update frontend approve handler to display the 409 error message to the user | `frontend/app/composables/useApprovalQueue.ts` | ✅ |
+| 4 | Add test: approve returns 409 when deletions disabled | `backend/routes/audit_test.go` | ✅ |
+| 5 | Add test: orphan recovery reverts "Approved" entries on startup | `backend/routes/audit_test.go` or `backend/main_test.go` | ✅ |
+| 6 | Update documentation: document approval queue behavior when deletions are disabled, orphan recovery, and the 409 error | `docs/configuration.md`, `docs/api/openapi.yaml` | ✅ |
 
 ## Verification
 
 | # | Task | Status |
 |---|------|--------|
-| V.1 | All existing tests pass | 🔲 |
-| V.2 | New tests pass | 🔲 |
-| V.3 | Manual: approve with deletions disabled → shows error toast | 🔲 |
-| V.4 | Manual: approve with deletions enabled → works normally | 🔲 |
-| V.5 | Manual: restart container with "Approved" entries → they revert to "Queued for Approval" | 🔲 |
-| V.6 | Docker build succeeds | 🔲 |
+| V.1 | All existing tests pass | ✅ |
+| V.2 | New tests pass | ✅ |
+| V.3 | Manual: approve with deletions disabled → shows error toast | ✅ |
+| V.4 | Manual: approve with deletions enabled → works normally | ✅ |
+| V.5 | Manual: restart container with "Approved" entries → they revert to "Queued for Approval" | ✅ |
+| V.6 | Docker build succeeds | ✅ |
 
 ## Risks
 

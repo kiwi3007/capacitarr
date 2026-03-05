@@ -6,6 +6,7 @@
  * State is stored via useState so it persists across page navigations
  * and is shared between components on the same page.
  */
+import type { FetchError } from 'ofetch';
 import type { AuditResponse, AuditLog, PreviewResponse } from '~/types/api';
 import { groupEvaluatedItems } from '~/utils/groupPreview';
 
@@ -280,11 +281,17 @@ export function useApprovalQueue() {
         group.auditIds.map((id) => api(`/api/v1/audit/${id}/approve`, { method: 'POST' })),
       );
       addToast('Group approved for deletion', 'success');
-    } catch {
+    } catch (e: unknown) {
       // Revert optimistic update on failure
       approvedItems.value = approvedItems.value.filter((g) => g.key !== group.key);
       pendingItems.value = [...pendingItems.value, group];
-      addToast('Failed to approve group', 'error');
+
+      const fe = e as FetchError;
+      if (fe?.statusCode === 409) {
+        addToast(fe.data?.error || 'Approval blocked — deletions are disabled', 'error');
+      } else {
+        addToast('Failed to approve group', 'error');
+      }
     }
   }
 
@@ -344,8 +351,13 @@ export function useApprovalQueue() {
       await api(`/api/v1/audit/${auditId}/approve`, { method: 'POST' });
       addToast('Season approved for deletion', 'success');
       fetchQueue();
-    } catch {
-      addToast('Failed to approve season', 'error');
+    } catch (e: unknown) {
+      const fe = e as FetchError;
+      if (fe?.statusCode === 409) {
+        addToast(fe.data?.error || 'Approval blocked — deletions are disabled', 'error');
+      } else {
+        addToast('Failed to approve season', 'error');
+      }
     }
   }
 

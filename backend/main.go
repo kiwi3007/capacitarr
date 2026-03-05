@@ -154,6 +154,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Recover any approvals that were orphaned by a previous shutdown
+	poller.RecoverOrphanedApprovals()
+
 	// Initialize background jobs
 	pollerStop := poller.Start() // Poll interval configured via DB preferences (default 5 min)
 	cronScheduler := jobs.Start()

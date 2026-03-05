@@ -88,6 +88,9 @@ func poll() {
 	}
 	defer pollRunning.Store(false)
 
+	// Recover any approvals orphaned by a previous shutdown before evaluating
+	RecoverOrphanedApprovals()
+
 	pollStart := time.Now()
 
 	// Increment lifetime engine runs counter (atomic DB update)

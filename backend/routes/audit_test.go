@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -451,6 +452,48 @@ func TestApproveAuditEntry_NotQueued(t *testing.T) {
 
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("Expected 400 for non-queued entry, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestApproveAuditEntry_DeletionsDisabled(t *testing.T) {
+	database := testutil.SetupTestDB(t)
+	e := testutil.SetupTestServer(t, database)
+
+	auditID := seedApprovalEntry(t, database)
+
+	// Disable deletions in preferences
+	if err := database.Model(&db.PreferenceSet{}).Where("id = 1").
+		Update("deletions_enabled", false).Error; err != nil {
+		t.Fatalf("Failed to disable deletions: %v", err)
+	}
+
+	req := testutil.AuthenticatedRequest(t, http.MethodPost,
+		fmt.Sprintf("/api/audit/%d/approve", auditID), nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("Expected 409, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// Verify the response body contains the expected error message
+	var resp map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+	if msg, ok := resp["error"]; !ok {
+		t.Error("Expected 'error' key in response body")
+	} else if !strings.Contains(msg, "Deletions are currently disabled") {
+		t.Errorf("Expected error message about deletions disabled, got %q", msg)
+	}
+
+	// Verify the audit entry was NOT changed (still "Queued for Approval")
+	var entry db.AuditLog
+	if err := database.First(&entry, auditID).Error; err != nil {
+		t.Fatalf("Failed to find audit entry: %v", err)
+	}
+	if entry.Action != "Queued for Approval" {
+		t.Errorf("Expected action 'Queued for Approval' (unchanged), got %q", entry.Action)
 	}
 }
 

@@ -113,3 +113,21 @@ The `/config` directory (mapped via Docker volumes) is the **only directory that
 - **Stop the container** before copying the database to ensure consistency: `docker compose stop && cp /path/to/volume/capacitarr.db backup.db && docker compose start`
 - Alternatively, use [SQLite's `.backup` command](https://www.sqlite.org/cli.html#special_commands_to_sqlite3_dot_commands_) for online backups.
 - The database path can be customized via the `DB_PATH` environment variable.
+
+## Approval Queue
+
+When the engine mode is set to **Approval**, items that meet deletion criteria are placed in an approval queue instead of being deleted automatically. A user must explicitly approve each item before deletion proceeds.
+
+### Deletions-Disabled Safety Guard
+
+When **Deletions Enabled** is turned off in **Settings → Advanced**, approving items from the approval queue is blocked. The approve action will return an error:
+
+> Deletions are currently disabled in settings. Enable deletions before approving items.
+
+Re-enable **Deletions Enabled** in Advanced settings before approving queued items. This prevents accidental approvals while the system is in a safe/paused state.
+
+### Orphan Recovery
+
+If the container restarts while items are in the **Approved** (processing) state — meaning they were approved but not yet deleted — those items are automatically reverted to **Queued for Approval** on startup. They will reappear in the approval queue so no items are silently lost.
+
+This recovery also runs at the start of each engine poll cycle as an additional safety measure.
