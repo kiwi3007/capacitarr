@@ -81,6 +81,7 @@ type PreferenceSet struct {
 	TiebreakerMethod      string    `gorm:"default:'size_desc';not null" json:"tiebreakerMethod"` // "size_desc", "size_asc", "name_asc", "oldest_first", "newest_first"
 	DeletionsEnabled      bool      `gorm:"default:true;not null" json:"deletionsEnabled"`        // Safety guard: actual deletions only when true
 	SnoozeDurationHours   int       `gorm:"default:24;not null" json:"snoozeDurationHours"`       // Hours to snooze rejected items before re-evaluation
+	CheckForUpdates       bool      `gorm:"default:true;not null" json:"checkForUpdates"`         // Enable outbound update checks
 	UpdatedAt             time.Time `json:"updatedAt"`
 }
 

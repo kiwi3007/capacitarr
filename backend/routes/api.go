@@ -193,6 +193,9 @@ func RegisterAPIRoutes(g *echo.Group, database *gorm.DB, cfg *config.Config, app
 
 	// Data management routes (reset/clear)
 	RegisterDataRoutes(protected, database)
+
+	// Version check routes (update check with cache)
+	RegisterVersionRoutes(protected, database, appVersion)
 }
 
 func handleDashboardStats(database *gorm.DB) echo.HandlerFunc {
