@@ -2,15 +2,16 @@ package poller
 
 import (
 	"log/slog"
+	"time"
 
 	"capacitarr/internal/db"
 )
 
-// RecoverOrphanedApprovals reverts any audit log entries stuck in "Approved"
-// status back to "Queued for Approval". This handles the case where a user
-// approved an item but the deletion worker never processed it (e.g. the
-// server restarted before the deletion queue was drained). Called on startup
-// and at the beginning of each poll cycle.
+// RecoverOrphanedApprovals reverts any approval queue entries stuck in "approved"
+// status back to "pending". This handles the case where a user approved an item
+// but the deletion worker never processed it (e.g. the server restarted before
+// the deletion queue was drained). Called on startup and at the beginning of
+// each poll cycle.
 func RecoverOrphanedApprovals() {
 	type orphan struct {
 		ID        uint
@@ -18,7 +19,7 @@ func RecoverOrphanedApprovals() {
 	}
 
 	var orphans []orphan
-	if err := db.DB.Raw("SELECT id, media_name FROM audit_logs WHERE action = ?", db.ActionApproved).Scan(&orphans).Error; err != nil {
+	if err := db.DB.Raw("SELECT id, media_name FROM approval_queue WHERE status = ?", db.StatusApproved).Scan(&orphans).Error; err != nil {
 		slog.Error("Failed to query orphaned approvals", "component", "poller", "operation", "recover_orphans", "error", err)
 		return
 	}
@@ -35,7 +36,12 @@ func RecoverOrphanedApprovals() {
 		)
 	}
 
-	if err := db.DB.Exec("UPDATE audit_logs SET action = ? WHERE action = ?", db.ActionQueuedForApproval, db.ActionApproved).Error; err != nil {
+	if err := db.DB.Model(&db.ApprovalQueueItem{}).
+		Where("status = ?", db.StatusApproved).
+		Updates(map[string]interface{}{
+			"status":     db.StatusPending,
+			"updated_at": time.Now().UTC(),
+		}).Error; err != nil {
 		slog.Error("Failed to revert orphaned approvals", "component", "poller", "operation", "recover_orphans", "error", err)
 		return
 	}

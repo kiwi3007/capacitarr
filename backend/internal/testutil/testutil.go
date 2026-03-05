@@ -119,6 +119,7 @@ func SetupTestServer(t *testing.T, database *gorm.DB) *echo.Echo {
 	routes.RegisterIntegrationRoutes(protected, database)
 	routes.RegisterRuleRoutes(protected, database)
 	routes.RegisterAuditRoutes(protected, database)
+	routes.RegisterApprovalRoutes(protected, database)
 	routes.RegisterActivityRoutes(protected, database)
 	routes.RegisterEngineHistoryRoutes(protected, database)
 	routes.RegisterDataRoutes(protected, database)

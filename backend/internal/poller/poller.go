@@ -140,7 +140,7 @@ func poll() {
 	// Prune old audit logs
 	if prefs.AuditLogRetentionDays > 0 {
 		cutoff := time.Now().AddDate(0, 0, -prefs.AuditLogRetentionDays)
-		if err := db.DB.Where("created_at < ?", cutoff).Delete(&db.AuditLog{}).Error; err != nil {
+		if err := db.DB.Where("created_at < ?", cutoff).Delete(&db.AuditLogEntry{}).Error; err != nil {
 			slog.Error("Failed to prune old audit logs", "component", "poller", "operation", "prune_audit_logs", "error", err)
 		}
 	}

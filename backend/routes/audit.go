@@ -1,9 +1,7 @@
 package routes
 
 import (
-	"encoding/json"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,26 +11,24 @@ import (
 	"gorm.io/gorm"
 
 	"capacitarr/internal/db"
-	"capacitarr/internal/engine"
-	"capacitarr/internal/integrations"
-	"capacitarr/internal/poller"
 )
 
-// RegisterAuditRoutes sets up the API endpoints for audit logs
+// RegisterAuditRoutes sets up the API endpoints for the audit log (history-only).
+// Approval queue endpoints are in approval.go.
 func RegisterAuditRoutes(g *echo.Group, database *gorm.DB) {
 	// Recent audit: lightweight list of the most recent N entries (for dashboard mini-feed)
-	g.GET("/audit/recent", func(c echo.Context) error {
+	g.GET("/audit-log/recent", func(c echo.Context) error {
 		limit := 5
 		if l := c.QueryParam("limit"); l != "" {
 			if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
 				limit = parsed
 			}
 		}
-		if limit > 50 {
-			limit = 50
+		if limit > 100 {
+			limit = 100
 		}
 
-		logs := make([]db.AuditLog, 0, limit)
+		logs := make([]db.AuditLogEntry, 0, limit)
 		if err := database.Order("created_at desc").Limit(limit).Find(&logs).Error; err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch recent audit logs"})
 		}
@@ -41,7 +37,7 @@ func RegisterAuditRoutes(g *echo.Group, database *gorm.DB) {
 	})
 
 	// Grouped audit: show-level and season-level entries grouped into a tree
-	g.GET("/audit/grouped", func(c echo.Context) error {
+	g.GET("/audit-log/grouped", func(c echo.Context) error {
 		limit := 200
 		if l := c.QueryParam("limit"); l != "" {
 			if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
@@ -52,28 +48,26 @@ func RegisterAuditRoutes(g *echo.Group, database *gorm.DB) {
 			limit = 2000
 		}
 
-		logs := make([]db.AuditLog, 0)
+		logs := make([]db.AuditLogEntry, 0)
 		if err := database.Order("created_at desc").Limit(limit).Find(&logs).Error; err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch audit logs"})
 		}
 
 		// Group by show title for TV content (seasons/episodes)
 		type AuditGroup struct {
-			ShowTitle string        `json:"showTitle"`
-			Children  []db.AuditLog `json:"children"`
-			// Summary fields
-			TotalSize int64  `json:"totalSize"`
-			Action    string `json:"action"`
-			CreatedAt string `json:"createdAt"`
+			ShowTitle string             `json:"showTitle"`
+			Children  []db.AuditLogEntry `json:"children"`
+			TotalSize int64              `json:"totalSize"`
+			Action    string             `json:"action"`
+			CreatedAt string             `json:"createdAt"`
 		}
 
 		groups := make(map[string]*AuditGroup)
-		standalone := make([]db.AuditLog, 0)
+		standalone := make([]db.AuditLogEntry, 0)
 		var orderedGroupKeys []string
 
 		for _, log := range logs {
 			if log.MediaType == "season" || log.MediaType == "episode" {
-				// Extract show title: "Show - Season X" → "Show"
 				showTitle := log.MediaName
 				if idx := strings.Index(log.MediaName, " - Season"); idx > 0 {
 					showTitle = log.MediaName[:idx]
@@ -87,7 +81,7 @@ func RegisterAuditRoutes(g *echo.Group, database *gorm.DB) {
 				} else {
 					groups[showTitle] = &AuditGroup{
 						ShowTitle: showTitle,
-						Children:  []db.AuditLog{log},
+						Children:  []db.AuditLogEntry{log},
 						TotalSize: log.SizeBytes,
 						Action:    log.Action,
 						CreatedAt: log.CreatedAt.Format(time.RFC3339),
@@ -99,11 +93,10 @@ func RegisterAuditRoutes(g *echo.Group, database *gorm.DB) {
 			}
 		}
 
-		// Build result: interleave groups and standalone items by time
 		type GroupedResult struct {
-			Type  string       `json:"type"` // "group" or "single"
-			Group *AuditGroup  `json:"group,omitempty"`
-			Entry *db.AuditLog `json:"entry,omitempty"`
+			Type  string            `json:"type"`
+			Group *AuditGroup       `json:"group,omitempty"`
+			Entry *db.AuditLogEntry `json:"entry,omitempty"`
 		}
 
 		result := make([]GroupedResult, 0, len(orderedGroupKeys)+len(standalone))
@@ -119,14 +112,14 @@ func RegisterAuditRoutes(g *echo.Group, database *gorm.DB) {
 		return c.JSON(http.StatusOK, result)
 	})
 
-	g.GET("/audit", func(c echo.Context) error {
+	// Paginated audit log with search and sort
+	g.GET("/audit-log", func(c echo.Context) error {
 		limit := 50
 		if l := c.QueryParam("limit"); l != "" {
 			if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
 				limit = parsed
 			}
 		}
-		// Cap limit to prevent excessively large queries
 		if limit > 1000 {
 			limit = 1000
 		}
@@ -138,8 +131,7 @@ func RegisterAuditRoutes(g *echo.Group, database *gorm.DB) {
 			}
 		}
 
-		// Build query with optional search and action filters
-		query := database.Model(&db.AuditLog{})
+		query := database.Model(&db.AuditLogEntry{})
 
 		if search := strings.TrimSpace(c.QueryParam("search")); search != "" {
 			query = query.Where("media_name LIKE ?", "%"+search+"%")
@@ -149,7 +141,6 @@ func RegisterAuditRoutes(g *echo.Group, database *gorm.DB) {
 			query = query.Where("action = ?", action)
 		}
 
-		// Sorting: whitelist allowed columns to prevent SQL injection
 		allowedSortColumns := map[string]string{
 			"created_at": "created_at",
 			"media_name": "media_name",
@@ -168,13 +159,11 @@ func RegisterAuditRoutes(g *echo.Group, database *gorm.DB) {
 		}
 		orderClause := sortBy + " " + sortDir
 
-		logs := make([]db.AuditLog, 0)
+		logs := make([]db.AuditLogEntry, 0)
 		var total int64
 
-		// Get total count with filters applied
 		query.Count(&total)
 
-		// Get paginated logs with requested sort order
 		if err := query.Order(orderClause).Limit(limit).Offset(offset).Find(&logs).Error; err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch audit logs"})
 		}
@@ -187,159 +176,15 @@ func RegisterAuditRoutes(g *echo.Group, database *gorm.DB) {
 		})
 	})
 
-	// Approve a queued-for-approval audit entry: queue the item for deletion
-	g.POST("/audit/:id/approve", func(c echo.Context) error {
-		id := c.Param("id")
-
-		var entry db.AuditLog
-		if err := database.First(&entry, id).Error; err != nil {
-			return c.JSON(http.StatusNotFound, map[string]string{"error": "Audit entry not found"})
-		}
-
-		if entry.Action != db.ActionQueuedForApproval {
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Entry is not queued for approval",
-			})
-		}
-
-		// Safety check: block approvals when deletions are disabled
-		var prefs db.PreferenceSet
-		if err := database.FirstOrCreate(&prefs, db.PreferenceSet{ID: 1}).Error; err != nil {
-			slog.Error("Failed to load preferences for approval check", "error", err)
-			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": "Failed to load preferences",
-			})
-		}
-		if !prefs.DeletionsEnabled {
-			return c.JSON(http.StatusConflict, map[string]string{
-				"error": "Deletions are currently disabled in settings. Enable deletions before approving items.",
-			})
-		}
-
-		if entry.IntegrationID == nil {
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Audit entry has no associated integration",
-			})
-		}
-
-		// Look up the integration to construct a client
-		var integration db.IntegrationConfig
-		if err := database.First(&integration, *entry.IntegrationID).Error; err != nil {
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Integration not found",
-			})
-		}
-
-		client := poller.CreateClient(integration.Type, integration.URL, integration.APIKey)
-		if client == nil {
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Unsupported integration type",
-			})
-		}
-
-		// Reconstruct the MediaItem from stored audit data
-		item := integrations.MediaItem{
-			ExternalID:    entry.ExternalID,
-			IntegrationID: *entry.IntegrationID,
-			Type:          integrations.MediaType(entry.MediaType),
-			Title:         entry.MediaName,
-			SizeBytes:     entry.SizeBytes,
-		}
-
-		// Parse stored score details back into factors
-		var factors []engine.ScoreFactor
-		if entry.ScoreDetails != "" {
-			if err := json.Unmarshal([]byte(entry.ScoreDetails), &factors); err != nil {
-				slog.Warn("Failed to parse score details for approval", "id", entry.ID, "error", err)
-			}
-		}
-
-		// Queue for background deletion
-		if err := poller.QueueDeletion(client, item, entry.Reason, 0, factors, 0); err != nil {
-			return c.JSON(http.StatusServiceUnavailable, map[string]string{
-				"error": "Deletion queue is full, try again later",
-			})
-		}
-
-		// Update audit entry to "Approved"
-		if err := database.Model(&entry).Update("action", db.ActionApproved).Error; err != nil {
-			slog.Error("Failed to update audit entry to Approved", "id", entry.ID, "error", err)
-			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": "Failed to update audit entry",
-			})
-		}
-
-		db.LogActivity(database, db.EventApprovalApproved, fmt.Sprintf("Approved: %s", entry.MediaName))
-
-		return c.JSON(http.StatusOK, map[string]string{"status": "approved"})
+	// Legacy endpoints (redirect to new paths for backward compatibility)
+	g.GET("/audit/recent", func(c echo.Context) error {
+		return c.Redirect(http.StatusMovedPermanently, "/api/audit-log/recent?"+c.QueryString())
 	})
-
-	// Reject a queued-for-approval audit entry and snooze it
-	g.POST("/audit/:id/reject", func(c echo.Context) error {
-		id := c.Param("id")
-
-		var entry db.AuditLog
-		if err := database.First(&entry, id).Error; err != nil {
-			return c.JSON(http.StatusNotFound, map[string]string{"error": "Audit entry not found"})
-		}
-
-		if entry.Action != db.ActionQueuedForApproval {
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Entry is not queued for approval",
-			})
-		}
-
-		// Load preferences to get configured snooze duration
-		var prefs db.PreferenceSet
-		if err := database.FirstOrCreate(&prefs, db.PreferenceSet{ID: 1}).Error; err != nil {
-			slog.Error("Failed to load preferences for snooze duration", "error", err)
-			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": "Failed to load preferences",
-			})
-		}
-
-		snoozedUntil := time.Now().UTC().Add(time.Duration(prefs.SnoozeDurationHours) * time.Hour)
-
-		if err := database.Model(&entry).Updates(map[string]interface{}{
-			"action":        db.ActionRejected,
-			"snoozed_until": snoozedUntil,
-		}).Error; err != nil {
-			slog.Error("Failed to update audit entry to Rejected", "id", entry.ID, "error", err)
-			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": "Failed to update audit entry",
-			})
-		}
-
-		db.LogActivity(database, db.EventApprovalRejected, fmt.Sprintf("Rejected: %s", entry.MediaName))
-
-		return c.JSON(http.StatusOK, map[string]string{"status": "rejected"})
+	g.GET("/audit/grouped", func(c echo.Context) error {
+		return c.Redirect(http.StatusMovedPermanently, "/api/audit-log/grouped?"+c.QueryString())
 	})
-
-	// Unsnooze a snoozed audit entry: clear snooze and reset to Pending
-	g.POST("/audit/:id/unsnooze", func(c echo.Context) error {
-		id := c.Param("id")
-
-		var entry db.AuditLog
-		if err := database.First(&entry, id).Error; err != nil {
-			return c.JSON(http.StatusNotFound, map[string]string{"error": "Audit entry not found"})
-		}
-
-		if err := database.Model(&entry).Updates(map[string]interface{}{
-			"snoozed_until": nil,
-			"action":        db.ActionQueuedForApproval,
-		}).Error; err != nil {
-			slog.Error("Failed to unsnooze audit entry", "id", entry.ID, "error", err)
-			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": "Failed to unsnooze audit entry",
-			})
-		}
-
-		// Reload the updated entry
-		if err := database.First(&entry, id).Error; err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to reload audit entry"})
-		}
-
-		return c.JSON(http.StatusOK, entry)
+	g.GET("/audit", func(c echo.Context) error {
+		return c.Redirect(http.StatusMovedPermanently, "/api/audit-log?"+c.QueryString())
 	})
 }
 

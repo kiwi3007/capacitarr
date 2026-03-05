@@ -34,9 +34,16 @@ func evaluateAndCleanDisk(group db.DiskGroup, allItems []integrations.MediaItem,
 			"threshold", group.ThresholdPct)
 
 		// Auto-clear all active snoozes when below threshold — gives a clean slate
-		// for the next cleanup cycle.
-		if err := db.DB.Exec("UPDATE audit_logs SET snoozed_until = NULL WHERE snoozed_until IS NOT NULL").Error; err != nil {
-			slog.Error("Failed to clear active snoozes", "component", "poller", "error", err)
+		// for the next cleanup cycle. Resets rejected items back to pending.
+		result := db.DB.Model(&db.ApprovalQueueItem{}).
+			Where("status = ? AND snoozed_until IS NOT NULL", db.StatusRejected).
+			Updates(map[string]interface{}{
+				"status":        db.StatusPending,
+				"snoozed_until": nil,
+				"updated_at":    time.Now().UTC(),
+			})
+		if result.Error != nil {
+			slog.Error("Failed to clear active snoozes", "component", "poller", "error", result.Error)
 		}
 
 		return
@@ -135,7 +142,6 @@ func evaluateAndCleanDisk(group db.DiskGroup, allItems []integrations.MediaItem,
 			"media", ev.Item.Title, "score", fmt.Sprintf("%.4f", ev.Score),
 			"size", ev.Item.SizeBytes, "reason", ev.Reason)
 
-		actionName := db.ActionDryRun
 		if prefs.ExecutionMode == "auto" {
 			client, ok := serviceClients[ev.Item.IntegrationID]
 			if ok && client != nil {
@@ -161,83 +167,92 @@ func evaluateAndCleanDisk(group db.DiskGroup, allItems []integrations.MediaItem,
 				continue
 			}
 		} else if prefs.ExecutionMode == "approval" {
-			actionName = db.ActionQueuedForApproval
-
 			// Skip items that are currently snoozed (rejected with an active snooze window)
 			var snoozedCount int64
-			db.DB.Model(&db.AuditLog{}).Where(
-				"media_name = ? AND media_type = ? AND snoozed_until IS NOT NULL AND snoozed_until > ?",
-				ev.Item.Title, string(ev.Item.Type), time.Now().UTC(),
+			db.DB.Model(&db.ApprovalQueueItem{}).Where(
+				"media_name = ? AND media_type = ? AND status = ? AND snoozed_until IS NOT NULL AND snoozed_until > ?",
+				ev.Item.Title, string(ev.Item.Type), db.StatusRejected, time.Now().UTC(),
 			).Count(&snoozedCount)
 			if snoozedCount > 0 {
 				slog.Debug("Skipping snoozed item", "component", "poller", "media", ev.Item.Title)
 				continue
 			}
+
+			// Upsert into approval_queue: create or update pending items
+			factorsJSON, _ := json.Marshal(ev.Factors) //nolint:errcheck
+			var existing db.ApprovalQueueItem
+			result := db.DB.Where(
+				"media_name = ? AND media_type = ? AND status = ?",
+				ev.Item.Title, string(ev.Item.Type), db.StatusPending,
+			).First(&existing)
+			if result.Error == nil {
+				// Update existing pending entry
+				db.DB.Model(&existing).Updates(map[string]interface{}{
+					"reason":         fmt.Sprintf("Score: %.2f (%s)", ev.Score, ev.Reason),
+					"score_details":  string(factorsJSON),
+					"size_bytes":     ev.Item.SizeBytes,
+					"integration_id": ev.Item.IntegrationID,
+					"external_id":    ev.Item.ExternalID,
+					"updated_at":     time.Now().UTC(),
+				})
+			} else {
+				// Create new pending entry
+				db.DB.Create(&db.ApprovalQueueItem{
+					MediaName:     ev.Item.Title,
+					MediaType:     string(ev.Item.Type),
+					Reason:        fmt.Sprintf("Score: %.2f (%s)", ev.Score, ev.Reason),
+					ScoreDetails:  string(factorsJSON),
+					SizeBytes:     ev.Item.SizeBytes,
+					IntegrationID: ev.Item.IntegrationID,
+					ExternalID:    ev.Item.ExternalID,
+					Status:        db.StatusPending,
+					CreatedAt:     time.Now().UTC(),
+					UpdatedAt:     time.Now().UTC(),
+				})
+			}
+
+			bytesFreed += ev.Item.SizeBytes
+			atomic.AddInt64(&lastRunFlagged, 1)
+			slog.Info("Engine action taken", "component", "poller",
+				"media", ev.Item.Title, "action", "queued_for_approval", "score", ev.Score, "freed", ev.Item.SizeBytes)
+			continue
 		}
 
-		factorsJSON, _ := json.Marshal(ev.Factors) //nolint:errcheck // marshal of known-safe struct
+		// Dry-run mode: write to audit_log table
+		factorsJSON, _ := json.Marshal(ev.Factors) //nolint:errcheck
 		integrationID := ev.Item.IntegrationID
-		logEntry := db.AuditLog{
+		logEntry := db.AuditLogEntry{
 			MediaName:     ev.Item.Title,
 			MediaType:     string(ev.Item.Type),
 			Reason:        fmt.Sprintf("Score: %.2f (%s)", ev.Score, ev.Reason),
 			ScoreDetails:  string(factorsJSON),
-			Action:        actionName,
+			Action:        db.ActionDryRun,
 			SizeBytes:     ev.Item.SizeBytes,
 			IntegrationID: &integrationID,
-			ExternalID:    ev.Item.ExternalID,
-			CreatedAt:     time.Now(),
+			CreatedAt:     time.Now().UTC(),
 		}
 
-		// Dedup logic varies by action type.
-		switch actionName {
-		case db.ActionDryRun:
-			// Dry-run dedup: upsert instead of creating duplicates. Each media item
-			// appears only once in the audit log; timestamp reflects the most recent evaluation.
-			var existing db.AuditLog
-			result := db.DB.Where(
-				"media_name = ? AND media_type = ? AND action = ?",
-				ev.Item.Title, string(ev.Item.Type), db.ActionDryRun,
-			).First(&existing)
-			if result.Error == nil {
-				db.DB.Model(&existing).Updates(map[string]interface{}{
-					"reason":        logEntry.Reason,
-					"score_details": logEntry.ScoreDetails,
-					"size_bytes":    logEntry.SizeBytes,
-					"created_at":    logEntry.CreatedAt,
-				})
-			} else {
-				db.DB.Create(&logEntry)
-			}
-		case db.ActionQueuedForApproval:
-			// Approval dedup: upsert like Dry-Run to prevent accumulation across engine runs.
-			// Only touches entries still in "Queued for Approval" state — approved/rejected/
-			// snoozed entries keep their state because the WHERE clause won't match them.
-			var existing db.AuditLog
-			result := db.DB.Where(
-				"media_name = ? AND media_type = ? AND action = ?",
-				ev.Item.Title, string(ev.Item.Type), db.ActionQueuedForApproval,
-			).First(&existing)
-			if result.Error == nil {
-				db.DB.Model(&existing).Updates(map[string]interface{}{
-					"reason":         logEntry.Reason,
-					"score_details":  logEntry.ScoreDetails,
-					"size_bytes":     logEntry.SizeBytes,
-					"created_at":     logEntry.CreatedAt,
-					"external_id":    logEntry.ExternalID,
-					"integration_id": logEntry.IntegrationID,
-				})
-			} else {
-				db.DB.Create(&logEntry)
-			}
-		default:
-			// Auto mode always creates new entries (real deletions)
+		// Dry-run dedup: upsert instead of creating duplicates
+		var existing db.AuditLogEntry
+		result := db.DB.Where(
+			"media_name = ? AND media_type = ? AND action = ?",
+			ev.Item.Title, string(ev.Item.Type), db.ActionDryRun,
+		).First(&existing)
+		if result.Error == nil {
+			db.DB.Model(&existing).Updates(map[string]interface{}{
+				"reason":         logEntry.Reason,
+				"score_details":  logEntry.ScoreDetails,
+				"size_bytes":     logEntry.SizeBytes,
+				"integration_id": logEntry.IntegrationID,
+				"created_at":     logEntry.CreatedAt,
+			})
+		} else {
 			db.DB.Create(&logEntry)
 		}
 
 		bytesFreed += ev.Item.SizeBytes
 		atomic.AddInt64(&lastRunFlagged, 1)
 		slog.Info("Engine action taken", "component", "poller",
-			"media", ev.Item.Title, "action", actionName, "score", ev.Score, "freed", ev.Item.SizeBytes)
+			"media", ev.Item.Title, "action", db.ActionDryRun, "score", ev.Score, "freed", ev.Item.SizeBytes)
 	}
 }

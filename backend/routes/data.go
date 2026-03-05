@@ -19,13 +19,21 @@ func handleDataReset(database *gorm.DB) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		summary := map[string]int64{}
 
-		// 1. Delete all audit_logs
-		res := database.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&db.AuditLog{})
+		// 1. Delete all audit_log entries
+		res := database.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&db.AuditLogEntry{})
 		if res.Error != nil {
 			slog.Error("Failed to clear audit logs", "component", "api", "operation", "clear_audit_logs", "error", res.Error)
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to clear audit logs"})
 		}
-		summary["auditLogs"] = res.RowsAffected
+		summary["auditLog"] = res.RowsAffected
+
+		// 1b. Delete all approval_queue entries
+		res = database.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&db.ApprovalQueueItem{})
+		if res.Error != nil {
+			slog.Error("Failed to clear approval queue", "component", "api", "operation", "clear_approval_queue", "error", res.Error)
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to clear approval queue"})
+		}
+		summary["approvalQueue"] = res.RowsAffected
 
 		// 2. Delete all library_histories
 		res = database.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&db.LibraryHistory{})

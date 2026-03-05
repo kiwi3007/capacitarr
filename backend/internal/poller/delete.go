@@ -99,15 +99,15 @@ func deletionWorker() {
 			currentlyDeletingVal.Store("")
 			atomic.AddInt64(&metricsProcessed, 1)
 
-			logEntry := db.AuditLog{
-				MediaName:    job.item.Title,
-				MediaType:    string(job.item.Type),
-				Reason:       fmt.Sprintf("Score: %.2f (%s)", job.score, job.reason),
-				ScoreDetails: string(factorsJSON),
-				Action:       "Dry-Delete",
-				SizeBytes:    job.item.SizeBytes,
-				CreatedAt:    time.Now(),
-			}
+		logEntry := db.AuditLogEntry{
+			MediaName:    job.item.Title,
+			MediaType:    string(job.item.Type),
+			Reason:       fmt.Sprintf("Score: %.2f (%s)", job.score, job.reason),
+			ScoreDetails: string(factorsJSON),
+			Action:       db.ActionDryDelete,
+			SizeBytes:    job.item.SizeBytes,
+			CreatedAt:    time.Now().UTC(),
+		}
 			if err := db.DB.Create(&logEntry).Error; err != nil {
 				slog.Error("Failed to create audit log entry", "component", "poller", "operation", "create_audit_log", "error", err)
 			}
@@ -159,14 +159,14 @@ func deletionWorker() {
 				"total_items_removed":   gorm.Expr("total_items_removed + ?", 1),
 			})
 
-		logEntry := db.AuditLog{
+		logEntry := db.AuditLogEntry{
 			MediaName:    job.item.Title,
 			MediaType:    string(job.item.Type),
 			Reason:       fmt.Sprintf("Score: %.2f (%s)", job.score, job.reason),
 			ScoreDetails: string(factorsJSON),
-			Action:       "Deleted",
+			Action:       db.ActionDeleted,
 			SizeBytes:    job.item.SizeBytes,
-			CreatedAt:    time.Now(),
+			CreatedAt:    time.Now().UTC(),
 		}
 		if err := db.DB.Create(&logEntry).Error; err != nil {
 			slog.Error("Failed to create audit log entry", "component", "poller", "operation", "create_audit_log", "error", err)

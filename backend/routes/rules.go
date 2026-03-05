@@ -93,33 +93,16 @@ func RegisterRuleRoutes(protected *echo.Group, database *gorm.DB) {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Field, Operator, and Value are required"})
 		}
 
-		// New payload: require effect field
-		if newRule.Effect != "" { //nolint:gocritic // branches test different payload shapes
-			validEffects := map[string]bool{
-				"always_keep": true, "prefer_keep": true, "lean_keep": true,
-				"lean_remove": true, "prefer_remove": true, "always_remove": true,
-			}
-			if !validEffects[newRule.Effect] {
-				return c.JSON(http.StatusBadRequest, map[string]string{"error": "Effect must be one of: always_keep, prefer_keep, lean_keep, lean_remove, prefer_remove, always_remove"})
-			}
-		} else if newRule.Type != "" && newRule.Intensity != "" {
-			// Legacy payload: type + intensity — auto-populate effect
-			switch {
-			case newRule.Type == "protect" && newRule.Intensity == "absolute":
-				newRule.Effect = "always_keep"
-			case newRule.Type == "protect" && newRule.Intensity == "strong":
-				newRule.Effect = "prefer_keep"
-			case newRule.Type == "protect":
-				newRule.Effect = "lean_keep"
-			case newRule.Type == "target" && newRule.Intensity == "absolute":
-				newRule.Effect = "always_remove"
-			case newRule.Type == "target" && newRule.Intensity == "strong":
-				newRule.Effect = "prefer_remove"
-			case newRule.Type == "target":
-				newRule.Effect = "lean_remove"
-			}
-		} else {
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Either 'effect' or both 'type' and 'intensity' are required"})
+		// Require effect field
+		validEffects := map[string]bool{
+			"always_keep": true, "prefer_keep": true, "lean_keep": true,
+			"lean_remove": true, "prefer_remove": true, "always_remove": true,
+		}
+		if newRule.Effect == "" {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Effect field is required"})
+		}
+		if !validEffects[newRule.Effect] {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Effect must be one of: always_keep, prefer_keep, lean_keep, lean_remove, prefer_remove, always_remove"})
 		}
 
 		if err := database.Create(&newRule).Error; err != nil {
