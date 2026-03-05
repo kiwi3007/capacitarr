@@ -338,6 +338,28 @@ export function useApprovalQueue() {
     }
   }
 
+  /** Approve a single season by its audit ID, then refresh the queue */
+  async function approveSeason(auditId: number) {
+    try {
+      await api(`/api/v1/audit/${auditId}/approve`, { method: 'POST' });
+      addToast('Season approved for deletion', 'success');
+      fetchQueue();
+    } catch {
+      addToast('Failed to approve season', 'error');
+    }
+  }
+
+  /** Snooze a single season by its audit ID, then refresh the queue */
+  async function snoozeSeason(auditId: number) {
+    try {
+      await api(`/api/v1/audit/${auditId}/reject`, { method: 'POST' });
+      addToast('Season snoozed', 'info');
+      fetchQueue();
+    } catch {
+      addToast('Failed to snooze season', 'error');
+    }
+  }
+
   return {
     // State
     pendingItems: readonly(pendingItems),
@@ -351,5 +373,7 @@ export function useApprovalQueue() {
     approveGroup,
     rejectGroup,
     unsnoozeGroup,
+    approveSeason,
+    snoozeSeason,
   };
 }

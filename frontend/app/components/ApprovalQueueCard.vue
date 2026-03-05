@@ -20,6 +20,8 @@ const {
   approveGroup,
   rejectGroup,
   unsnoozeGroup,
+  approveSeason,
+  snoozeSeason,
 } = useApprovalQueue();
 
 const totalCount = computed(
@@ -425,18 +427,41 @@ onUnmounted(() => {
                     @click="showSeasonDetail(season)"
                     >{{ season.title }}</span
                   >
-                  <span
-                    class="text-muted-foreground shrink-0 cursor-pointer"
-                    @click="showSeasonDetail(season)"
-                    >{{ formatBytes(season.sizeBytes) }}</span
-                  >
-                  <!-- Season-level checkbox -->
-                  <input
-                    type="checkbox"
-                    :checked="selectedKeys.has(seasonKey(group.key, season.title))"
-                    class="h-3.5 w-3.5 rounded border-border text-primary accent-primary shrink-0 cursor-pointer"
-                    @click.stop="toggleSelect(seasonKey(group.key, season.title))"
-                  />
+                  <!-- Size (right-aligned before action icons) -->
+                  <span class="text-muted-foreground shrink-0 tabular-nums">{{
+                    formatBytes(season.sizeBytes)
+                  }}</span>
+                  <!-- Season-level actions -->
+                  <div class="flex items-center gap-1 shrink-0">
+                    <UiButton
+                      v-if="season.auditId !== null"
+                      variant="ghost"
+                      size="sm"
+                      class="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-100 dark:hover:bg-green-900/30"
+                      :aria-label="t('approval.approve')"
+                      @click.stop="approveSeason(season.auditId!)"
+                    >
+                      <CheckIcon class="h-3.5 w-3.5" />
+                    </UiButton>
+                    <UiButton
+                      v-if="season.auditId !== null"
+                      variant="ghost"
+                      size="sm"
+                      class="h-6 w-6 p-0 text-amber-500 hover:text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+                      :aria-label="t('approval.snooze')"
+                      :title="t('approval.snooze')"
+                      @click.stop="snoozeSeason(season.auditId!)"
+                    >
+                      <AlarmClockIcon class="h-3.5 w-3.5" />
+                    </UiButton>
+                    <!-- Season-level checkbox -->
+                    <input
+                      type="checkbox"
+                      :checked="selectedKeys.has(seasonKey(group.key, season.title))"
+                      class="h-3.5 w-3.5 rounded border-border text-primary accent-primary shrink-0 cursor-pointer"
+                      @click.stop="toggleSelect(seasonKey(group.key, season.title))"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
