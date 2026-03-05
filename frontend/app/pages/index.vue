@@ -223,7 +223,7 @@
             <UiScrollArea
               v-if="recentActivity.length > 0"
               class="flex-1 pr-3"
-              style="height: 160px"
+              style="height: 70px"
             >
               <div
                 v-for="entry in recentActivity"
@@ -1050,7 +1050,7 @@ async function fetchEngineHistory() {
 
 async function fetchRecentActivity() {
   try {
-    const data = (await api('/api/v1/activity/recent?limit=10')) as ActivityEvent[];
+    const data = (await api('/api/v1/activity/recent?limit=25')) as ActivityEvent[];
     recentActivity.value = data || [];
   } catch (err) {
     console.warn('[Dashboard] fetchRecentActivity failed:', err);
