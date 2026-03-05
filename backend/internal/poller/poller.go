@@ -100,7 +100,6 @@ func poll() {
 	// Reset per-run counters at the start of each poll cycle
 	atomic.StoreInt64(&lastRunEvaluated, 0)
 	atomic.StoreInt64(&lastRunFlagged, 0)
-	atomic.StoreInt64(&lastRunFreedBytes, 0)
 	atomic.StoreInt64(&lastRunProtected, 0)
 
 	var configs []db.IntegrationConfig
@@ -214,11 +213,13 @@ func poll() {
 		}
 	}
 
-	// Update engine run stats with final counters
+	// Update engine run stats with final counters.
+	// Note: freed_bytes is NOT set here — it is incremented by the deletion worker
+	// after each successful DeleteMediaItem() call, ensuring it only reflects actual
+	// bytes freed (not flagged/queued bytes that were never deleted).
 	db.DB.Model(&db.EngineRunStats{}).Where("id = ?", runStats.ID).Updates(map[string]interface{}{
 		"evaluated":   int(atomic.LoadInt64(&lastRunEvaluated)),
 		"flagged":     int(atomic.LoadInt64(&lastRunFlagged)),
-		"freed_bytes": atomic.LoadInt64(&lastRunFreedBytes),
 		"duration_ms": time.Since(pollStart).Milliseconds(),
 	})
 

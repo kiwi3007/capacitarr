@@ -141,10 +141,15 @@ func deletionWorker() {
 		currentlyDeletingVal.Store("")
 		atomic.AddInt64(&metricsProcessed, 1)
 
-		// Increment deleted counter on the engine run stats row
+		// Increment deleted counter and freed bytes on the engine run stats row.
+		// freed_bytes is only counted here (after successful deletion), not during
+		// evaluation — this ensures it reflects actual space freed, not flagged bytes.
 		if job.runStatsID > 0 {
 			db.DB.Model(&db.EngineRunStats{}).Where("id = ?", job.runStatsID).
-				UpdateColumn("deleted", gorm.Expr("deleted + ?", 1))
+				UpdateColumns(map[string]interface{}{
+					"deleted":     gorm.Expr("deleted + ?", 1),
+					"freed_bytes": gorm.Expr("freed_bytes + ?", job.item.SizeBytes),
+				})
 		}
 
 		// Increment lifetime stats (atomic DB update, not for dry-runs)

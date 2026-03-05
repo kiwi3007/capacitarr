@@ -135,7 +135,7 @@ func evaluateAndCleanDisk(group db.DiskGroup, allItems []integrations.MediaItem,
 			"media", ev.Item.Title, "score", fmt.Sprintf("%.4f", ev.Score),
 			"size", ev.Item.SizeBytes, "reason", ev.Reason)
 
-		actionName := "Dry-Run"
+		actionName := db.ActionDryRun
 		if prefs.ExecutionMode == "auto" {
 			client, ok := serviceClients[ev.Item.IntegrationID]
 			if ok && client != nil {
@@ -161,7 +161,7 @@ func evaluateAndCleanDisk(group db.DiskGroup, allItems []integrations.MediaItem,
 				continue
 			}
 		} else if prefs.ExecutionMode == "approval" {
-			actionName = "Queued for Approval"
+			actionName = db.ActionQueuedForApproval
 
 			// Skip items that are currently snoozed (rejected with an active snooze window)
 			var snoozedCount int64
@@ -191,13 +191,13 @@ func evaluateAndCleanDisk(group db.DiskGroup, allItems []integrations.MediaItem,
 
 		// Dedup logic varies by action type.
 		switch actionName {
-		case "Dry-Run":
+		case db.ActionDryRun:
 			// Dry-run dedup: upsert instead of creating duplicates. Each media item
 			// appears only once in the audit log; timestamp reflects the most recent evaluation.
 			var existing db.AuditLog
 			result := db.DB.Where(
 				"media_name = ? AND media_type = ? AND action = ?",
-				ev.Item.Title, string(ev.Item.Type), "Dry-Run",
+				ev.Item.Title, string(ev.Item.Type), db.ActionDryRun,
 			).First(&existing)
 			if result.Error == nil {
 				db.DB.Model(&existing).Updates(map[string]interface{}{
@@ -209,14 +209,14 @@ func evaluateAndCleanDisk(group db.DiskGroup, allItems []integrations.MediaItem,
 			} else {
 				db.DB.Create(&logEntry)
 			}
-		case "Queued for Approval":
+		case db.ActionQueuedForApproval:
 			// Approval dedup: upsert like Dry-Run to prevent accumulation across engine runs.
 			// Only touches entries still in "Queued for Approval" state — approved/rejected/
 			// snoozed entries keep their state because the WHERE clause won't match them.
 			var existing db.AuditLog
 			result := db.DB.Where(
 				"media_name = ? AND media_type = ? AND action = ?",
-				ev.Item.Title, string(ev.Item.Type), "Queued for Approval",
+				ev.Item.Title, string(ev.Item.Type), db.ActionQueuedForApproval,
 			).First(&existing)
 			if result.Error == nil {
 				db.DB.Model(&existing).Updates(map[string]interface{}{
@@ -237,7 +237,6 @@ func evaluateAndCleanDisk(group db.DiskGroup, allItems []integrations.MediaItem,
 
 		bytesFreed += ev.Item.SizeBytes
 		atomic.AddInt64(&lastRunFlagged, 1)
-		atomic.AddInt64(&lastRunFreedBytes, ev.Item.SizeBytes)
 		slog.Info("Engine action taken", "component", "poller",
 			"media", ev.Item.Title, "action", actionName, "score", ev.Score, "freed", ev.Item.SizeBytes)
 	}

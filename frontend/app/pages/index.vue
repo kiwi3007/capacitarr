@@ -781,13 +781,34 @@ async function fetchDashboardData(silent = false) {
 
 // --- Sparkline: engine history (flagged + deleted per engine run) ---
 
-const flaggedSeries = computed(() =>
-  engineHistoryData.value.map((p) => ({ x: new Date(p.timestamp).getTime(), y: p.flagged })),
-);
+// Bucket data points into hourly groups, summing values within each hour.
+// This reduces dense per-run data (hundreds of points) into a smaller set of
+// points that produce visually meaningful curves with visible gradient fill.
+function bucketHourly(
+  data: Array<{ timestamp: string }>,
+  valueKey: string,
+): Array<{ x: number; y: number }> {
+  const buckets = new Map<number, { ts: number; sum: number }>();
+  for (const point of data) {
+    const ts = new Date(point.timestamp).getTime();
+    const hourKey = Math.floor(ts / 3_600_000);
+    const existing = buckets.get(hourKey);
+    const value = (point as Record<string, unknown>)[valueKey] as number;
+    if (existing) {
+      existing.sum += value;
+    } else {
+      // Use the midpoint of the hour as the representative timestamp
+      buckets.set(hourKey, { ts: hourKey * 3_600_000 + 1_800_000, sum: value });
+    }
+  }
+  return Array.from(buckets.values())
+    .sort((a, b) => a.ts - b.ts)
+    .map((b) => ({ x: b.ts, y: b.sum }));
+}
 
-const deletedSeries = computed(() =>
-  engineHistoryData.value.map((p) => ({ x: new Date(p.timestamp).getTime(), y: p.deleted })),
-);
+const flaggedSeries = computed(() => bucketHourly(engineHistoryData.value, 'flagged'));
+
+const deletedSeries = computed(() => bucketHourly(engineHistoryData.value, 'deleted'));
 
 const sparklineSeries = computed(() => {
   const series = [];
@@ -861,17 +882,16 @@ const durationSparklineSeries = computed(() => [
   },
 ]);
 
+// Freed bytes: bucketed hourly (same as main sparkline) for visual clarity
 const freedSparklineSeries = computed(() => [
   {
     name: 'Freed',
-    data: engineHistoryData.value.map((p) => ({
-      x: new Date(p.timestamp).getTime(),
-      y: p.freedBytes,
-    })),
+    data: bucketHourly(engineHistoryData.value, 'freedBytes'),
   },
 ]);
 
-function miniSparklineOptions(color: string) {
+// Base sparkline chart options shared by both mini sparklines
+function miniSparklineBase(color: string) {
   return {
     chart: {
       type: 'area' as const,
@@ -889,17 +909,31 @@ function miniSparklineOptions(color: string) {
         stops: [0, 100],
       },
     },
-    tooltip: {
-      enabled: true,
-      x: { show: true, format: 'MMM dd, yyyy HH:mm' },
-      theme: 'dark',
-    },
     xaxis: { type: 'datetime' as const, labels: { datetimeUTC: false } },
   };
 }
 
-const durationSparklineOptions = computed(() => miniSparklineOptions(successColor.value));
-const freedSparklineOptions = computed(() => miniSparklineOptions(chart3Color.value));
+// Duration sparkline: tooltip shows milliseconds
+const durationSparklineOptions = computed(() => ({
+  ...miniSparklineBase(successColor.value),
+  tooltip: {
+    enabled: true,
+    x: { show: true, format: 'MMM dd, yyyy HH:mm' },
+    y: { formatter: (val: number) => `${val}ms` },
+    theme: 'dark',
+  },
+}));
+
+// Freed bytes sparkline: tooltip shows formatted bytes
+const freedSparklineOptions = computed(() => ({
+  ...miniSparklineBase(chart3Color.value),
+  tooltip: {
+    enabled: true,
+    x: { show: true, format: 'MMM dd, yyyy HH:mm' },
+    y: { formatter: (val: number) => formatBytes(val) },
+    theme: 'dark',
+  },
+}));
 
 // Re-fetch engine history when time range changes
 watch(dateRange, () => {

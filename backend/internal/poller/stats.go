@@ -10,10 +10,9 @@ import (
 // Per-run metrics (reset each engine evaluation cycle, read by GetWorkerMetrics
 // for real-time "currently running" feedback while the poll is in progress)
 var (
-	lastRunEvaluated  int64
-	lastRunFlagged    int64
-	lastRunFreedBytes int64
-	lastRunProtected  int64
+	lastRunEvaluated int64
+	lastRunFlagged   int64
+	lastRunProtected int64
 )
 
 // GetWorkerMetrics returns the current state of the backend deletion worker.
@@ -54,7 +53,9 @@ func GetWorkerMetrics() map[string]interface{} {
 		Select("COALESCE(SUM(evaluated), 0) as total_evaluated, COALESCE(SUM(flagged), 0) as total_flagged, COALESCE(SUM(freed_bytes), 0) as total_freed").
 		Scan(&totals)
 
-	// If a poll is currently running, prefer the live in-memory atomics for real-time feedback
+	// If a poll is currently running, prefer the live in-memory atomics for real-time feedback.
+	// Note: freedBytes always comes from the DB — it is only incremented by the deletion
+	// worker after successful deletions, not during evaluation.
 	lastRunEval := int64(lastRun.Evaluated)
 	lastRunFlag := int64(lastRun.Flagged)
 	lastRunFreed := lastRun.FreedBytes
@@ -62,7 +63,6 @@ func GetWorkerMetrics() map[string]interface{} {
 	if pollRunning.Load() {
 		lastRunEval = atomic.LoadInt64(&lastRunEvaluated)
 		lastRunFlag = atomic.LoadInt64(&lastRunFlagged)
-		lastRunFreed = atomic.LoadInt64(&lastRunFreedBytes)
 		lastRunEpochVal = time.Now().Unix()
 	}
 
