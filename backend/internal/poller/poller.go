@@ -117,6 +117,15 @@ func poll() {
 		return
 	}
 
+	// Create engine run stats row (zeroed counters, will be updated after evaluation)
+	runStats := db.EngineRunStats{
+		RunAt:         pollStart,
+		ExecutionMode: prefs.ExecutionMode,
+	}
+	if err := db.DB.Create(&runStats).Error; err != nil {
+		slog.Error("Failed to create engine run stats", "component", "poller", "operation", "create_stats", "error", err)
+	}
+
 	slog.Debug("Poll cycle starting", "component", "poller",
 		"enabledIntegrations", len(configs),
 		"pollInterval", prefs.PollIntervalSeconds,
@@ -183,7 +192,7 @@ func poll() {
 		}
 
 		// Evaluate and trigger cleanup if threshold breached
-		evaluateAndCleanDisk(group, fetched.allItems, fetched.serviceClients)
+		evaluateAndCleanDisk(group, fetched.allItems, fetched.serviceClients, runStats.ID)
 	}
 
 	// Clean up orphaned disk groups that are no longer media mounts
@@ -202,18 +211,13 @@ func poll() {
 		}
 	}
 
-	// Persist engine run stats to DB so they survive container restarts
-	runStats := db.EngineRunStats{
-		RunAt:         pollStart,
-		Evaluated:     int(atomic.LoadInt64(&lastRunEvaluated)),
-		Flagged:       int(atomic.LoadInt64(&lastRunFlagged)),
-		FreedBytes:    atomic.LoadInt64(&lastRunFreedBytes),
-		ExecutionMode: prefs.ExecutionMode,
-		DurationMs:    time.Since(pollStart).Milliseconds(),
-	}
-	if err := db.DB.Create(&runStats).Error; err != nil {
-		slog.Error("Failed to persist engine run stats", "component", "poller", "operation", "persist_stats", "error", err)
-	}
+	// Update engine run stats with final counters
+	db.DB.Model(&db.EngineRunStats{}).Where("id = ?", runStats.ID).Updates(map[string]interface{}{
+		"evaluated":   int(atomic.LoadInt64(&lastRunEvaluated)),
+		"flagged":     int(atomic.LoadInt64(&lastRunFlagged)),
+		"freed_bytes": atomic.LoadInt64(&lastRunFreedBytes),
+		"duration_ms": time.Since(pollStart).Milliseconds(),
+	})
 
 	// Notify: engine cycle complete
 	evaluated := atomic.LoadInt64(&lastRunEvaluated)

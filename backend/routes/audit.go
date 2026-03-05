@@ -270,7 +270,7 @@ func RegisterAuditRoutes(g *echo.Group, database *gorm.DB) {
 		}
 
 		// Queue for background deletion
-		if err := poller.QueueDeletion(client, item, entry.Reason, 0, factors); err != nil {
+		if err := poller.QueueDeletion(client, item, entry.Reason, 0, factors, 0); err != nil {
 			return c.JSON(http.StatusServiceUnavailable, map[string]string{
 				"error": "Deletion queue is full, try again later",
 			})

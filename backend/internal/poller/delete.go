@@ -19,25 +19,27 @@ import (
 )
 
 type deleteJob struct {
-	client  integrations.Integration
-	item    integrations.MediaItem
-	reason  string
-	score   float64
-	factors []engine.ScoreFactor
+	client     integrations.Integration
+	item       integrations.MediaItem
+	reason     string
+	score      float64
+	factors    []engine.ScoreFactor
+	runStatsID uint // Engine run stats row to increment Deleted counter
 }
 
 var deleteQueue = make(chan deleteJob, 500)
 
 // QueueDeletion enqueues a media item for background deletion. Returns an error
 // if the queue is full. Used by the approval route to process approved items.
-func QueueDeletion(client integrations.Integration, item integrations.MediaItem, reason string, score float64, factors []engine.ScoreFactor) error {
+func QueueDeletion(client integrations.Integration, item integrations.MediaItem, reason string, score float64, factors []engine.ScoreFactor, runStatsID uint) error {
 	select {
 	case deleteQueue <- deleteJob{
-		client:  client,
-		item:    item,
-		reason:  reason,
-		score:   score,
-		factors: factors,
+		client:     client,
+		item:       item,
+		reason:     reason,
+		score:      score,
+		factors:    factors,
+		runStatsID: runStatsID,
 	}:
 		return nil
 	default:
@@ -138,6 +140,12 @@ func deletionWorker() {
 
 		currentlyDeletingVal.Store("")
 		atomic.AddInt64(&metricsProcessed, 1)
+
+		// Increment deleted counter on the engine run stats row
+		if job.runStatsID > 0 {
+			db.DB.Model(&db.EngineRunStats{}).Where("id = ?", job.runStatsID).
+				UpdateColumn("deleted", gorm.Expr("deleted + ?", 1))
+		}
 
 		// Increment lifetime stats (atomic DB update, not for dry-runs)
 		db.DB.Model(&db.LifetimeStats{}).Where("id = 1").
