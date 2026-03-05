@@ -1,6 +1,6 @@
 # Service Layer, Event Bus, and Real-Time Activity
 
-**Status:** 📋 Planned
+**Status:** 🚧 In Progress (Phases 0–4, 8 complete; Phases 5–7, 9–16 remaining)
 **Created:** 2026-03-05T18:55Z
 **Scope:** Full-stack architectural refactor (Go backend + Vue frontend)
 **Branch:** `feature/service-layer-event-bus` (created from `main`)
@@ -246,7 +246,7 @@ The `id` field enables replay on reconnection via the `Last-Event-ID` header.
 
 ## Phases
 
-### Phase 0: Fresh Database Schema
+### Phase 0: Fresh Database Schema ✅
 
 **Goal:** Start from a clean slate. Delete all 18 incremental migrations and write a single new `00001_baseline.sql` that defines the complete schema from scratch. No migration path from the old database — this is a new major version.
 
@@ -358,7 +358,7 @@ Delete all 18 migration files. Write a single `00001_baseline.sql` that creates 
 | New: `ApprovalQueueItem` | `Status` (`pending`/`approved`/`rejected`), `SnoozedUntil`, `IntegrationID` (required `uint`), `ExternalID`, `UpdatedAt` |
 | `CustomRule` | Remove deprecated `Type` and `Intensity` fields |
 
-### Phase 1: Event Bus and Typed Events
+### Phase 1: Event Bus and Typed Events ✅
 
 **Goal:** Create the event bus infrastructure and define all typed event structs.
 
@@ -393,7 +393,7 @@ Remove dead: `EventEnginePaused`, `EventEngineResumed`
 **Tests:**
 - `backend/internal/events/bus_test.go` — pub/sub, fan-out, buffer overflow, unsubscribe
 
-### Phase 2: Activity Persister (Subscriber)
+### Phase 2: Activity Persister (Subscriber) ✅
 
 **Goal:** Replace all `db.LogActivity()` / `db.LogActivityWithMetadata()` calls with an event bus subscriber that writes to the `activity_events` table.
 
@@ -410,7 +410,7 @@ Remove dead: `EventEnginePaused`, `EventEngineResumed`
 **Tests:**
 - `backend/internal/events/activity_persister_test.go` — verify events become DB rows
 
-### Phase 3: Service Layer — Core Services
+### Phase 3: Service Layer — Core Services ✅
 
 **Goal:** Extract business logic from route handlers into injectable services.
 
@@ -506,7 +506,7 @@ func (s *EngineService) GetStats() map[string]interface{}
 - `backend/internal/services/auditlog_test.go`
 - `backend/internal/services/engine_test.go`
 
-### Phase 4: Service Layer — Secondary Services
+### Phase 4: Service Layer — Secondary Services ✅
 
 #### 4a. SettingsService
 
@@ -693,7 +693,7 @@ type Registry struct {
 - Package-level `deleteQueue`, `RunNowCh`, atomic counters (move to services)
 - `init()` goroutine in `delete.go`
 
-### Phase 8: SSE Endpoint (Backend)
+### Phase 8: SSE Endpoint (Backend) ✅
 
 **New files:**
 - `backend/internal/events/sse_broadcaster.go` — subscribes to bus, manages SSE client connections
