@@ -188,6 +188,9 @@ func RegisterAPIRoutes(g *echo.Group, database *gorm.DB, cfg *config.Config, app
 	// Audit routes
 	RegisterAuditRoutes(protected, database)
 
+	// Engine history routes
+	RegisterEngineHistoryRoutes(protected, database)
+
 	// Notification routes (channels CRUD + in-app notifications)
 	RegisterNotificationRoutes(protected, database)
 

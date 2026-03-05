@@ -467,6 +467,41 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /engine/history:
+    get:
+      operationId: getEngineHistory
+      tags: [Engine]
+      summary: Get engine run history
+      description: |
+        Returns historical engine run statistics within the specified time range.
+        Each point represents one engine evaluation cycle with metrics for
+        evaluated, flagged, deleted counts, freed bytes, and duration.
+      parameters:
+        - name: range
+          in: query
+          description: |
+            Time range for history. Supports shorthand like `1h`, `6h`, `24h`,
+            `7d`, `30d`.
+          schema:
+            type: string
+            default: "7d"
+            example: "7d"
+      responses:
+        "200":
+          description: Array of engine history data points
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EngineHistoryPoint"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   # ===========================================================================
   # Integrations
   # ===========================================================================
@@ -943,41 +978,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuditResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-
-  /audit/activity:
-    get:
-      operationId: getAuditActivity
-      tags: [Audit]
-      summary: Get activity summary
-      description: |
-        Returns audit log counts grouped by time buckets, split by
-        flagged (Dry-Run) and deleted actions. Bucket size auto-adjusts
-        based on the time range.
-      parameters:
-        - name: since
-          in: query
-          description: |
-            Time range for the activity summary. Supports shorthand like
-            `1h`, `6h`, `24h`, `7d`, `30d`.
-          schema:
-            type: string
-            default: "24h"
-            example: "24h"
-      responses:
-        "200":
-          description: Activity data points
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/ActivityPoint"
-        "400":
-          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "500":
@@ -2030,22 +2030,37 @@ components:
           example: 0
       required: [data, total, limit, offset]
 
-    ActivityPoint:
+    EngineHistoryPoint:
       type: object
       properties:
         timestamp:
           type: string
-          description: Bucket timestamp (YYYY-MM-DD HH:MM format)
-          example: "2026-03-01 14:00"
+          format: date-time
+          description: When the engine run occurred
+          example: "2026-03-01T14:00:00Z"
+        evaluated:
+          type: integer
+          description: Number of media items evaluated
+          example: 120
         flagged:
           type: integer
-          description: Count of Dry-Run actions in this bucket
-          example: 5
+          description: Number of items flagged for deletion
+          example: 8
         deleted:
           type: integer
-          description: Count of Deleted actions in this bucket
-          example: 2
-      required: [timestamp, flagged, deleted]
+          description: Number of items actually deleted
+          example: 5
+        freedBytes:
+          type: integer
+          format: int64
+          description: Total bytes freed by deletions
+          example: 2000000000
+        durationMs:
+          type: integer
+          format: int64
+          description: Engine run duration in milliseconds
+          example: 320
+      required: [timestamp, evaluated, flagged, deleted, freedBytes, durationMs]
 
     GroupedAuditResult:
       type: object

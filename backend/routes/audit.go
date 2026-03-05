@@ -20,55 +20,6 @@ import (
 
 // RegisterAuditRoutes sets up the API endpoints for audit logs
 func RegisterAuditRoutes(g *echo.Group, database *gorm.DB) {
-	// Activity sparkline: audit log counts grouped by time buckets, split by flagged/deleted
-	g.GET("/audit/activity", func(c echo.Context) error {
-		since := c.QueryParam("since")
-		if since == "" {
-			since = "24h"
-		}
-
-		dur, err := parseDuration(since)
-		if err != nil {
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid since parameter"})
-		}
-
-		cutoff := time.Now().UTC().Add(-dur).Format("2006-01-02 15:04:05")
-
-		// Auto-adjust bucket size based on time range
-		bucketMinutes := bucketMinutesForDuration(dur)
-
-		type BucketRow struct {
-			Bucket  string `json:"bucket"`
-			Flagged int    `json:"flagged"`
-			Deleted int    `json:"deleted"`
-		}
-
-		var rows []BucketRow
-		query := fmt.Sprintf(
-			`SELECT strftime('%%Y-%%m-%%d %%H:', created_at) || printf('%%02d', (CAST(strftime('%%M', created_at) AS INTEGER) / %d) * %d) AS bucket,
-			 SUM(CASE WHEN action = 'Dry-Run' THEN 1 ELSE 0 END) AS flagged,
-			 SUM(CASE WHEN action = 'Deleted' THEN 1 ELSE 0 END) AS deleted
-			 FROM audit_logs WHERE created_at >= ? GROUP BY bucket ORDER BY bucket`,
-			bucketMinutes, bucketMinutes,
-		)
-		if err := database.Raw(query, cutoff).Scan(&rows).Error; err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to query activity"})
-		}
-
-		type ActivityPoint struct {
-			Timestamp string `json:"timestamp"`
-			Flagged   int    `json:"flagged"`
-			Deleted   int    `json:"deleted"`
-		}
-
-		result := make([]ActivityPoint, len(rows))
-		for i, r := range rows {
-			result[i] = ActivityPoint{Timestamp: r.Bucket, Flagged: r.Flagged, Deleted: r.Deleted}
-		}
-
-		return c.JSON(http.StatusOK, result)
-	})
-
 	// Grouped audit: show-level and season-level entries grouped into a tree
 	g.GET("/audit/grouped", func(c echo.Context) error {
 		limit := 200
@@ -352,22 +303,6 @@ func RegisterAuditRoutes(g *echo.Group, database *gorm.DB) {
 
 		return c.JSON(http.StatusOK, entry)
 	})
-}
-
-// bucketMinutesForDuration returns the grouping bucket size in minutes based on the time range.
-func bucketMinutesForDuration(d time.Duration) int {
-	switch {
-	case d <= 1*time.Hour:
-		return 5
-	case d <= 6*time.Hour:
-		return 15
-	case d <= 24*time.Hour:
-		return 15
-	case d <= 7*24*time.Hour:
-		return 60
-	default:
-		return 360 // 6 hours
-	}
 }
 
 // parseDuration parses shorthand duration strings like "1h", "24h", "7d", "30d".
