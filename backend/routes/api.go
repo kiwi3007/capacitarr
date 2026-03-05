@@ -218,12 +218,18 @@ func handleDashboardStats(database *gorm.DB) echo.HandlerFunc {
 		hasGrowthData := false
 
 		cutoff := time.Now().Add(-7 * 24 * time.Hour)
-		// Most recent entry
-		if err := database.Where("resolution = ?", "raw").
-			Order("timestamp DESC").First(&recent).Error; err == nil {
-			// Entry closest to 7 days ago
-			if err := database.Where("resolution = ? AND timestamp <= ?", "raw", cutoff).
-				Order("timestamp DESC").First(&weekAgo).Error; err == nil {
+		// Use Find+Limit instead of First to avoid GORM logging "record not found" —
+		// having no library history is expected on fresh installs or after data resets.
+		var recentRows []db.LibraryHistory
+		database.Where("resolution = ?", "raw").
+			Order("timestamp DESC").Limit(1).Find(&recentRows)
+		if len(recentRows) > 0 {
+			recent = recentRows[0]
+			var weekAgoRows []db.LibraryHistory
+			database.Where("resolution = ? AND timestamp <= ?", "raw", cutoff).
+				Order("timestamp DESC").Limit(1).Find(&weekAgoRows)
+			if len(weekAgoRows) > 0 {
+				weekAgo = weekAgoRows[0]
 				growthBytes = recent.UsedCapacity - weekAgo.UsedCapacity
 				hasGrowthData = true
 			}

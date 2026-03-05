@@ -34,9 +34,15 @@ func GetWorkerMetrics() map[string]interface{} {
 		currentlyDeletion = v.(string)
 	}
 
-	// Read the latest persisted engine run stats from DB
+	// Read the latest persisted engine run stats from DB.
+	// Use Find+Limit instead of First to avoid GORM logging "record not found" —
+	// having no engine run stats is expected on fresh installs or after data resets.
+	var lastRuns []db.EngineRunStats
+	db.DB.Order("run_at DESC").Limit(1).Find(&lastRuns)
 	var lastRun db.EngineRunStats
-	db.DB.Order("run_at DESC").First(&lastRun)
+	if len(lastRuns) > 0 {
+		lastRun = lastRuns[0]
+	}
 
 	// Compute cumulative totals from all persisted runs
 	var totals struct {
