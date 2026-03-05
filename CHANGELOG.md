@@ -1,3 +1,15 @@
+## [1.0.0-rc.5] - 2026-03-05
+
+### 🚀 Features
+
+- *(navbar)* Always-visible update icon with breathing animation ([b0c0980](https://gitlab.com/starshadow/software/capacitarr/-/commit/b0c0980d5794371688fd531fb708724c017a02ad))
+
+### 🐛 Bug Fixes
+
+- *(test)* Resolve flaky test failures in routes package ([14d3e08](https://gitlab.com/starshadow/software/capacitarr/-/commit/14d3e0827a3fcec725f5eeb9794bd03471bf3c92))
+- *(dashboard)* Shrink activity scroll area to match sparkline height ([65ebcfa](https://gitlab.com/starshadow/software/capacitarr/-/commit/65ebcfa388900ba9ba83093717d59e3c36135e64))
+- *(dashboard)* Constrain activity scroll area height properly ([18f6579](https://gitlab.com/starshadow/software/capacitarr/-/commit/18f6579cc0f92fdb530f8d9428a82a1075d11088))
+- *(plex)* Use getRandomValues for UUID in non-secure contexts ([d281d5a](https://gitlab.com/starshadow/software/capacitarr/-/commit/d281d5a74e4a0d69a88f49a0ca18b889cf8be47e)) — reported by @wulfe ([#1](https://gitlab.com/starshadow/software/capacitarr/-/issues/1))
 ## [1.0.0-rc.4] - 2026-03-05
 
 ### 🚀 Features
