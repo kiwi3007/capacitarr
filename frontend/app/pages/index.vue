@@ -153,13 +153,13 @@
         <div v-if="flaggedSeries.length > 0 || deletedSeries.length > 0" class="mb-3">
           <div class="flex items-center gap-3 mb-1">
             <span class="text-[11px] text-muted-foreground/70">
-              {{ $t('dashboard.engineActivity') }} · {{ dateRangeLabel }}
+              {{ $t('dashboard.engineActivityTitle') }} · {{ $t('dashboard.last7Days') }}
             </span>
             <span class="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-              <span class="w-2 h-2 rounded-full bg-primary" /> {{ $t('dashboard.flagged') }}
+              <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: chart1Color }" /> {{ $t('dashboard.flagged') }}
             </span>
             <span class="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-              <span class="w-2 h-2 rounded-full bg-destructive" /> {{ $t('dashboard.deleted') }}
+              <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: chart2Color }" /> {{ $t('dashboard.deleted') }}
             </span>
           </div>
           <ClientOnly>
@@ -170,6 +170,55 @@
               :series="sparklineSeries"
             />
           </ClientOnly>
+        </div>
+
+        <!-- Toggle for mini sparklines -->
+        <button
+          v-if="engineHistoryData.length > 0"
+          class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-2"
+          @click="showMiniSparklines = !showMiniSparklines"
+        >
+          <component :is="showMiniSparklines ? ChevronUpIcon : ChevronDownIcon" class="w-3.5 h-3.5" />
+          {{ showMiniSparklines ? $t('dashboard.hideDetails') : $t('dashboard.showDetails') }}
+        </button>
+
+        <!-- Mini sparklines: duration + freed bytes -->
+        <div v-if="showMiniSparklines && engineHistoryData.length > 0" class="grid grid-cols-2 gap-3 mb-3">
+          <!-- Run Duration -->
+          <div class="rounded-lg bg-muted px-3 py-2">
+            <div class="text-[11px] text-muted-foreground mb-0.5">
+              {{ $t('dashboard.runDuration') }} · {{ $t('dashboard.last7Days') }}
+            </div>
+            <div class="text-[11px] text-muted-foreground/70 mb-1">
+              {{ $t('dashboard.avgDuration', { avg: avgDurationMs + 'ms' }) }} · {{ $t('dashboard.maxDuration', { max: maxDurationMs + 'ms' }) }}
+            </div>
+            <ClientOnly>
+              <apexchart
+                type="area"
+                height="70"
+                :options="durationSparklineOptions"
+                :series="durationSparklineSeries"
+              />
+            </ClientOnly>
+          </div>
+
+          <!-- Space Freed -->
+          <div class="rounded-lg bg-muted px-3 py-2">
+            <div class="text-[11px] text-muted-foreground mb-0.5">
+              {{ $t('dashboard.spaceFreed') }} · {{ $t('dashboard.last7Days') }}
+            </div>
+            <div class="text-[11px] text-muted-foreground/70 mb-1">
+              {{ $t('dashboard.totalFreed', { total: formatBytes(totalFreedBytes) }) }}
+            </div>
+            <ClientOnly>
+              <apexchart
+                type="area"
+                height="70"
+                :options="freedSparklineOptions"
+                :series="freedSparklineSeries"
+              />
+            </ClientOnly>
+          </div>
         </div>
 
         <!-- Stats row: 3 compact boxes -->
@@ -489,6 +538,8 @@ import {
   Trash2Icon,
   ShieldCheckIcon,
   TrendingUpIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
 } from 'lucide-vue-next';
 import { formatBytes } from '~/utils/format';
 import type {
@@ -500,7 +551,7 @@ import type {
 
 const { t } = useI18n();
 const api = useApi();
-const { primaryColor, destructiveColor } = useThemeColors();
+const { chart1Color, chart2Color, chart3Color, chart4Color } = useThemeColors();
 
 // Use shared engine control composable for isRunning detection + toast on completion
 const {
@@ -560,8 +611,24 @@ const refreshIntervalStr = ref('15000');
 const refreshInterval = computed(() => Number(refreshIntervalStr.value));
 const diskGroups = ref<DiskGroup[]>([]);
 const allIntegrations = ref<IntegrationConfig[]>([]);
-const flaggedSeries = ref<{ x: string; y: number }[]>([]);
-const deletedSeries = ref<{ x: string; y: number }[]>([]);
+const engineHistoryData = ref<Array<{
+  timestamp: string;
+  evaluated: number;
+  flagged: number;
+  deleted: number;
+  freedBytes: number;
+  durationMs: number;
+}>>([]);
+const showMiniSparklines = ref(
+  typeof localStorage !== 'undefined'
+    ? localStorage.getItem('capacitarr:showMiniSparklines') !== 'false'
+    : true,
+);
+watch(showMiniSparklines, (val) => {
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('capacitarr:showMiniSparklines', String(val));
+  }
+});
 const dashboardStats = ref<DashboardStats | null>(null);
 const loading = ref(true);
 const lastUpdated = ref<Date | null>(null);
@@ -688,8 +755,8 @@ async function fetchDashboardData(silent = false) {
     engineFetchStats();
     // Fetch approval queue (non-blocking, only runs in approval mode)
     fetchApprovalQueue();
-    // Fetch sparkline activity data in parallel (non-blocking)
-    fetchActivityData();
+    // Fetch sparkline engine history data in parallel (non-blocking)
+    fetchEngineHistory();
     diskGroups.value = groups as DiskGroup[];
     allIntegrations.value = integrations as IntegrationConfig[];
     if (dStats) dashboardStats.value = dStats as DashboardStats;
@@ -701,7 +768,15 @@ async function fetchDashboardData(silent = false) {
   }
 }
 
-// --- Sparkline: audit activity (flagged + deleted per time bucket) ---
+// --- Sparkline: engine history (flagged + deleted per engine run) ---
+
+const flaggedSeries = computed(() =>
+  engineHistoryData.value.map((p) => ({ x: p.timestamp, y: p.flagged })),
+);
+
+const deletedSeries = computed(() =>
+  engineHistoryData.value.map((p) => ({ x: p.timestamp, y: p.deleted })),
+);
 
 const sparklineSeries = computed(() => {
   const series = [];
@@ -721,7 +796,7 @@ const sparklineOptions = computed(() => ({
     animations: { enabled: true, easing: 'easeinout', speed: 400 },
   },
   stroke: { curve: 'smooth' as const, width: 2 },
-  colors: [primaryColor.value, destructiveColor.value],
+  colors: [chart1Color.value, chart2Color.value],
   fill: {
     type: 'gradient',
     gradient: {
@@ -746,23 +821,88 @@ const sparklineOptions = computed(() => ({
   xaxis: { type: 'category' as const },
 }));
 
-// Re-fetch activity sparkline when time range changes
-watch(dateRange, () => {
-  fetchActivityData();
+// --- Mini sparklines: duration + freed bytes ---
+
+const avgDurationMs = computed(() => {
+  const data = engineHistoryData.value;
+  if (data.length === 0) return 0;
+  const sum = data.reduce((acc, p) => acc + p.durationMs, 0);
+  return Math.round(sum / data.length);
 });
 
-async function fetchActivityData() {
-  const since = dateRange.value === 'all' ? '30d' : dateRange.value;
+const maxDurationMs = computed(() => {
+  const data = engineHistoryData.value;
+  if (data.length === 0) return 0;
+  return Math.max(...data.map((p) => p.durationMs));
+});
+
+const totalFreedBytes = computed(() =>
+  engineHistoryData.value.reduce((acc, p) => acc + p.freedBytes, 0),
+);
+
+const durationSparklineSeries = computed(() => [
+  {
+    name: 'Duration',
+    data: engineHistoryData.value.map((p) => ({ x: p.timestamp, y: p.durationMs })),
+  },
+]);
+
+const freedSparklineSeries = computed(() => [
+  {
+    name: 'Freed',
+    data: engineHistoryData.value.map((p) => ({ x: p.timestamp, y: p.freedBytes })),
+  },
+]);
+
+function miniSparklineOptions(color: string) {
+  return {
+    chart: {
+      type: 'area' as const,
+      sparkline: { enabled: true },
+      animations: { enabled: true, easing: 'easeinout', speed: 400 },
+    },
+    stroke: { curve: 'smooth' as const, width: 2 },
+    colors: [color],
+    fill: {
+      type: 'gradient',
+      gradient: {
+        shadeIntensity: 1,
+        opacityFrom: 0.45,
+        opacityTo: 0.05,
+        stops: [0, 100],
+      },
+    },
+    tooltip: {
+      enabled: true,
+      x: { show: true },
+      theme: 'dark',
+    },
+    xaxis: { type: 'category' as const },
+  };
+}
+
+const durationSparklineOptions = computed(() => miniSparklineOptions(chart3Color.value));
+const freedSparklineOptions = computed(() => miniSparklineOptions(chart4Color.value));
+
+// Re-fetch engine history when time range changes
+watch(dateRange, () => {
+  fetchEngineHistory();
+});
+
+async function fetchEngineHistory() {
   try {
-    const data = (await api(`/api/v1/audit/activity?since=${since}`)) as {
+    const range = dateRange.value || '7d';
+    const data = await api(`/api/v1/engine/history?range=${range}`) as Array<{
       timestamp: string;
+      evaluated: number;
       flagged: number;
       deleted: number;
-    }[];
-    flaggedSeries.value = (data || []).map((p) => ({ x: p.timestamp, y: p.flagged }));
-    deletedSeries.value = (data || []).map((p) => ({ x: p.timestamp, y: p.deleted }));
-  } catch {
-    // silently ignore — sparkline is a nice-to-have
+      freedBytes: number;
+      durationMs: number;
+    }>;
+    engineHistoryData.value = data || [];
+  } catch (err) {
+    console.warn('[Dashboard] fetchEngineHistory failed:', err);
   }
 }
 </script>

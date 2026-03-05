@@ -9,6 +9,10 @@ export function useThemeColors() {
   const primaryColor = ref('#8b5cf6');
   const destructiveColor = ref('#ef4444');
   const successColor = ref('#10b981');
+  const chart1Color = ref('#8b5cf6');
+  const chart2Color = ref('#ef4444');
+  const chart3Color = ref('#f59e0b');
+  const chart4Color = ref('#10b981');
 
   function resolveColor(cssVar: string, fallback: string): string {
     if (typeof document === 'undefined') return fallback;
@@ -39,6 +43,10 @@ export function useThemeColors() {
     primaryColor.value = resolveColor('--color-primary', '#8b5cf6');
     destructiveColor.value = resolveColor('--color-destructive', '#ef4444');
     successColor.value = resolveColor('--color-success', '#10b981');
+    chart1Color.value = resolveColor('--color-chart-1', '#8b5cf6');
+    chart2Color.value = resolveColor('--color-chart-2', '#ef4444');
+    chart3Color.value = resolveColor('--color-chart-3', '#f59e0b');
+    chart4Color.value = resolveColor('--color-chart-4', '#10b981');
   }
 
   // Resolve on mount
@@ -66,6 +74,10 @@ export function useThemeColors() {
     primaryColor: readonly(primaryColor),
     destructiveColor: readonly(destructiveColor),
     successColor: readonly(successColor),
+    chart1Color: readonly(chart1Color),
+    chart2Color: readonly(chart2Color),
+    chart3Color: readonly(chart3Color),
+    chart4Color: readonly(chart4Color),
     refresh,
   };
 }
