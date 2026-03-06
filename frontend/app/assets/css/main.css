@@ -861,6 +861,30 @@ html {
 }
 
 /* ========================================
+   Threshold Slider Variant
+   Zone-colored track (green/amber/red) — replaces
+   the default primary gradient for disk threshold controls
+   ======================================== */
+
+[data-slot='threshold-slider'] [data-slot='slider-track'] {
+  background-color: oklch(0.3 0.01 280 / 0.3);
+  border-color: transparent;
+}
+
+.dark [data-slot='threshold-slider'] [data-slot='slider-track'] {
+  background-color: oklch(0.2 0.01 280 / 0.4);
+}
+
+[data-slot='threshold-slider'] [data-slot='slider-range'] {
+  background: none;
+  box-shadow: none;
+}
+
+.dark [data-slot='threshold-slider'] [data-slot='slider-range'] {
+  box-shadow: none;
+}
+
+/* ========================================
    Table Enhancement — Richer Colors & Depth
    ======================================== */
 

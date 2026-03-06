@@ -135,29 +135,29 @@
               :min-steps-between-thumbs="1"
               @update:model-value="(v: number[]) => onSliderChange(dg, v)"
             />
-            <!-- Zone color overlay on the slider track -->
+            <!-- Zone color overlays on the slider track -->
             <div
-              class="absolute top-1/2 -translate-y-1/2 h-2.5 rounded-full pointer-events-none z-0"
+              class="absolute top-1/2 -translate-y-1/2 h-2.5 rounded-l-full pointer-events-none z-1"
               :style="{
                 left: '0%',
                 width: editTarget(dg) + '%',
-                background: 'oklch(0.648 0.2 160 / 0.25)',
+                background: 'oklch(0.648 0.2 160 / 0.5)',
               }"
             />
             <div
-              class="absolute top-1/2 -translate-y-1/2 h-2.5 rounded-full pointer-events-none z-0"
+              class="absolute top-1/2 -translate-y-1/2 h-2.5 pointer-events-none z-1"
               :style="{
                 left: editTarget(dg) + '%',
                 width: editThreshold(dg) - editTarget(dg) + '%',
-                background: 'oklch(0.75 0.183 55.934 / 0.25)',
+                background: 'oklch(0.75 0.183 55.934 / 0.5)',
               }"
             />
             <div
-              class="absolute top-1/2 -translate-y-1/2 h-2.5 rounded-full pointer-events-none z-0"
+              class="absolute top-1/2 -translate-y-1/2 h-2.5 rounded-r-full pointer-events-none z-1"
               :style="{
                 left: editThreshold(dg) + '%',
                 width: 100 - editThreshold(dg) + '%',
-                background: 'oklch(0.577 0.245 27.325 / 0.25)',
+                background: 'oklch(0.577 0.245 27.325 / 0.5)',
               }"
             />
           </div>
