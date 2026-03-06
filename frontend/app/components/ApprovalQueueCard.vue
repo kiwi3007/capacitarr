@@ -702,16 +702,83 @@ onUnmounted(() => {
               v-if="viewMode === 'grid'"
               class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 opacity-75"
             >
-              <MediaPosterCard
-                v-for="group in snoozedItems"
-                :key="group.key"
-                :title="group.showTitle"
-                :poster-url="group.posterUrl"
-                :media-type="group.type"
-                :score="group.score"
-                :size-bytes="group.totalSizeBytes"
-                @click="showDetail(group)"
-              />
+              <template v-for="group in snoozedItems" :key="group.key">
+                <!-- Show groups: popover with seasons + unsnooze -->
+                <UiPopover v-if="group.seasonCount > 0">
+                  <UiPopoverTrigger as-child>
+                    <MediaPosterCard
+                      :title="group.showTitle"
+                      :poster-url="group.posterUrl"
+                      :media-type="group.type"
+                      :score="group.score"
+                      :size-bytes="group.totalSizeBytes"
+                      :season-count="group.seasonCount"
+                      @click.prevent
+                    />
+                  </UiPopoverTrigger>
+                  <UiPopoverContent class="w-72 p-0" side="bottom" align="start">
+                    <div class="flex items-center justify-between px-3 py-2 border-b">
+                      <div>
+                        <p class="text-sm font-medium truncate">{{ group.showTitle }}</p>
+                        <p class="text-xs text-muted-foreground">
+                          {{ group.seasonCount }} season{{ group.seasonCount !== 1 ? 's' : '' }}
+                          · 💤 Snoozed
+                        </p>
+                      </div>
+                      <UiButton
+                        variant="outline"
+                        size="sm"
+                        class="h-7 text-xs shrink-0"
+                        @click="unsnoozeGroup(group)"
+                      >
+                        <Undo2Icon class="h-3 w-3 mr-1" />
+                        Unsnooze
+                      </UiButton>
+                    </div>
+                    <div class="max-h-60 overflow-y-auto">
+                      <div
+                        v-for="season in group.seasons"
+                        :key="season.title"
+                        class="flex items-center gap-2 px-3 py-1.5 hover:bg-muted/50 transition-colors cursor-pointer"
+                        @click="showSeasonDetail(season)"
+                      >
+                        <span
+                          class="text-xs font-mono tabular-nums font-semibold w-10 text-right shrink-0 text-primary"
+                        >
+                          {{ season.score.toFixed(2) }}
+                        </span>
+                        <span class="text-xs truncate flex-1">
+                          {{ extractPreviewSeasonLabel(season.title) }}
+                        </span>
+                      </div>
+                    </div>
+                  </UiPopoverContent>
+                </UiPopover>
+                <!-- Non-show snoozed items: card with unsnooze overlay on hover -->
+                <div v-else class="relative group/snooze">
+                  <MediaPosterCard
+                    :title="group.showTitle"
+                    :poster-url="group.posterUrl"
+                    :media-type="group.type"
+                    :score="group.score"
+                    :size-bytes="group.totalSizeBytes"
+                    @click="showDetail(group)"
+                  />
+                  <div
+                    class="absolute inset-x-0 top-0 flex justify-center pt-8 opacity-0 group-hover/snooze:opacity-100 transition-opacity"
+                  >
+                    <UiButton
+                      variant="secondary"
+                      size="sm"
+                      class="h-7 text-xs shadow-lg"
+                      @click.stop="unsnoozeGroup(group)"
+                    >
+                      <Undo2Icon class="h-3 w-3 mr-1" />
+                      Unsnooze
+                    </UiButton>
+                  </div>
+                </div>
+              </template>
             </div>
             <!-- List view for snoozed items -->
             <div v-else class="space-y-1.5">

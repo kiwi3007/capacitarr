@@ -111,7 +111,11 @@
         </div>
 
         <!-- Grid View -->
-        <div v-else-if="viewMode === 'grid'" class="max-h-[600px] overflow-y-auto">
+        <div
+          v-else-if="viewMode === 'grid'"
+          ref="gridScrollRef"
+          class="max-h-[600px] overflow-y-auto"
+        >
           <div
             class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3"
           >
@@ -591,18 +595,20 @@ const deletionLineIndex = computed<number | null>(() => {
 
 // Progressive rendering
 const tableScrollRef = ref<HTMLElement | null>(null);
+const gridScrollRef = ref<HTMLElement | null>(null);
 const visibleCount = ref(100);
 const renderedGroups = computed(() => filteredGroupedPreview.value.slice(0, visibleCount.value));
 
-useInfiniteScroll(
-  tableScrollRef,
-  () => {
-    if (visibleCount.value < filteredGroupedPreview.value.length) {
-      visibleCount.value = Math.min(visibleCount.value + 100, filteredGroupedPreview.value.length);
-    }
-  },
-  { distance: 200, canLoadMore: () => visibleCount.value < filteredGroupedPreview.value.length },
-);
+function loadMore() {
+  if (visibleCount.value < filteredGroupedPreview.value.length) {
+    visibleCount.value = Math.min(visibleCount.value + 100, filteredGroupedPreview.value.length);
+  }
+}
+
+const canLoadMore = () => visibleCount.value < filteredGroupedPreview.value.length;
+
+useInfiniteScroll(tableScrollRef, loadMore, { distance: 200, canLoadMore });
+useInfiniteScroll(gridScrollRef, loadMore, { distance: 200, canLoadMore });
 
 watch(
   [
