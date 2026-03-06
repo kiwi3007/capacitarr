@@ -149,6 +149,12 @@ function showSeasonDetail(season: ApprovalGroup['seasons'][number]) {
   selectedSeason.value = season;
 }
 
+/** Extract "Season N" from a full title like "Show Name - Season 3" */
+function extractPreviewSeasonLabel(title: string): string {
+  const parts = title.split(' - Season ');
+  return parts.length > 1 ? `Season ${parts[parts.length - 1]}` : title;
+}
+
 // --- 3-second confirmation timer for approve button ---
 const confirmingKey = ref<string | null>(null);
 const confirmCountdown = ref(3);
@@ -416,20 +422,88 @@ onUnmounted(() => {
               v-if="viewMode === 'grid'"
               class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3"
             >
-              <MediaPosterCard
-                v-for="group in pendingItems"
-                :key="group.key"
-                :title="group.showTitle"
-                :poster-url="group.posterUrl"
-                :media-type="group.type"
-                :score="group.score"
-                :size-bytes="group.totalSizeBytes"
-                :selectable="group.auditIds.length > 0"
-                :selected="isGroupFullySelected(group)"
-                :season-count="group.seasonCount"
-                @click="showDetail(group)"
-                @select="toggleGroupSelect(group)"
-              />
+              <template v-for="group in pendingItems" :key="group.key">
+                <!-- Show groups: popover with individual seasons -->
+                <UiPopover v-if="group.seasonCount > 0">
+                  <UiPopoverTrigger as-child>
+                    <MediaPosterCard
+                      :title="group.showTitle"
+                      :poster-url="group.posterUrl"
+                      :media-type="group.type"
+                      :score="group.score"
+                      :size-bytes="group.totalSizeBytes"
+                      :selectable="group.auditIds.length > 0"
+                      :selected="isGroupFullySelected(group)"
+                      :season-count="group.seasonCount"
+                      @click.prevent
+                      @select="toggleGroupSelect(group)"
+                    />
+                  </UiPopoverTrigger>
+                  <UiPopoverContent class="w-72 p-0" side="bottom" align="start">
+                    <div class="px-3 py-2 border-b">
+                      <p class="text-sm font-medium truncate">
+                        {{ group.showTitle }}
+                      </p>
+                      <p class="text-xs text-muted-foreground">
+                        {{ group.seasonCount }} season{{ group.seasonCount !== 1 ? 's' : '' }}
+                      </p>
+                    </div>
+                    <div class="max-h-60 overflow-y-auto">
+                      <div
+                        v-for="season in group.seasons"
+                        :key="season.title"
+                        class="flex items-center gap-2 px-3 py-1.5 hover:bg-muted/50 transition-colors"
+                      >
+                        <span
+                          class="text-xs font-mono tabular-nums font-semibold w-10 text-right shrink-0 cursor-pointer text-primary hover:text-primary/80"
+                          @click="showSeasonDetail(season)"
+                        >
+                          {{ season.score.toFixed(2) }}
+                        </span>
+                        <span
+                          class="text-xs truncate flex-1 cursor-pointer"
+                          @click="showSeasonDetail(season)"
+                        >
+                          {{ extractPreviewSeasonLabel(season.title) }}
+                        </span>
+                        <div v-if="season.auditId" class="flex items-center gap-0.5 shrink-0">
+                          <UiButton
+                            variant="ghost"
+                            size="sm"
+                            class="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-100 dark:hover:bg-green-900/30"
+                            :aria-label="t('approval.approve')"
+                            @click="approveSeason(season.auditId!)"
+                          >
+                            <CheckIcon class="h-3.5 w-3.5" />
+                          </UiButton>
+                          <UiButton
+                            variant="ghost"
+                            size="sm"
+                            class="h-6 w-6 p-0 text-amber-500 hover:text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+                            :aria-label="t('approval.snooze')"
+                            @click="snoozeSeason(season.auditId!)"
+                          >
+                            <AlarmClockIcon class="h-3.5 w-3.5" />
+                          </UiButton>
+                        </div>
+                      </div>
+                    </div>
+                  </UiPopoverContent>
+                </UiPopover>
+                <!-- Non-show items: direct click to detail -->
+                <MediaPosterCard
+                  v-else
+                  :title="group.showTitle"
+                  :poster-url="group.posterUrl"
+                  :media-type="group.type"
+                  :score="group.score"
+                  :size-bytes="group.totalSizeBytes"
+                  :selectable="group.auditIds.length > 0"
+                  :selected="isGroupFullySelected(group)"
+                  @click="showDetail(group)"
+                  @select="toggleGroupSelect(group)"
+                />
+              </template>
             </div>
             <!-- List view for pending items -->
             <div v-else class="space-y-1.5">
