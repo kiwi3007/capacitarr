@@ -52,9 +52,10 @@ func ResetVersionCacheForTest() {
 	versionCheckMu.Unlock()
 }
 
-// RegisterVersionRoutes sets up the version check endpoint on the protected group.
+// RegisterVersionRoutes sets up the version check endpoints on the protected group.
 func RegisterVersionRoutes(g *echo.Group, database *gorm.DB, appVersion string) {
 	g.GET("/version/check", handleVersionCheck(database, appVersion))
+	g.POST("/version/check", handleVersionCheckNow(database, appVersion))
 }
 
 func handleVersionCheck(database *gorm.DB, appVersion string) echo.HandlerFunc {
@@ -87,6 +88,38 @@ func handleVersionCheck(database *gorm.DB, appVersion string) echo.HandlerFunc {
 		result := fetchLatestRelease(appVersion)
 
 		// Cache the result
+		versionCheckMu.Lock()
+		cachedVersionCheck = &result
+		versionCheckMu.Unlock()
+
+		return c.JSON(http.StatusOK, result)
+	}
+}
+
+// handleVersionCheckNow handles POST /version/check.
+// It invalidates the cached result and performs a fresh check against the
+// GitLab releases API, regardless of TTL.
+func handleVersionCheckNow(database *gorm.DB, appVersion string) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		// Load preferences to check if update checks are enabled
+		var pref db.PreferenceSet
+		if err := database.First(&pref, 1).Error; err != nil {
+			slog.Warn("Failed to load preferences for version check", "component", "version", "error", err)
+			return c.JSON(http.StatusOK, versionCheckResult{
+				Current: appVersion,
+			})
+		}
+
+		if !pref.CheckForUpdates {
+			return c.JSON(http.StatusOK, versionCheckResult{
+				Current: appVersion,
+			})
+		}
+
+		// Bypass cache — always fetch fresh
+		result := fetchLatestRelease(appVersion)
+
+		// Update the cache with fresh result
 		versionCheckMu.Lock()
 		cachedVersionCheck = &result
 		versionCheckMu.Unlock()

@@ -383,5 +383,7 @@
   "update.latestVersion": "Latest Version",
   "update.viewRelease": "View Release Notes",
   "update.upToDate": "Up to Date",
-  "update.upToDateDesc": "You're running the latest version of Capacitarr."
+  "update.upToDateDesc": "You're running the latest version of Capacitarr.",
+  "update.checkNow": "Check Now",
+  "update.checking": "Checking…"
 }

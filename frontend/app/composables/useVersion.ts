@@ -18,6 +18,7 @@ export function useVersion() {
   const updateAvailable = ref(false);
   const latestVersion = ref('');
   const releaseUrl = ref('');
+  const checking = ref(false);
 
   let checkInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -56,6 +57,27 @@ export function useVersion() {
     }
   }
 
+  /** Manually trigger a version check that bypasses the server-side cache. */
+  async function checkNow() {
+    checking.value = true;
+    try {
+      const api = useApi();
+      const data = (await api('/api/v1/version/check', { method: 'POST' })) as {
+        current?: string;
+        latest?: string;
+        updateAvailable?: boolean;
+        releaseUrl?: string;
+      };
+      updateAvailable.value = data.updateAvailable || false;
+      latestVersion.value = data.latest || '';
+      releaseUrl.value = data.releaseUrl || '';
+    } catch (e) {
+      console.warn('[useVersion] checkNow failed:', e);
+    } finally {
+      checking.value = false;
+    }
+  }
+
   onMounted(() => {
     fetchApiVersion();
     checkForUpdates();
@@ -78,6 +100,8 @@ export function useVersion() {
     updateAvailable: readonly(updateAvailable),
     latestVersion: readonly(latestVersion),
     releaseUrl: readonly(releaseUrl),
+    checking: readonly(checking),
     checkForUpdates,
+    checkNow,
   };
 }

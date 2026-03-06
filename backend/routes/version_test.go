@@ -109,6 +109,96 @@ func TestVersionCheck_ReturnsCurrentVersion(t *testing.T) {
 	}
 }
 
+// ---------- POST /api/version/check (manual "check now") ----------
+
+func TestVersionCheckNow_BypassesCache(t *testing.T) {
+	routes.ResetVersionCacheForTest()
+	mockGitLabReleases(t, `[{"tag_name":"v2.0.0"}]`)
+
+	database := testutil.SetupTestDB(t)
+	e := testutil.SetupTestServer(t, database)
+
+	// First: warm the cache via GET (returns v2.0.0)
+	reqGet := testutil.AuthenticatedRequest(t, http.MethodGet, "/api/version/check", nil)
+	recGet := httptest.NewRecorder()
+	e.ServeHTTP(recGet, reqGet)
+
+	if recGet.Code != http.StatusOK {
+		t.Fatalf("GET Expected 200, got %d: %s", recGet.Code, recGet.Body.String())
+	}
+
+	var getResp struct {
+		Latest string `json:"latest"`
+	}
+	if err := json.Unmarshal(recGet.Body.Bytes(), &getResp); err != nil {
+		t.Fatalf("Failed to parse GET response: %v", err)
+	}
+	if getResp.Latest != "v2.0.0" {
+		t.Fatalf("Expected GET latest 'v2.0.0', got %q", getResp.Latest)
+	}
+
+	// Second: POST should bypass cache and fetch fresh
+	reqPost := testutil.AuthenticatedRequest(t, http.MethodPost, "/api/version/check", nil)
+	recPost := httptest.NewRecorder()
+	e.ServeHTTP(recPost, reqPost)
+
+	if recPost.Code != http.StatusOK {
+		t.Fatalf("POST Expected 200, got %d: %s", recPost.Code, recPost.Body.String())
+	}
+
+	var postResp struct {
+		Current         string `json:"current"`
+		Latest          string `json:"latest"`
+		UpdateAvailable bool   `json:"updateAvailable"`
+	}
+	if err := json.Unmarshal(recPost.Body.Bytes(), &postResp); err != nil {
+		t.Fatalf("Failed to parse POST response: %v", err)
+	}
+	if postResp.Current != "v0.0.0-test" {
+		t.Errorf("Expected current 'v0.0.0-test', got %q", postResp.Current)
+	}
+	if postResp.Latest != "v2.0.0" {
+		t.Errorf("Expected latest 'v2.0.0', got %q", postResp.Latest)
+	}
+	if !postResp.UpdateAvailable {
+		t.Error("Expected updateAvailable to be true")
+	}
+}
+
+func TestVersionCheckNow_DisabledByPreference(t *testing.T) {
+	routes.ResetVersionCacheForTest()
+
+	database := testutil.SetupTestDB(t)
+	e := testutil.SetupTestServer(t, database)
+
+	// Disable update checks
+	if err := database.Model(&db.PreferenceSet{}).Where("id = 1").Update("check_for_updates", false).Error; err != nil {
+		t.Fatalf("Failed to update preferences: %v", err)
+	}
+
+	req := testutil.AuthenticatedRequest(t, http.MethodPost, "/api/version/check", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp struct {
+		UpdateAvailable bool   `json:"updateAvailable"`
+		Latest          string `json:"latest"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+	if resp.UpdateAvailable {
+		t.Error("Expected updateAvailable to be false when checks are disabled")
+	}
+	if resp.Latest != "" {
+		t.Errorf("Expected empty latest when checks are disabled, got %q", resp.Latest)
+	}
+}
+
 // ---------- compareSemver ----------
 
 func TestCompareSemver(t *testing.T) {

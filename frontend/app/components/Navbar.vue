@@ -186,6 +186,20 @@
                   >
                     {{ $t('update.viewRelease') }}
                   </a>
+                  <UiButton
+                    variant="outline"
+                    size="sm"
+                    class="h-7 text-xs"
+                    :disabled="checking"
+                    @click="checkNow"
+                  >
+                    <component
+                      :is="checking ? LoaderCircleIcon : RefreshCwIcon"
+                      class="w-3.5 h-3.5 mr-1"
+                      :class="checking ? 'animate-spin' : ''"
+                    />
+                    {{ checking ? $t('update.checking') : $t('update.checkNow') }}
+                  </UiButton>
                 </div>
               </div>
               <!-- Up to date -->
@@ -200,6 +214,22 @@
                     <span class="text-muted-foreground">{{ $t('update.currentVersion') }}</span>
                     <span class="font-mono">{{ apiVersion || uiVersion }}</span>
                   </div>
+                </div>
+                <div class="flex justify-end pt-1">
+                  <UiButton
+                    variant="outline"
+                    size="sm"
+                    class="h-7 text-xs"
+                    :disabled="checking"
+                    @click="checkNow"
+                  >
+                    <component
+                      :is="checking ? LoaderCircleIcon : RefreshCwIcon"
+                      class="w-3.5 h-3.5 mr-1"
+                      :class="checking ? 'animate-spin' : ''"
+                    />
+                    {{ checking ? $t('update.checking') : $t('update.checkNow') }}
+                  </UiButton>
                 </div>
               </div>
             </UiPopoverContent>
@@ -345,13 +375,15 @@ import {
   InfoIcon,
   GlobeIcon,
   ArrowUpCircleIcon,
+  RefreshCwIcon,
 } from 'lucide-vue-next';
 import type { ThemeMeta } from '~/composables/useTheme';
 import type { InAppNotification } from '~/types/api';
 
 const { mode: colorMode, setMode } = useAppColorMode();
 const { theme, setTheme, themes } = useTheme();
-const { uiVersion, apiVersion, updateAvailable, latestVersion, releaseUrl } = useVersion();
+const { uiVersion, apiVersion, updateAvailable, latestVersion, releaseUrl, checking, checkNow } =
+  useVersion();
 const {
   unreadCount,
   notifications,
