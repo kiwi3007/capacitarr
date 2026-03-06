@@ -1,3 +1,19 @@
+## [1.0.0-rc.7] - 2026-03-06
+
+### 🚀 Features
+
+- Add poster URL plumbing for grid view (Phase 1) ([5f01060](https://gitlab.com/starshadow/software/capacitarr/-/commit/5f01060c4e8099eaef832cea82d6d21e5cc317f9))
+- *(frontend)* Add grid/list view toggle with poster cards (Phase 2) ([72eedd8](https://gitlab.com/starshadow/software/capacitarr/-/commit/72eedd8f4fc98273070cdfe954b7e199fa4ff4d9))
+- *(frontend)* Add selection checkboxes and season badges to grid cards (Phase 3) ([7fbcd58](https://gitlab.com/starshadow/software/capacitarr/-/commit/7fbcd585e244c2d7ffb16a80256612164fdd11cb))
+- *(frontend)* Add season popover for show cards in grid view (Phase 3) ([dcc2e9d](https://gitlab.com/starshadow/software/capacitarr/-/commit/dcc2e9db993ce4ddd896f7da16f605bd9d7221b3))
+- *(frontend)* Add deletion line divider and season popovers to preview grid ([50ecccb](https://gitlab.com/starshadow/software/capacitarr/-/commit/50ecccbe18c43661b140645145eeae68c0b48a65))
+- *(enrichment)* Add Plex as watch history enrichment source ([31c44b4](https://gitlab.com/starshadow/software/capacitarr/-/commit/31c44b41dcd40324ccbc4f03c064ef1de1dad8cf))
+- *(version)* Add Check Now button to update popup ([bf72c7a](https://gitlab.com/starshadow/software/capacitarr/-/commit/bf72c7a4da4981ec0353d0c57f786139daa5d443))
+
+### 🐛 Bug Fixes
+
+- *(frontend)* Reposition card overlays to avoid title overlap ([605a817](https://gitlab.com/starshadow/software/capacitarr/-/commit/605a81708c5530297d5a1a8fb243ca17ff886c34))
+- *(frontend)* Snoozed grid unsnooze actions and preview infinite scroll ([2fa8bf2](https://gitlab.com/starshadow/software/capacitarr/-/commit/2fa8bf256fe52ecb114cabb4fbe652936e1d86b0))
 ## [1.0.0-rc.6] - 2026-03-06
 
 ### 🚀 Features
