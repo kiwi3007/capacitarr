@@ -153,16 +153,31 @@ const showFallback = computed(() => !props.posterUrl || imageError.value || !ima
       {{ (score * 100).toFixed(0) }}
     </div>
 
-    <!-- Media type chip (top-left) -->
+    <!-- Top-left: Selection checkbox (when selectable) or Media type chip -->
+    <button
+      v-if="selectable"
+      class="absolute top-1.5 left-1.5 z-20 rounded bg-black/40 backdrop-blur-sm p-0.5 transition-colors hover:bg-black/60"
+      :class="{ 'bg-primary/80 hover:bg-primary/90': selected }"
+      @click.stop="$emit('select')"
+    >
+      <component :is="selected ? CheckSquare : Square" class="w-4 h-4 text-white" />
+    </button>
     <div
+      v-else
       class="absolute top-1.5 left-1.5 rounded-full bg-black/50 backdrop-blur-sm px-2 py-0.5 text-[10px] font-medium text-white/80 capitalize"
     >
       {{ mediaType }}
     </div>
 
-    <!-- Protected/flagged indicator -->
+    <!-- Bottom-right: Seasons badge or Protected indicator -->
     <div
-      v-if="isProtected"
+      v-if="seasonCount && seasonCount > 0"
+      class="absolute bottom-1.5 right-1.5 rounded-full bg-black/50 backdrop-blur-sm px-1.5 py-0.5 text-[10px] font-medium text-white/80"
+    >
+      ×{{ seasonCount }}
+    </div>
+    <div
+      v-else-if="isProtected"
       class="absolute bottom-1.5 right-1.5 rounded-full bg-emerald-500/80 p-1"
     >
       <svg
@@ -178,25 +193,6 @@ const showFallback = computed(() => !props.posterUrl || imageError.value || !ima
           d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
         />
       </svg>
-    </div>
-
-    <!-- Selection checkbox (bottom-left, only when selectable) -->
-    <button
-      v-if="selectable"
-      class="absolute bottom-1.5 left-1.5 z-20 rounded bg-black/40 backdrop-blur-sm p-0.5 transition-colors hover:bg-black/60"
-      :class="{ 'bg-primary/80 hover:bg-primary/90': selected }"
-      @click.stop="$emit('select')"
-    >
-      <component :is="selected ? CheckSquare : Square" class="w-4 h-4 text-white" />
-    </button>
-
-    <!-- Seasons badge (for show groups with multiple seasons) -->
-    <div
-      v-if="seasonCount && seasonCount > 0"
-      class="absolute bottom-1.5 left-1.5 rounded-full bg-black/50 backdrop-blur-sm px-1.5 py-0.5 text-[10px] font-medium text-white/80"
-      :class="{ 'left-8': selectable }"
-    >
-      ×{{ seasonCount }}
     </div>
   </div>
 </template>
