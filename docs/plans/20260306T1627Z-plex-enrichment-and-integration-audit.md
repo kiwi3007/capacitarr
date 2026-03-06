@@ -1,7 +1,7 @@
 # Plex Enrichment & Integration Audit
 
 **Created:** 2026-03-06T16:27Z
-**Status:** 🔲 Not Started
+**Status:** ✅ Complete
 
 ## Problem Statement
 
@@ -349,6 +349,7 @@ Run the full CI pipeline locally to ensure:
 | [`plex.go`](../../backend/internal/integrations/plex.go) | Add `GetBulkWatchData()` method |
 | [`fetch.go`](../../backend/internal/poller/fetch.go) | Add `plex` to `enrichmentClients`, update Plex branch in `fetchAllIntegrations()`, add Plex enrichment block in `enrichItems()` |
 | [`plex_test.go`](../../backend/internal/integrations/plex_test.go) | Add `GetBulkWatchData` tests |
+| [`enrich_test.go`](../../backend/internal/poller/enrich_test.go) | Add enrichment pipeline tests (Plex enrichment, Tautulli priority, season title matching) |
 
 ---
 

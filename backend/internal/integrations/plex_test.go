@@ -8,6 +8,7 @@ import (
 )
 
 const testPlexPathSections = "/library/sections"
+const testPlexPathMoviesAll = "/library/sections/1/all"
 
 func TestPlexClient_TestConnection_Success(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -105,7 +106,7 @@ func TestPlexClient_GetMediaItems_Movies(t *testing.T) {
 			if err := json.NewEncoder(w).Encode(resp); err != nil {
 				t.Fatalf("Failed to encode: %v", err)
 			}
-		case "/library/sections/1/all":
+		case testPlexPathMoviesAll:
 			resp := plexMediaResponse{}
 			resp.MediaContainer.Metadata = []plexMetadata{
 				{
@@ -459,6 +460,237 @@ func TestPlexClient_UnknownMediaType(t *testing.T) {
 	item := plexMetadataToMediaItem(m)
 	if item != nil {
 		t.Errorf("Expected nil for unknown media type 'photo', got %+v", item)
+	}
+}
+
+func TestPlexClient_GetBulkWatchData_Movies(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case testPlexPathSections:
+			resp := plexLibraryResponse{}
+			resp.MediaContainer.Directory = []struct {
+				Key   string `json:"key"`
+				Title string `json:"title"`
+				Type  string `json:"type"`
+			}{
+				{Key: "1", Title: "Movies", Type: "movie"},
+			}
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				t.Fatalf("Failed to encode: %v", err)
+			}
+		case testPlexPathMoviesAll:
+			resp := plexMediaResponse{}
+			resp.MediaContainer.Metadata = []plexMetadata{
+				{
+					RatingKey:    "101",
+					Title:        "Inception",
+					Year:         2010,
+					Type:         "movie",
+					ViewCount:    5,
+					LastViewedAt: 1700000000,
+				},
+				{
+					RatingKey: "102",
+					Title:     "Interstellar",
+					Year:      2014,
+					Type:      "movie",
+					ViewCount: 0,
+				},
+			}
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				t.Fatalf("Failed to encode: %v", err)
+			}
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	client := NewPlexClient(srv.URL, "test-token")
+	watchMap, err := client.GetBulkWatchData()
+	if err != nil {
+		t.Fatalf("GetBulkWatchData should succeed: %v", err)
+	}
+
+	if len(watchMap) != 2 {
+		t.Fatalf("Expected 2 entries, got %d", len(watchMap))
+	}
+
+	// Verify title normalization (lowercase)
+	inception, ok := watchMap["inception"]
+	if !ok {
+		t.Fatal("Expected 'inception' key in watch map")
+	}
+	if inception.PlayCount != 5 {
+		t.Errorf("Expected PlayCount 5, got %d", inception.PlayCount)
+	}
+	if !inception.Played {
+		t.Error("Expected Played=true for Inception")
+	}
+	if inception.LastPlayed == nil {
+		t.Error("Expected LastPlayed to be set for Inception")
+	}
+
+	// Unwatched movie should still be in map with PlayCount=0
+	interstellar, ok := watchMap["interstellar"]
+	if !ok {
+		t.Fatal("Expected 'interstellar' key in watch map")
+	}
+	if interstellar.PlayCount != 0 {
+		t.Errorf("Expected PlayCount 0, got %d", interstellar.PlayCount)
+	}
+	if interstellar.Played {
+		t.Error("Expected Played=false for Interstellar")
+	}
+	if interstellar.LastPlayed != nil {
+		t.Error("Expected LastPlayed to be nil for Interstellar")
+	}
+}
+
+func TestPlexClient_GetBulkWatchData_Shows(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case testPlexPathSections:
+			resp := plexLibraryResponse{}
+			resp.MediaContainer.Directory = []struct {
+				Key   string `json:"key"`
+				Title string `json:"title"`
+				Type  string `json:"type"`
+			}{
+				{Key: "2", Title: "TV Shows", Type: "show"},
+			}
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				t.Fatalf("Failed to encode: %v", err)
+			}
+		case "/library/sections/2/all":
+			resp := plexMediaResponse{}
+			resp.MediaContainer.Metadata = []plexMetadata{
+				{
+					RatingKey:    "200",
+					Title:        "Breaking Bad",
+					Year:         2008,
+					Type:         "show",
+					ViewCount:    10,
+					LastViewedAt: 1700000000,
+				},
+			}
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				t.Fatalf("Failed to encode: %v", err)
+			}
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	client := NewPlexClient(srv.URL, "test-token")
+	watchMap, err := client.GetBulkWatchData()
+	if err != nil {
+		t.Fatalf("GetBulkWatchData should succeed: %v", err)
+	}
+
+	bb, ok := watchMap["breaking bad"]
+	if !ok {
+		t.Fatal("Expected 'breaking bad' key in watch map")
+	}
+	if bb.PlayCount != 10 {
+		t.Errorf("Expected PlayCount 10, got %d", bb.PlayCount)
+	}
+}
+
+func TestPlexClient_GetBulkWatchData_DuplicateTitle(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case testPlexPathSections:
+			resp := plexLibraryResponse{}
+			resp.MediaContainer.Directory = []struct {
+				Key   string `json:"key"`
+				Title string `json:"title"`
+				Type  string `json:"type"`
+			}{
+				{Key: "1", Title: "Movies", Type: "movie"},
+			}
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				t.Fatalf("Failed to encode: %v", err)
+			}
+		case testPlexPathMoviesAll:
+			resp := plexMediaResponse{}
+			resp.MediaContainer.Metadata = []plexMetadata{
+				{
+					RatingKey: "101",
+					Title:     "Dune",
+					Year:      1984,
+					Type:      "movie",
+					ViewCount: 2,
+				},
+				{
+					RatingKey: "102",
+					Title:     "Dune",
+					Year:      2021,
+					Type:      "movie",
+					ViewCount: 7,
+				},
+			}
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				t.Fatalf("Failed to encode: %v", err)
+			}
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	client := NewPlexClient(srv.URL, "test-token")
+	watchMap, err := client.GetBulkWatchData()
+	if err != nil {
+		t.Fatalf("GetBulkWatchData should succeed: %v", err)
+	}
+
+	// Should keep the entry with the highest play count
+	dune, ok := watchMap["dune"]
+	if !ok {
+		t.Fatal("Expected 'dune' key in watch map")
+	}
+	if dune.PlayCount != 7 {
+		t.Errorf("Expected highest PlayCount 7, got %d", dune.PlayCount)
+	}
+}
+
+func TestPlexClient_GetBulkWatchData_EmptyLibrary(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case testPlexPathSections:
+			_, _ = w.Write([]byte(`{"MediaContainer":{"Directory":[]}}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	client := NewPlexClient(srv.URL, "test-token")
+	watchMap, err := client.GetBulkWatchData()
+	if err != nil {
+		t.Fatalf("GetBulkWatchData should succeed with empty library: %v", err)
+	}
+	if len(watchMap) != 0 {
+		t.Errorf("Expected empty watch map, got %d entries", len(watchMap))
+	}
+}
+
+func TestPlexClient_GetBulkWatchData_APIError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	client := NewPlexClient(srv.URL, "test-token")
+	_, err := client.GetBulkWatchData()
+	if err == nil {
+		t.Fatal("Expected error for API failure")
 	}
 }
 

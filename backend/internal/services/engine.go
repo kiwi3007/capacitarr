@@ -6,7 +6,9 @@ import (
 	"gorm.io/gorm"
 
 	"capacitarr/internal/db"
+	"capacitarr/internal/engine"
 	"capacitarr/internal/events"
+	"capacitarr/internal/integrations"
 )
 
 // EngineService manages engine run triggers and stats.
@@ -69,6 +71,123 @@ func (s *EngineService) SetLastRunStats(evaluated, flagged, protected int) {
 	s.lastEvaluated.Store(int64(evaluated))
 	s.lastFlagged.Store(int64(flagged))
 	s.lastProtected.Store(int64(protected))
+}
+
+// PreviewResult holds the full result of a score preview computation.
+type PreviewResult struct {
+	Items       []engine.EvaluatedItem `json:"items"`
+	DiskContext *DiskContext           `json:"diskContext"`
+}
+
+// DiskContext provides disk usage information for the deletion line in the UI.
+type DiskContext struct {
+	TotalBytes   int64   `json:"totalBytes"`
+	UsedBytes    int64   `json:"usedBytes"`
+	TargetPct    float64 `json:"targetPct"`
+	ThresholdPct float64 `json:"thresholdPct"`
+	BytesToFree  int64   `json:"bytesToFree"`
+}
+
+// GetPreview fetches all media items from enabled integrations, enriches them
+// with watch/request data, scores them against current rules and preferences,
+// and returns the full evaluated result for the preview UI.
+func (s *EngineService) GetPreview() (*PreviewResult, error) {
+	var configs []db.IntegrationConfig
+	if err := s.db.Where("enabled = ?", true).Find(&configs).Error; err != nil {
+		return nil, err
+	}
+
+	var allItems []integrations.MediaItem
+	var ec integrations.EnrichmentClients
+	for _, cfg := range configs {
+		switch integrations.IntegrationType(cfg.Type) { //nolint:exhaustive // *arr types handled by NewClient below
+		case integrations.IntegrationTypePlex:
+			ec.Plex = integrations.NewPlexClient(cfg.URL, cfg.APIKey)
+			continue
+		case integrations.IntegrationTypeTautulli:
+			ec.Tautulli = integrations.NewTautulliClient(cfg.URL, cfg.APIKey)
+			continue
+		case integrations.IntegrationTypeOverseerr:
+			ec.Overseerr = integrations.NewOverseerrClient(cfg.URL, cfg.APIKey)
+			continue
+		case integrations.IntegrationTypeJellyfin:
+			ec.Jellyfin = integrations.NewJellyfinClient(cfg.URL, cfg.APIKey)
+			continue
+		case integrations.IntegrationTypeEmby:
+			ec.Emby = integrations.NewEmbyClient(cfg.URL, cfg.APIKey)
+			continue
+		default:
+			// *arr integration types (sonarr, radarr, lidarr, readarr) — handled below
+		}
+		client := integrations.NewClient(cfg.Type, cfg.URL, cfg.APIKey)
+		if client == nil {
+			continue
+		}
+		items, err := client.GetMediaItems()
+		if err != nil {
+			continue
+		}
+		for i := range items {
+			items[i].IntegrationID = cfg.ID
+		}
+		allItems = append(allItems, items...)
+	}
+
+	// Apply enrichment (Plex, Tautulli, Jellyfin, Emby, Overseerr)
+	integrations.EnrichItems(allItems, ec)
+
+	var prefs db.PreferenceSet
+	s.db.FirstOrCreate(&prefs, db.PreferenceSet{ID: 1})
+
+	var rules []db.CustomRule
+	s.db.Order("sort_order ASC, id ASC").Find(&rules)
+
+	evaluated := engine.EvaluateMedia(allItems, prefs, rules)
+	engine.SortEvaluated(evaluated, prefs.TiebreakerMethod)
+
+	// Build disk context
+	var diskGroups []db.DiskGroup
+	s.db.Find(&diskGroups)
+
+	var diskCtx *DiskContext
+	if len(diskGroups) > 0 {
+		var bestGroup *db.DiskGroup
+		var bestBytesToFree int64
+
+		for i := range diskGroups {
+			dg := &diskGroups[i]
+			if dg.TotalBytes == 0 {
+				continue
+			}
+			usedPct := float64(dg.UsedBytes) / float64(dg.TotalBytes) * 100
+			var btf int64
+			if usedPct >= dg.ThresholdPct {
+				btf = dg.UsedBytes - int64(float64(dg.TotalBytes)*dg.TargetPct/100)
+				if btf < 0 {
+					btf = 0
+				}
+			}
+			if bestGroup == nil || btf > bestBytesToFree {
+				bestGroup = dg
+				bestBytesToFree = btf
+			}
+		}
+
+		if bestGroup != nil {
+			diskCtx = &DiskContext{
+				TotalBytes:   bestGroup.TotalBytes,
+				UsedBytes:    bestGroup.UsedBytes,
+				TargetPct:    bestGroup.TargetPct,
+				ThresholdPct: bestGroup.ThresholdPct,
+				BytesToFree:  bestBytesToFree,
+			}
+		}
+	}
+
+	return &PreviewResult{
+		Items:       evaluated,
+		DiskContext: diskCtx,
+	}, nil
 }
 
 // GetStats returns the current engine statistics as a map.

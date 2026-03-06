@@ -19,7 +19,7 @@ func RegisterRuleRoutes(protected *echo.Group, reg *services.Registry) {
 
 	// Delegate preference and preview routes to their own files
 	RegisterPreferenceRoutes(protected, reg)
-	RegisterPreviewRoutes(protected, database)
+	RegisterPreviewRoutes(protected, reg)
 
 	// Delegate rule-field and rule-value routes to rulefields.go
 	registerRuleFieldRoutes(protected, database)

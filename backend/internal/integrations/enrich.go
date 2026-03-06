@@ -1,0 +1,186 @@
+package integrations
+
+import (
+	"log/slog"
+	"strings"
+)
+
+// EnrichmentClients holds optional enrichment-only service clients discovered
+// during the fetch phase. These are not full Integration implementations —
+// they provide watch history, request data, and other metadata used to enrich
+// *arr media items before scoring.
+type EnrichmentClients struct {
+	Tautulli  *TautulliClient
+	Overseerr *OverseerrClient
+	Plex      *PlexClient
+	Jellyfin  *JellyfinClient
+	Emby      *EmbyClient
+}
+
+// EnrichItems applies watch history and request data from enrichment services
+// (Tautulli, Plex, Overseerr, Jellyfin, Emby) to the collected media items.
+// Enrichment priority: Tautulli > Plex > Jellyfin > Emby (each source only
+// enriches items that don't already have watch data, i.e. PlayCount == 0).
+func EnrichItems(items []MediaItem, ec EnrichmentClients) {
+	// ─── Enrichment: Tautulli watch history ──────────────────────────────────
+	if ec.Tautulli != nil && len(items) > 0 {
+		slog.Info("Enriching items with Tautulli watch data", "component", "enrichment", "itemCount", len(items))
+		for i := range items {
+			item := &items[i]
+			if item.ExternalID == "" {
+				continue
+			}
+			var watchData *TautulliWatchData
+			var err error
+			if item.Type == MediaTypeShow {
+				watchData, err = ec.Tautulli.GetShowWatchHistory(item.ExternalID)
+			} else {
+				watchData, err = ec.Tautulli.GetWatchHistory(item.ExternalID)
+			}
+			if err != nil {
+				slog.Debug("Tautulli enrichment failed", "component", "enrichment", "title", item.Title, "error", err)
+				continue
+			}
+			if watchData != nil {
+				item.PlayCount = watchData.PlayCount
+				item.LastPlayed = watchData.LastPlayed
+				if len(watchData.Users) > 0 {
+					item.WatchedByUsers = watchData.Users
+				}
+			}
+		}
+	}
+
+	// ─── Enrichment: Plex watch history ────────────────────────────────────
+	if ec.Plex != nil && len(items) > 0 {
+		slog.Info("Enriching items with Plex watch data", "component", "enrichment", "itemCount", len(items))
+		watchMap, err := ec.Plex.GetBulkWatchData()
+		if err != nil {
+			slog.Warn("Failed to fetch Plex watch data", "component", "enrichment",
+				"operation", "fetch_plex_watch", "error", err)
+		} else {
+			matched := 0
+			for i := range items {
+				item := &items[i]
+				titleKey := normalizedTitleKey(item)
+				if wd, ok := watchMap[titleKey]; ok {
+					// Only enrich if we don't already have watch data (Tautulli takes priority)
+					if item.PlayCount == 0 {
+						item.PlayCount = wd.PlayCount
+						item.LastPlayed = wd.LastPlayed
+						matched++
+					}
+				}
+			}
+			slog.Info("Plex enrichment complete", "component", "enrichment",
+				"libraryItems", len(watchMap), "matched", matched)
+		}
+	}
+
+	// ─── Enrichment: Overseerr request data ──────────────────────────────────
+	if ec.Overseerr != nil && len(items) > 0 {
+		slog.Info("Enriching items with Overseerr request data", "component", "enrichment", "itemCount", len(items))
+		requests, err := ec.Overseerr.GetRequestedMedia()
+		if err != nil {
+			slog.Warn("Failed to fetch Overseerr requests", "component", "enrichment", "operation", "fetch_overseerr", "error", err)
+		} else {
+			// Build lookup by TMDb ID
+			requestMap := make(map[int]OverseerrMediaRequest)
+			for _, req := range requests {
+				requestMap[req.TMDbID] = req
+			}
+			matched := 0
+			for i := range items {
+				item := &items[i]
+				if item.TMDbID > 0 {
+					if req, ok := requestMap[item.TMDbID]; ok {
+						item.IsRequested = true
+						item.RequestedBy = req.RequestedBy
+						item.RequestCount = 1
+						matched++
+					}
+				}
+			}
+			slog.Debug("Overseerr enrichment complete", "component", "enrichment", "requests", len(requests), "matched", matched)
+		}
+	}
+
+	// ─── Enrichment: Jellyfin watch history ─────────────────────────────────
+	if ec.Jellyfin != nil && len(items) > 0 {
+		slog.Info("Enriching items with Jellyfin watch data", "component", "enrichment", "itemCount", len(items))
+		userID, err := ec.Jellyfin.GetAdminUserID()
+		if err != nil {
+			slog.Warn("Failed to get Jellyfin admin user", "component", "enrichment", "operation", "jellyfin_admin_user", "error", err)
+		} else {
+			watchMap, err := ec.Jellyfin.GetBulkWatchData(userID)
+			if err != nil {
+				slog.Warn("Failed to fetch Jellyfin watch data", "component", "enrichment", "operation", "fetch_jellyfin_watch", "error", err)
+			} else {
+				matched := 0
+				for i := range items {
+					item := &items[i]
+					titleKey := normalizedTitleKey(item)
+					if wd, ok := watchMap[titleKey]; ok {
+						if item.PlayCount == 0 {
+							item.PlayCount = wd.PlayCount
+							item.LastPlayed = wd.LastPlayed
+							matched++
+						}
+					}
+				}
+				slog.Info("Jellyfin enrichment complete", "component", "enrichment", "libraryItems", len(watchMap), "matched", matched)
+			}
+		}
+	}
+
+	// ─── Enrichment: Emby watch history ─────────────────────────────────────
+	if ec.Emby != nil && len(items) > 0 {
+		slog.Info("Enriching items with Emby watch data", "component", "enrichment", "itemCount", len(items))
+		userID, err := ec.Emby.GetAdminUserID()
+		if err != nil {
+			slog.Warn("Failed to get Emby admin user", "component", "enrichment", "operation", "emby_admin_user", "error", err)
+		} else {
+			watchMap, err := ec.Emby.GetBulkWatchData(userID)
+			if err != nil {
+				slog.Warn("Failed to fetch Emby watch data", "component", "enrichment", "operation", "fetch_emby_watch", "error", err)
+			} else {
+				matched := 0
+				for i := range items {
+					item := &items[i]
+					titleKey := normalizedTitleKey(item)
+					if wd, ok := watchMap[titleKey]; ok {
+						if item.PlayCount == 0 {
+							item.PlayCount = wd.PlayCount
+							item.LastPlayed = wd.LastPlayed
+							matched++
+						}
+					}
+				}
+				slog.Info("Emby enrichment complete", "component", "enrichment", "libraryItems", len(watchMap), "matched", matched)
+			}
+		}
+	}
+
+	// ─── Cross-reference: did the requestor watch it? ───────────────────────
+	for i := range items {
+		item := &items[i]
+		if item.IsRequested && item.RequestedBy != "" && len(item.WatchedByUsers) > 0 {
+			for _, user := range item.WatchedByUsers {
+				if strings.EqualFold(user, item.RequestedBy) {
+					item.WatchedByRequestor = true
+					break
+				}
+			}
+		}
+	}
+}
+
+// normalizedTitleKey returns the lowercase title key for matching.
+// For season items with a ShowTitle, uses the show title instead.
+func normalizedTitleKey(item *MediaItem) string {
+	titleKey := strings.ToLower(strings.TrimSpace(item.Title))
+	if item.ShowTitle != "" {
+		titleKey = strings.ToLower(strings.TrimSpace(item.ShowTitle))
+	}
+	return titleKey
+}
