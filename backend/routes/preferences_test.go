@@ -1,6 +1,7 @@
 package routes_test
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -167,7 +168,7 @@ func TestGetPreferences_Unauthenticated(t *testing.T) {
 	database := testutil.SetupTestDB(t)
 	e := testutil.SetupTestServer(t, database)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/preferences", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/preferences", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 

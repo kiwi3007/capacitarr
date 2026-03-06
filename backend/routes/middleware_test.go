@@ -1,6 +1,7 @@
 package routes_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -63,7 +64,7 @@ func TestMiddleware_ValidJWT(t *testing.T) {
 		t.Fatalf("Failed to sign token: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/protected", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/protected", nil)
 	req.Header.Set("Authorization", "Bearer "+tokenString)
 	rec := httptest.NewRecorder()
 
@@ -87,7 +88,7 @@ func TestMiddleware_ExpiredJWT(t *testing.T) {
 		t.Fatalf("Failed to sign token: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/protected", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/protected", nil)
 	req.Header.Set("Authorization", "Bearer "+tokenString)
 	rec := httptest.NewRecorder()
 
@@ -102,7 +103,7 @@ func TestMiddleware_MalformedJWT(t *testing.T) {
 	cfg := testutil.TestConfig()
 	e := setupAuthTest(t, cfg)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/protected", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/protected", nil)
 	req.Header.Set("Authorization", "Bearer not.a.valid.jwt.token")
 	rec := httptest.NewRecorder()
 
@@ -126,7 +127,7 @@ func TestMiddleware_WrongSigningKey(t *testing.T) {
 		t.Fatalf("Failed to sign token: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/protected", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/protected", nil)
 	req.Header.Set("Authorization", "Bearer "+tokenString)
 	rec := httptest.NewRecorder()
 
@@ -141,7 +142,7 @@ func TestMiddleware_MissingAuth(t *testing.T) {
 	cfg := testutil.TestConfig()
 	e := setupAuthTest(t, cfg)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/protected", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/protected", nil)
 	rec := httptest.NewRecorder()
 
 	e.ServeHTTP(rec, req)
@@ -155,7 +156,7 @@ func TestMiddleware_ValidAPIKey_AuthorizationHeader(t *testing.T) {
 	cfg := testutil.TestConfig()
 	e := setupAuthTest(t, cfg)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/protected", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/protected", nil)
 	req.Header.Set("Authorization", "ApiKey valid-api-key-12345")
 	rec := httptest.NewRecorder()
 
@@ -170,7 +171,7 @@ func TestMiddleware_InvalidAPIKey(t *testing.T) {
 	cfg := testutil.TestConfig()
 	e := setupAuthTest(t, cfg)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/protected", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/protected", nil)
 	req.Header.Set("Authorization", "ApiKey invalid-key")
 	rec := httptest.NewRecorder()
 
@@ -185,7 +186,7 @@ func TestMiddleware_ValidAPIKey_XApiKeyHeader(t *testing.T) {
 	cfg := testutil.TestConfig()
 	e := setupAuthTest(t, cfg)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/protected", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/protected", nil)
 	req.Header.Set("X-Api-Key", "valid-api-key-12345")
 	rec := httptest.NewRecorder()
 
@@ -200,7 +201,7 @@ func TestMiddleware_ValidAPIKey_QueryParam(t *testing.T) {
 	cfg := testutil.TestConfig()
 	e := setupAuthTest(t, cfg)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/protected?apikey=valid-api-key-12345", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/protected?apikey=valid-api-key-12345", nil)
 	rec := httptest.NewRecorder()
 
 	e.ServeHTTP(rec, req)
@@ -223,7 +224,7 @@ func TestMiddleware_JWTCookie(t *testing.T) {
 		t.Fatalf("Failed to sign token: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/protected", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/protected", nil)
 	req.AddCookie(&http.Cookie{Name: "jwt", Value: tokenString})
 	rec := httptest.NewRecorder()
 
@@ -239,7 +240,7 @@ func TestMiddleware_ProxyAuthHeader(t *testing.T) {
 	cfg.AuthHeader = "Remote-User"
 	e := setupAuthTest(t, cfg)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/protected", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/protected", nil)
 	req.Header.Set("Remote-User", "proxy-user")
 	rec := httptest.NewRecorder()
 
@@ -256,7 +257,7 @@ func TestMiddleware_ProxyAuthHeader_Empty(t *testing.T) {
 	e := setupAuthTest(t, cfg)
 
 	// Empty header value should fall through to other auth methods
-	req := httptest.NewRequest(http.MethodGet, "/api/protected", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/protected", nil)
 	req.Header.Set("Remote-User", "")
 	rec := httptest.NewRecorder()
 
@@ -272,7 +273,7 @@ func TestMiddleware_ProxyAuthDisabled(t *testing.T) {
 	cfg.AuthHeader = "" // proxy auth not configured
 	e := setupAuthTest(t, cfg)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/protected", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/protected", nil)
 	req.Header.Set("Remote-User", "spoofed-user")
 	rec := httptest.NewRecorder()
 
@@ -288,7 +289,7 @@ func TestMiddleware_InvalidAuthScheme(t *testing.T) {
 	cfg := testutil.TestConfig()
 	e := setupAuthTest(t, cfg)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/protected", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/protected", nil)
 	req.Header.Set("Authorization", "Basic dXNlcjpwYXNz")
 	rec := httptest.NewRecorder()
 
@@ -303,7 +304,7 @@ func TestMiddleware_MalformedAuthorizationHeader(t *testing.T) {
 	cfg := testutil.TestConfig()
 	e := setupAuthTest(t, cfg)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/protected", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/protected", nil)
 	req.Header.Set("Authorization", "nospaceatall")
 	rec := httptest.NewRecorder()
 

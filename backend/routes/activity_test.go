@@ -1,6 +1,7 @@
 package routes_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -133,7 +134,7 @@ func TestGetActivityRecent_RequiresAuth(t *testing.T) {
 	database := testutil.SetupTestDB(t)
 	e := testutil.SetupTestServer(t, database)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/activity/recent", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/activity/recent", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 

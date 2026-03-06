@@ -1,6 +1,7 @@
 package routes_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -332,7 +333,7 @@ func TestGetAuditLogs_Unauthenticated(t *testing.T) {
 	database := testutil.SetupTestDB(t)
 	e := testutil.SetupTestServer(t, database)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/audit-log", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/audit-log", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 

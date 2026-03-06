@@ -1,6 +1,7 @@
 package routes_test
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -15,7 +16,7 @@ const testLoginBody = `{"username":"admin","password":"password123"}`
 func TestAuthStatus_NoUser(t *testing.T) {
 	e := testutil.SetupTestServer(t, testutil.SetupTestDB(t))
 
-	req := httptest.NewRequest(http.MethodGet, "/api/auth/status", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/auth/status", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 
@@ -38,7 +39,7 @@ func TestAuthStatus_AfterUserCreated(t *testing.T) {
 
 	// Bootstrap a user via login
 	body := testLoginBody
-	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/auth/login", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -47,7 +48,7 @@ func TestAuthStatus_AfterUserCreated(t *testing.T) {
 	}
 
 	// Now check status — should be initialized
-	req = httptest.NewRequest(http.MethodGet, "/api/auth/status", nil)
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/auth/status", nil)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 
@@ -68,7 +69,7 @@ func TestLoginHandler_FirstUserBootstrap(t *testing.T) {
 	e := testutil.SetupTestServer(t, testutil.SetupTestDB(t))
 
 	body := testLoginBody
-	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/auth/login", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 
@@ -111,7 +112,7 @@ func TestLoginHandler_SuccessfulLogin(t *testing.T) {
 
 	// Bootstrap first user
 	body := testLoginBody
-	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/auth/login", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -121,7 +122,7 @@ func TestLoginHandler_SuccessfulLogin(t *testing.T) {
 	}
 
 	// Now login again
-	req = httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(body))
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/auth/login", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -137,14 +138,14 @@ func TestLoginHandler_WrongPassword(t *testing.T) {
 
 	// Bootstrap first user
 	body := testLoginBody
-	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/auth/login", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 
 	// Try with wrong password
 	body = `{"username":"admin","password":"wrongpassword"}`
-	req = httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(body))
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/auth/login", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -169,7 +170,7 @@ func TestLoginHandler_MissingFields(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(tc.body))
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/auth/login", strings.NewReader(tc.body))
 			req.Header.Set("Content-Type", "application/json")
 			rec := httptest.NewRecorder()
 			e.ServeHTTP(rec, req)
@@ -187,7 +188,7 @@ func TestPasswordChange(t *testing.T) {
 
 	// Bootstrap user
 	body := testLoginBody
-	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/auth/login", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -203,7 +204,7 @@ func TestPasswordChange(t *testing.T) {
 
 	// Change password
 	body = `{"currentPassword":"password123","newPassword":"newpassword123"}`
-	req = httptest.NewRequest(http.MethodPut, "/api/auth/password", strings.NewReader(body))
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/api/auth/password", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+loginResp["token"])
 	rec = httptest.NewRecorder()
@@ -215,7 +216,7 @@ func TestPasswordChange(t *testing.T) {
 
 	// Verify new password works
 	body = `{"username":"admin","password":"newpassword123"}`
-	req = httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(body))
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/auth/login", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -231,7 +232,7 @@ func TestPasswordChange_ShortPassword(t *testing.T) {
 
 	// Bootstrap user
 	body := testLoginBody
-	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/auth/login", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -243,7 +244,7 @@ func TestPasswordChange_ShortPassword(t *testing.T) {
 
 	// Try short new password
 	body = `{"currentPassword":"password123","newPassword":"short"}`
-	req = httptest.NewRequest(http.MethodPut, "/api/auth/password", strings.NewReader(body))
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/api/auth/password", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+loginResp["token"])
 	rec = httptest.NewRecorder()
@@ -260,7 +261,7 @@ func TestAPIKeyGeneration(t *testing.T) {
 
 	// Bootstrap user
 	body := testLoginBody
-	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/auth/login", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -271,7 +272,7 @@ func TestAPIKeyGeneration(t *testing.T) {
 	}
 
 	// Generate API key
-	req = httptest.NewRequest(http.MethodPost, "/api/auth/apikey", nil)
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/auth/apikey", nil)
 	req.Header.Set("Authorization", "Bearer "+loginResp["token"])
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -293,7 +294,7 @@ func TestAPIKeyGeneration(t *testing.T) {
 	}
 
 	// Check API key status
-	req = httptest.NewRequest(http.MethodGet, "/api/auth/apikey", nil)
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/auth/apikey", nil)
 	req.Header.Set("Authorization", "Bearer "+loginResp["token"])
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)

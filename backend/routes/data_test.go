@@ -1,6 +1,7 @@
 package routes_test
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -242,7 +243,7 @@ func TestDataReset_Unauthenticated(t *testing.T) {
 	database := testutil.SetupTestDB(t)
 	e := testutil.SetupTestServer(t, database)
 
-	req := httptest.NewRequest(http.MethodDelete, "/api/data/reset", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodDelete, "/api/data/reset", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 

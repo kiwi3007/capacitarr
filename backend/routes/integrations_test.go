@@ -1,6 +1,7 @@
 package routes_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -203,7 +204,7 @@ func TestIntegrationsCRUD_Unauthenticated(t *testing.T) {
 	database := testutil.SetupTestDB(t)
 	e := testutil.SetupTestServer(t, database)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/integrations", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/integrations", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 

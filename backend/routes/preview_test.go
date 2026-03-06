@@ -1,6 +1,7 @@
 package routes_test
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -87,7 +88,7 @@ func TestGetPreview_Unauthenticated(t *testing.T) {
 	database := testutil.SetupTestDB(t)
 	e := testutil.SetupTestServer(t, database)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/preview", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/preview", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 
