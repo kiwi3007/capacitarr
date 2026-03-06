@@ -1,5 +1,13 @@
 .PHONY: lint format check build build\:frontend build\:backend down clean help
-.PHONY: ci lint\:ci test\:ci security\:ci
+.PHONY: ci lint\:ci test\:ci security\:ci cache\:clean
+
+# ─── Docker Cache Volumes ──────────────────────────────────────────────────────
+# Named volumes persist Go/Node downloads across ephemeral 'docker run --rm'
+# containers. First run downloads everything; subsequent runs use cache.
+# Run 'make cache:clean' to remove all cached volumes.
+
+GO_CACHE_VOLS  := -v capacitarr-gomod:/go/pkg/mod -v capacitarr-gobuild:/root/.cache/go-build
+NODE_CACHE_VOLS := -v capacitarr-pnpm:/root/.local/share/pnpm/store
 
 # ─── Code Quality (local tools, auto-fix mode) ────────────────────────────────
 
@@ -12,7 +20,7 @@ lint:
 	@echo "→ Linting backend (golangci-lint via Docker)..."
 	@echo "→ Ensuring go:embed directory exists..."
 	mkdir -p backend/frontend/dist && touch backend/frontend/dist/.gitkeep
-	docker run --rm -v $(CURDIR)/backend:/app -w /app \
+	docker run --rm -v $(CURDIR)/backend:/app $(GO_CACHE_VOLS) -w /app \
 		golangci/golangci-lint:latest golangci-lint run ./...
 	@echo "✓ Lint complete"
 
@@ -33,7 +41,7 @@ check:
 	@echo "→ Ensuring go:embed directory exists..."
 	mkdir -p backend/frontend/dist && touch backend/frontend/dist/.gitkeep
 	@echo "→ Checking backend (golangci-lint via Docker)..."
-	docker run --rm -v $(CURDIR)/backend:/app -w /app \
+	docker run --rm -v $(CURDIR)/backend:/app $(GO_CACHE_VOLS) -w /app \
 		golangci/golangci-lint:latest golangci-lint run ./...
 	@echo "✓ All checks passed"
 
@@ -44,10 +52,10 @@ lint\:ci:
 	@echo "═══ CI Lint Stage ═══"
 	@echo "→ [lint:go] golangci-lint (Docker: golangci/golangci-lint:latest)..."
 	mkdir -p backend/frontend/dist && touch backend/frontend/dist/.gitkeep
-	docker run --rm -v $(CURDIR)/backend:/app -w /app \
+	docker run --rm -v $(CURDIR)/backend:/app $(GO_CACHE_VOLS) -w /app \
 		golangci/golangci-lint:latest golangci-lint run ./...
 	@echo "→ [lint:frontend] ESLint + Prettier (Docker: node:22-alpine)..."
-	docker run --rm -e CI=true -v $(CURDIR)/frontend:/app -w /app \
+	docker run --rm -e CI=true -v $(CURDIR)/frontend:/app $(NODE_CACHE_VOLS) -w /app \
 		node:22-alpine sh -c "\
 			corepack enable && \
 			pnpm install --frozen-lockfile && \
@@ -60,10 +68,10 @@ test\:ci:
 	@echo "═══ CI Test Stage ═══"
 	@echo "→ [test:go] go test (Docker: golang:1.25-alpine)..."
 	mkdir -p backend/frontend/dist && touch backend/frontend/dist/.gitkeep
-	docker run --rm -v $(CURDIR)/backend:/app -w /app \
+	docker run --rm -v $(CURDIR)/backend:/app $(GO_CACHE_VOLS) -w /app \
 		golang:1.25-alpine sh -c "cd /app && go test -v ./... -count=1"
 	@echo "→ [test:frontend] vitest (Docker: node:22-alpine)..."
-	docker run --rm -e CI=true -v $(CURDIR)/frontend:/app -w /app \
+	docker run --rm -e CI=true -v $(CURDIR)/frontend:/app $(NODE_CACHE_VOLS) -w /app \
 		node:22-alpine sh -c "\
 			corepack enable && \
 			pnpm install --frozen-lockfile && \
@@ -75,12 +83,12 @@ security\:ci:
 	@echo "═══ CI Security Stage ═══"
 	@echo "→ [security:govulncheck] (Docker: golang:1.25-alpine)..."
 	mkdir -p backend/frontend/dist && touch backend/frontend/dist/.gitkeep
-	docker run --rm -v $(CURDIR)/backend:/app -w /app \
+	docker run --rm -v $(CURDIR)/backend:/app $(GO_CACHE_VOLS) -w /app \
 		golang:1.25-alpine sh -c "\
 			go install golang.org/x/vuln/cmd/govulncheck@latest && \
 			cd /app && govulncheck ./..."
 	@echo "→ [security:pnpm-audit] (Docker: node:22-alpine)..."
-	docker run --rm -e CI=true -v $(CURDIR)/frontend:/app -w /app \
+	docker run --rm -e CI=true -v $(CURDIR)/frontend:/app $(NODE_CACHE_VOLS) -w /app \
 		node:22-alpine sh -c "\
 			corepack enable && \
 			pnpm install --frozen-lockfile && \
@@ -131,6 +139,12 @@ clean:
 	docker compose down -v
 	docker builder prune -f
 
+## Remove CI cache volumes (Go modules, Go build cache, pnpm store)
+cache\:clean:
+	@echo "→ Removing CI cache volumes..."
+	-docker volume rm capacitarr-gomod capacitarr-gobuild capacitarr-pnpm 2>/dev/null
+	@echo "✓ CI cache volumes removed"
+
 # ─── Help ─────────────────────────────────────────────────────────────────────
 
 ## Show available targets
@@ -157,5 +171,6 @@ help:
 	@echo "  make build          - Build and start via Docker Compose"
 	@echo "  make down           - Stop containers"
 	@echo "  make clean          - Remove containers, volumes, and build cache"
+	@echo "  make cache:clean    - Remove CI cache volumes (Go modules, pnpm store)"
 	@echo ""
 	@echo "Workflow: make lint format → make ci → commit → push"
