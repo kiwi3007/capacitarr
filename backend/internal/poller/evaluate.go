@@ -154,7 +154,11 @@ func (p *Poller) evaluateAndCleanDisk(group db.DiskGroup, allItems []integration
 			}
 
 			// Upsert into approval_queue via ApprovalService
-			factorsJSON, _ := json.Marshal(ev.Factors) //nolint:errcheck
+			factorsJSON, marshalErr := json.Marshal(ev.Factors)
+			if marshalErr != nil {
+				slog.Error("Failed to marshal score factors", "component", "poller", "error", marshalErr)
+				factorsJSON = []byte("[]")
+			}
 			if _, err := p.reg.Approval.UpsertPending(db.ApprovalQueueItem{
 				MediaName:     ev.Item.Title,
 				MediaType:     string(ev.Item.Type),
@@ -177,7 +181,11 @@ func (p *Poller) evaluateAndCleanDisk(group db.DiskGroup, allItems []integration
 		}
 
 		// Dry-run mode: write to audit_log via AuditLogService
-		factorsJSON, _ := json.Marshal(ev.Factors) //nolint:errcheck
+		factorsJSON, marshalErr := json.Marshal(ev.Factors)
+		if marshalErr != nil {
+			slog.Error("Failed to marshal score factors", "component", "poller", "error", marshalErr)
+			factorsJSON = []byte("[]")
+		}
 		integrationID := ev.Item.IntegrationID
 		logEntry := db.AuditLogEntry{
 			MediaName:     ev.Item.Title,

@@ -121,7 +121,11 @@ func (s *DeletionService) processJob(job DeleteJob) {
 		deletionsEnabled = prefs.DeletionsEnabled
 	}
 
-	factorsJSON, _ := json.Marshal(job.Factors) //nolint:errcheck
+	factorsJSON, marshalErr := json.Marshal(job.Factors)
+	if marshalErr != nil {
+		slog.Error("Failed to marshal score factors", "component", "services", "error", marshalErr)
+		factorsJSON = []byte("[]")
+	}
 
 	if !deletionsEnabled {
 		// Dry-Delete: log but do not actually remove the file

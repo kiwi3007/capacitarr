@@ -13,9 +13,9 @@ import (
 	"capacitarr/internal/services"
 )
 
-// registerRuleFieldRoutes sets up the /rule-fields and /rule-values endpoints.
+// RegisterRuleFieldRoutes sets up the /rule-fields and /rule-values endpoints.
 // These are extracted from RegisterRuleRoutes for modularity.
-func registerRuleFieldRoutes(protected *echo.Group, reg *services.Registry) {
+func RegisterRuleFieldRoutes(protected *echo.Group, reg *services.Registry) {
 	database := reg.DB
 	ruleValueCache := reg.RuleValueCache
 
