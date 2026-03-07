@@ -8,9 +8,63 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"capacitarr/internal/db"
 	"capacitarr/internal/services"
 )
+
+// enrichmentPresence tracks which enrichment integration types are enabled.
+type enrichmentPresence struct {
+	hasTautulli  bool
+	hasOverseerr bool
+	hasMedia     bool
+}
+
+// detectEnrichment scans enabled integrations and returns which enrichment
+// services are available (Tautulli, Overseerr, Plex/Jellyfin/Emby).
+func detectEnrichment(reg *services.Registry) enrichmentPresence {
+	configs, _ := reg.Integration.ListEnabled()
+	var p enrichmentPresence
+	for _, cfg := range configs {
+		switch cfg.Type {
+		case intTypeTautulli:
+			p.hasTautulli = true
+		case intTypeOverseerr:
+			p.hasOverseerr = true
+		case intTypePlex, intTypeJellyfin, intTypeEmby:
+			p.hasMedia = true
+		}
+	}
+	return p
+}
+
+// appendEnrichmentFields adds enrichment-dependent rule fields (play count,
+// last watched, requested, in collection, watched by requestor) based on
+// which enrichment integrations are enabled.
+func appendEnrichmentFields(fields []map[string]interface{}, p enrichmentPresence) []map[string]interface{} {
+	if p.hasTautulli || p.hasMedia {
+		fields = append(fields,
+			map[string]interface{}{"field": "playcount", "label": "Play Count", "type": "number", "operators": []string{"==", "!=", ">", ">=", "<", "<="}},
+			map[string]interface{}{"field": "lastplayed", "label": "Last Watched", "type": "date", "operators": []string{"in_last", "over_ago", "never"}},
+		)
+	}
+	if p.hasOverseerr {
+		fields = append(fields,
+			map[string]interface{}{"field": "requested", "label": "Is Requested", "type": "boolean", "operators": []string{"=="}},
+			map[string]interface{}{"field": "requestcount", "label": "Request Count", "type": "number", "operators": []string{"==", "!=", ">", ">=", "<", "<="}},
+			map[string]interface{}{"field": "requestedby", "label": "Requested By", "type": "string", "operators": []string{"==", "!=", "contains", "!contains"}},
+		)
+	}
+	if p.hasMedia {
+		fields = append(fields,
+			map[string]interface{}{"field": "incollection", "label": "In Collection", "type": "boolean", "operators": []string{"=="}},
+		)
+	}
+	if p.hasOverseerr && (p.hasTautulli || p.hasMedia) {
+		fields = append(fields,
+			map[string]interface{}{"field": "watchedbyreq", "label": "Watched by Requestor", "type": "boolean", "operators": []string{"=="}},
+		)
+	}
+	return fields
+}
 
 // RegisterRuleFieldRoutes sets up the /rule-fields and /rule-values endpoints.
 // These are extracted from RegisterRuleRoutes for modularity.
@@ -50,8 +104,7 @@ func RegisterRuleFieldRoutes(protected *echo.Group, reg *services.Registry) {
 				fields = append(fields, sonarrFields...)
 			} else {
 				// No service_type filter: conditionally add based on enabled integrations
-				var configs []db.IntegrationConfig
-				configs, _ = reg.Integration.ListEnabled()
+				configs, _ := reg.Integration.ListEnabled()
 				hasTV := false
 				for _, cfg := range configs {
 					if cfg.Type == intTypeSonarr {
@@ -65,91 +118,16 @@ func RegisterRuleFieldRoutes(protected *echo.Group, reg *services.Registry) {
 			}
 		}
 
-		// Enrichment fields from Tautulli / Overseerr / media servers
-		// These apply to all *arr services when the enrichment service is enabled
-		if serviceType == "" {
-			// No filter: check which enrichment services are enabled
-			var configs []db.IntegrationConfig
-			configs, _ = reg.Integration.ListEnabled()
-			hasTautulli := false
-			hasOverseerr := false
-			hasMediaServer := false
-			for _, cfg := range configs {
-				switch cfg.Type {
-				case intTypeTautulli:
-					hasTautulli = true
-				case intTypeOverseerr:
-					hasOverseerr = true
-				case intTypePlex, intTypeJellyfin, intTypeEmby:
-					hasMediaServer = true
-				}
-			}
-			if hasTautulli || hasMediaServer {
-				fields = append(fields,
-					map[string]interface{}{"field": "playcount", "label": "Play Count", "type": "number", "operators": []string{"==", "!=", ">", ">=", "<", "<="}},
-					map[string]interface{}{"field": "lastplayed", "label": "Last Watched", "type": "date", "operators": []string{"in_last", "over_ago", "never"}},
-				)
-			}
-			if hasOverseerr {
-				fields = append(fields,
-					map[string]interface{}{"field": "requested", "label": "Is Requested", "type": "boolean", "operators": []string{"=="}},
-					map[string]interface{}{"field": "requestcount", "label": "Request Count", "type": "number", "operators": []string{"==", "!=", ">", ">=", "<", "<="}},
-					map[string]interface{}{"field": "requestedby", "label": "Requested By", "type": "string", "operators": []string{"==", "!=", "contains", "!contains"}},
-				)
-			}
-			if hasMediaServer {
-				fields = append(fields,
-					map[string]interface{}{"field": "incollection", "label": "In Collection", "type": "boolean", "operators": []string{"=="}},
-				)
-			}
-			if hasOverseerr && (hasTautulli || hasMediaServer) {
-				fields = append(fields,
-					map[string]interface{}{"field": "watchedbyreq", "label": "Watched by Requestor", "type": "boolean", "operators": []string{"=="}},
-				)
-			}
-		} else {
-			// service_type is specified — enrichment fields always available for *arr services
+		// Enrichment fields from Tautulli / Overseerr / media servers.
+		// For unfiltered requests (serviceType == ""), always check enrichment.
+		// For filtered requests, only add enrichment for *arr service types.
+		addEnrichment := serviceType == ""
+		if !addEnrichment {
 			arrTypes := map[string]bool{intTypeSonarr: true, intTypeRadarr: true, intTypeLidarr: true, intTypeReadarr: true}
-			if arrTypes[serviceType] {
-				var configs []db.IntegrationConfig
-				configs, _ = reg.Integration.ListEnabled()
-				hasTautulli := false
-				hasOverseerr := false
-				hasMediaServer := false
-				for _, cfg := range configs {
-					switch cfg.Type {
-					case intTypeTautulli:
-						hasTautulli = true
-					case intTypeOverseerr:
-						hasOverseerr = true
-					case intTypePlex, intTypeJellyfin, intTypeEmby:
-						hasMediaServer = true
-					}
-				}
-				if hasTautulli || hasMediaServer {
-					fields = append(fields,
-						map[string]interface{}{"field": "playcount", "label": "Play Count", "type": "number", "operators": []string{"==", "!=", ">", ">=", "<", "<="}},
-						map[string]interface{}{"field": "lastplayed", "label": "Last Watched", "type": "date", "operators": []string{"in_last", "over_ago", "never"}},
-					)
-				}
-				if hasOverseerr {
-					fields = append(fields,
-						map[string]interface{}{"field": "requested", "label": "Is Requested", "type": "boolean", "operators": []string{"=="}},
-						map[string]interface{}{"field": "requestcount", "label": "Request Count", "type": "number", "operators": []string{"==", "!=", ">", ">=", "<", "<="}},
-						map[string]interface{}{"field": "requestedby", "label": "Requested By", "type": "string", "operators": []string{"==", "!=", "contains", "!contains"}},
-					)
-				}
-				if hasMediaServer {
-					fields = append(fields,
-						map[string]interface{}{"field": "incollection", "label": "In Collection", "type": "boolean", "operators": []string{"=="}},
-					)
-				}
-				if hasOverseerr && (hasTautulli || hasMediaServer) {
-					fields = append(fields,
-						map[string]interface{}{"field": "watchedbyreq", "label": "Watched by Requestor", "type": "boolean", "operators": []string{"=="}},
-					)
-				}
-			}
+			addEnrichment = arrTypes[serviceType]
+		}
+		if addEnrichment {
+			fields = appendEnrichmentFields(fields, detectEnrichment(reg))
 		}
 
 		// Media Type field (always available)

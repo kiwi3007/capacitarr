@@ -157,7 +157,7 @@ func (s *DeletionService) worker() {
 	}()
 
 	for job := range s.queue {
-		_ = s.rateLimiter.Wait(context.Background()) //nolint:errcheck
+		_ = s.rateLimiter.Wait(context.Background()) //nolint:errcheck // Wait with background context never returns non-nil error
 		s.processJob(job)
 	}
 }
