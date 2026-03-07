@@ -84,6 +84,37 @@ Replaced custom `containsSubstring()` and `findSubstring()` functions with
 
 ---
 
+---
+
+## Round 2 Re-Audit (post-fix verification)
+
+Comprehensive re-scan of the entire codebase confirmed:
+
+- **Zero** remaining `.Error() ==` string-based error matching
+- **Zero** remaining `HasPrefix(err...)` error string matching
+- **Zero** `t.Skip()` calls in tests
+- **Zero** `!important` in CSS
+- **Zero** `@ts-ignore` or `eslint-disable` in frontend
+- **Zero** `fmt.Println`/`log.Printf` in backend
+- **All** `//nolint` directives have justification comments
+- **All** route handlers delegate to services (test files use direct DB for setup/assertions, which is expected)
+- Frontend `console.warn` calls are all in catch blocks for graceful degradation — acceptable browser-side pattern
+
+### Round 2 Fixes
+
+**Step R2.1** — Add justification to `//nolint:errcheck` in `deletion.go:160`
+
+The `rate.Limiter.Wait(context.Background())` call was missing the required justification
+comment. Added: `// Wait with background context never returns non-nil error`
+
+**Step R2.2** — DRY up rulefields enrichment logic in `routes/rulefields.go`
+
+Extracted `detectEnrichment()` and `appendEnrichmentFields()` helpers, reducing
+~80 lines of duplicated enrichment field detection/appending to a single call site.
+Net change: -22 lines (66 added, 88 removed).
+
+---
+
 ## Verification
 
 `make ci` passes: 0 lint issues, all Go tests pass, all 71 vitest tests pass,
