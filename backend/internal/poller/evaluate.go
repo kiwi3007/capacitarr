@@ -184,6 +184,7 @@ func (p *Poller) evaluateAndCleanDisk(group db.DiskGroup, allItems []integration
 
 			bytesFreed += ev.Item.SizeBytes
 			atomic.AddInt64(&p.lastRunFlagged, 1)
+			atomic.AddInt64(&p.lastRunFreedBytes, ev.Item.SizeBytes)
 			slog.Info("Engine action taken", "component", "poller",
 				"media", ev.Item.Title, "action", "queued_for_approval", "score", ev.Score, "freed", ev.Item.SizeBytes)
 			continue
@@ -212,6 +213,7 @@ func (p *Poller) evaluateAndCleanDisk(group db.DiskGroup, allItems []integration
 
 		bytesFreed += ev.Item.SizeBytes
 		atomic.AddInt64(&p.lastRunFlagged, 1)
+		atomic.AddInt64(&p.lastRunFreedBytes, ev.Item.SizeBytes)
 		slog.Info("Engine action taken", "component", "poller",
 			"media", ev.Item.Title, "action", db.ActionDryRun, "score", ev.Score, "freed", ev.Item.SizeBytes)
 	}

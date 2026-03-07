@@ -297,3 +297,62 @@ func TestNotificationDispatch_ServerStartedAlert(t *testing.T) {
 		t.Errorf("expected alert type 'server_started', got %q", alerts[0].Type)
 	}
 }
+
+func TestNotificationDispatch_ApprovalActivityFiltering(t *testing.T) {
+	channels := &mockChannelProvider{
+		configs: []db.NotificationConfig{
+			{ID: 1, Type: "discord", Name: "No Approval", Enabled: true, OnApprovalActivity: false},
+		},
+	}
+
+	svc, mock := newTestDispatch(t, channels)
+
+	svc.bus.Publish(events.ApprovalApprovedEvent{MediaName: "Serenity", MediaType: "movie"})
+	time.Sleep(200 * time.Millisecond)
+
+	alerts := mock.getAlerts()
+	if len(alerts) != 0 {
+		t.Fatalf("expected 0 alerts (channel has OnApprovalActivity=false), got %d", len(alerts))
+	}
+}
+
+func TestNotificationDispatch_ApprovalModeFreedBytes(t *testing.T) {
+	channels := &mockChannelProvider{
+		configs: []db.NotificationConfig{
+			{ID: 1, Type: "discord", Name: "Test", Enabled: true, OnCycleDigest: true},
+		},
+	}
+
+	svc, mock := newTestDispatch(t, channels)
+
+	svc.bus.Publish(events.EngineStartEvent{ExecutionMode: "approval"})
+	time.Sleep(50 * time.Millisecond)
+
+	// In approval mode, no DeletionDryRun/DeletionSuccess events are published.
+	// FreedBytes comes from the EngineCompleteEvent instead.
+	svc.bus.Publish(events.EngineCompleteEvent{
+		Evaluated:     2232,
+		Flagged:       80,
+		DurationMs:    11900,
+		ExecutionMode: "approval",
+		FreedBytes:    5368709120, // ~5 GB potential savings
+	})
+	time.Sleep(50 * time.Millisecond)
+
+	svc.bus.Publish(events.DeletionBatchCompleteEvent{Succeeded: 0, Failed: 0})
+	time.Sleep(200 * time.Millisecond)
+
+	digests := mock.getDigests()
+	if len(digests) != 1 {
+		t.Fatalf("expected 1 digest, got %d", len(digests))
+	}
+	if digests[0].FreedBytes != 5368709120 {
+		t.Errorf("expected freedBytes=5368709120, got %d", digests[0].FreedBytes)
+	}
+	if digests[0].ExecutionMode != "approval" {
+		t.Errorf("expected execution mode 'approval', got %q", digests[0].ExecutionMode)
+	}
+	if digests[0].Flagged != 80 {
+		t.Errorf("expected flagged=80, got %d", digests[0].Flagged)
+	}
+}

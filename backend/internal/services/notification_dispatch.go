@@ -148,6 +148,11 @@ func (s *NotificationDispatchService) handle(event events.Event) {
 			s.accumulator.durationMs = e.DurationMs
 			s.accumulator.executionMode = e.ExecutionMode
 			s.accumulator.engineComplete = true
+			// Use FreedBytes from the engine event for approval/dry-run modes where
+			// no individual DeletionSuccess/DeletionDryRun events carry size data.
+			if e.FreedBytes > 0 && s.accumulator.totalFreedBytes == 0 {
+				s.accumulator.totalFreedBytes = e.FreedBytes
+			}
 		}
 		s.mu.Unlock()
 		s.tryFlush()

@@ -30,6 +30,7 @@ type EngineCompleteEvent struct {
 	Flagged       int    `json:"flagged"`
 	DurationMs    int64  `json:"durationMs"`
 	ExecutionMode string `json:"executionMode"`
+	FreedBytes    int64  `json:"freedBytes"` // Potential bytes freed (approval/dry-run) or actual bytes queued (auto)
 }
 
 // EventType implements Event.

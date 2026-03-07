@@ -19,9 +19,10 @@ type Poller struct {
 	done chan struct{}
 
 	// Per-run metrics (reset each engine cycle, synced to EngineService at the end)
-	lastRunEvaluated int64
-	lastRunFlagged   int64
-	lastRunProtected int64
+	lastRunEvaluated  int64
+	lastRunFlagged    int64
+	lastRunProtected  int64
+	lastRunFreedBytes int64
 }
 
 // New creates a new Poller bound to the given service registry.
@@ -112,6 +113,7 @@ func (p *Poller) poll() {
 	atomic.StoreInt64(&p.lastRunEvaluated, 0)
 	atomic.StoreInt64(&p.lastRunFlagged, 0)
 	atomic.StoreInt64(&p.lastRunProtected, 0)
+	atomic.StoreInt64(&p.lastRunFreedBytes, 0)
 
 	configs, err := p.reg.Integration.ListEnabled()
 	if err != nil {
@@ -202,6 +204,7 @@ func (p *Poller) poll() {
 	evaluated := atomic.LoadInt64(&p.lastRunEvaluated)
 	flagged := atomic.LoadInt64(&p.lastRunFlagged)
 	protected := atomic.LoadInt64(&p.lastRunProtected)
+	freedBytes := atomic.LoadInt64(&p.lastRunFreedBytes)
 
 	if err := p.reg.Engine.UpdateRunStats(runStatsID, int(evaluated), int(flagged), time.Since(pollStart).Milliseconds()); err != nil {
 		slog.Error("Failed to update engine run stats", "component", "poller", "error", err)
@@ -216,6 +219,7 @@ func (p *Poller) poll() {
 		Flagged:       int(flagged),
 		DurationMs:    time.Since(pollStart).Milliseconds(),
 		ExecutionMode: prefs.ExecutionMode,
+		FreedBytes:    freedBytes,
 	})
 
 	slog.Debug("Poll cycle complete", "component", "poller",

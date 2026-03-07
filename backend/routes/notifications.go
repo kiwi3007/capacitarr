@@ -119,6 +119,7 @@ func RegisterNotificationRoutes(g *echo.Group, reg *services.Registry) {
 		existing.OnServerStarted = req.OnServerStarted
 		existing.OnThresholdBreach = req.OnThresholdBreach
 		existing.OnUpdateAvailable = req.OnUpdateAvailable
+		existing.OnApprovalActivity = req.OnApprovalActivity
 		existing.UpdatedAt = time.Now()
 
 		updated, updateErr := reg.NotificationChannel.Update(existing.ID, *existing)
