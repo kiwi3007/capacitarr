@@ -3,6 +3,7 @@
 package services
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -11,6 +12,12 @@ import (
 
 	"capacitarr/internal/db"
 	"capacitarr/internal/events"
+)
+
+// Sentinel errors for approval operations.
+var (
+	ErrApprovalNotFound   = errors.New("approval queue entry not found")
+	ErrApprovalNotPending = errors.New("entry is not in pending status")
 )
 
 // ApprovalService manages the approval queue lifecycle.
@@ -28,11 +35,11 @@ func NewApprovalService(database *gorm.DB, bus *events.EventBus) *ApprovalServic
 func (s *ApprovalService) Approve(entryID uint) (*db.ApprovalQueueItem, error) {
 	var entry db.ApprovalQueueItem
 	if err := s.db.First(&entry, entryID).Error; err != nil {
-		return nil, fmt.Errorf("approval queue entry not found: %w", err)
+		return nil, fmt.Errorf("%w: %v", ErrApprovalNotFound, err)
 	}
 
 	if entry.Status != db.StatusPending {
-		return nil, fmt.Errorf("entry is not pending (current status: %s)", entry.Status)
+		return nil, fmt.Errorf("%w (current: %s)", ErrApprovalNotPending, entry.Status)
 	}
 
 	if err := s.db.Model(&entry).Updates(map[string]interface{}{
@@ -57,11 +64,11 @@ func (s *ApprovalService) Approve(entryID uint) (*db.ApprovalQueueItem, error) {
 func (s *ApprovalService) Reject(entryID uint, snoozeDurationHours int) (*db.ApprovalQueueItem, error) {
 	var entry db.ApprovalQueueItem
 	if err := s.db.First(&entry, entryID).Error; err != nil {
-		return nil, fmt.Errorf("approval queue entry not found: %w", err)
+		return nil, fmt.Errorf("%w: %v", ErrApprovalNotFound, err)
 	}
 
 	if entry.Status != db.StatusPending {
-		return nil, fmt.Errorf("entry is not pending (current status: %s)", entry.Status)
+		return nil, fmt.Errorf("%w (current: %s)", ErrApprovalNotPending, entry.Status)
 	}
 
 	snoozedUntil := time.Now().UTC().Add(time.Duration(snoozeDurationHours) * time.Hour)
@@ -89,11 +96,11 @@ func (s *ApprovalService) Reject(entryID uint, snoozeDurationHours int) (*db.App
 func (s *ApprovalService) Unsnooze(entryID uint) (*db.ApprovalQueueItem, error) {
 	var entry db.ApprovalQueueItem
 	if err := s.db.First(&entry, entryID).Error; err != nil {
-		return nil, fmt.Errorf("approval queue entry not found: %w", err)
+		return nil, fmt.Errorf("%w: %v", ErrApprovalNotFound, err)
 	}
 
 	if entry.Status != db.StatusRejected {
-		return nil, fmt.Errorf("entry is not rejected (current status: %s)", entry.Status)
+		return nil, fmt.Errorf("%w (current: %s)", ErrApprovalNotPending, entry.Status)
 	}
 
 	if err := s.db.Model(&entry).Updates(map[string]interface{}{

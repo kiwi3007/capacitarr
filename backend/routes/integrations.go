@@ -69,12 +69,7 @@ func RegisterIntegrationRoutes(g *echo.Group, reg *services.Registry) {
 		}
 
 		// Validate type
-		validTypes := map[string]bool{
-			intTypePlex: true, intTypeSonarr: true, intTypeRadarr: true, intTypeLidarr: true,
-			intTypeReadarr: true, intTypeTautulli: true, intTypeOverseerr: true,
-			intTypeJellyfin: true, intTypeEmby: true,
-		}
-		if !validTypes[config.Type] {
+		if !db.ValidIntegrationTypes[config.Type] {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "type must be one of: plex, sonarr, radarr, lidarr, readarr, tautulli, overseerr, jellyfin, emby"})
 		}
 

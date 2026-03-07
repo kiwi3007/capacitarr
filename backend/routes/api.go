@@ -162,16 +162,16 @@ func RegisterAPIRoutes(g *echo.Group, reg *services.Registry, appVersion, appCom
 	})
 
 	// Audit routes (history-only)
-	RegisterAuditRoutes(protected, database)
+	RegisterAuditRoutes(protected, reg)
 
 	// Approval queue routes
 	RegisterApprovalRoutes(protected, reg)
 
 	// Activity event routes
-	RegisterActivityRoutes(protected, database)
+	RegisterActivityRoutes(protected, reg)
 
 	// Engine history routes
-	RegisterEngineHistoryRoutes(protected, database)
+	RegisterEngineHistoryRoutes(protected, reg)
 
 	// Notification routes (channels CRUD + in-app notifications)
 	RegisterNotificationRoutes(protected, reg)

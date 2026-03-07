@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	"capacitarr/internal/db"
+	"capacitarr/internal/services"
 )
 
 // parseDuration parses shorthand duration strings like "1h", "24h", "7d", "30d".
@@ -41,7 +42,8 @@ func parseDuration(s string) (time.Duration, error) {
 }
 
 // RegisterEngineHistoryRoutes registers engine history endpoints on the protected group.
-func RegisterEngineHistoryRoutes(g *echo.Group, database *gorm.DB) {
+func RegisterEngineHistoryRoutes(g *echo.Group, reg *services.Registry) {
+	database := reg.DB
 	g.GET("/engine/history", handleEngineHistory(database))
 }
 

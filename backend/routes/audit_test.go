@@ -555,8 +555,8 @@ func TestRejectEntry_NotFound(t *testing.T) {
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("Expected 400, got %d: %s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("Expected 404, got %d: %s", rec.Code, rec.Body.String())
 	}
 }
 

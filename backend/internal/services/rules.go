@@ -10,12 +10,6 @@ import (
 	"capacitarr/internal/events"
 )
 
-// validEffects enumerates the allowed values for CustomRule.Effect.
-var validEffects = map[string]bool{
-	"always_keep": true, "prefer_keep": true, "lean_keep": true,
-	"lean_remove": true, "prefer_remove": true, "always_remove": true,
-}
-
 // RulesService manages custom rule CRUD and reordering.
 type RulesService struct {
 	db  *gorm.DB
@@ -47,7 +41,7 @@ func (s *RulesService) Create(rule db.CustomRule) (*db.CustomRule, error) {
 	if rule.Effect == "" {
 		return nil, fmt.Errorf("effect field is required")
 	}
-	if !validEffects[rule.Effect] {
+	if !db.ValidEffects[rule.Effect] {
 		return nil, fmt.Errorf("effect must be one of: always_keep, prefer_keep, lean_keep, lean_remove, prefer_remove, always_remove")
 	}
 

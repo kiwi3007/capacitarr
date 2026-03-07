@@ -46,7 +46,7 @@ func RegisterNotificationRoutes(g *echo.Group, reg *services.Registry) {
 		if req.Type == "" || req.Name == "" {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "type and name are required"})
 		}
-		if req.Type != notifTypeDiscord && req.Type != notifTypeSlack && req.Type != notifTypeInApp {
+		if !db.ValidNotificationChannelTypes[req.Type] {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "type must be discord, slack, or inapp"})
 		}
 		if (req.Type == notifTypeDiscord || req.Type == notifTypeSlack) && req.WebhookURL == "" {
@@ -88,7 +88,7 @@ func RegisterNotificationRoutes(g *echo.Group, reg *services.Registry) {
 		}
 
 		// Validate type if changed
-		if req.Type != "" && req.Type != notifTypeDiscord && req.Type != notifTypeSlack && req.Type != notifTypeInApp {
+		if req.Type != "" && !db.ValidNotificationChannelTypes[req.Type] {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "type must be discord, slack, or inapp"})
 		}
 

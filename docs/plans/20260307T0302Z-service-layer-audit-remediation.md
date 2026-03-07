@@ -1,7 +1,7 @@
 # Service Layer Audit & Remediation Plan
 
 **Created:** 2026-03-07T03:02Z
-**Status:** 🚧 In progress — Phase 1 ✅ Complete
+**Status:** 🚧 In progress — Phases 1–5 ✅ Complete
 **Branch:** `refactor/service-layer-audit`
 **Scope:** Backend service layer consistency, route cleanup, code quality hardening
 
@@ -227,6 +227,20 @@ Update `RegisterAuditRoutes`, `RegisterActivityRoutes`, and `RegisterEngineHisto
 
 ---
 
+### Phase 3 Execution Notes
+
+**Completed:** 2026-03-07T03:34Z
+
+All 5 steps executed as planned. Deviations:
+
+- **Step 3.1–3.3:** Each function now accepts `*services.Registry` and extracts `database := reg.DB` as the first line. `gorm.io/gorm` import removed from `audit.go` and `activity.go`; kept in `engine_history.go` because `handleEngineHistory` still accepts `*gorm.DB` (internal helper, not a public registration function).
+- **Step 3.4:** `database := reg.DB` line in `api.go` retained — still needed for `RequireAuth(database, cfg)` and inline disk-group handlers.
+- **Step 3.5:** Updated 3 call sites in `testutil.go`. The `database` parameter remains needed for `routes.RequireAuth`.
+
+Modified files: `routes/audit.go`, `routes/activity.go`, `routes/engine_history.go`, `routes/api.go`, `internal/testutil/testutil.go`.
+
+---
+
 ## Phase 4: Add Typed Errors
 
 ### Step 4.1 — Define Sentinel Errors in `services/approval.go`
@@ -257,6 +271,20 @@ if errors.Is(err, services.ErrApprovalNotPending) { ... }
 Review other services for string-based error matching patterns and add sentinel errors. Primary candidates:
 - `IntegrationService.Delete()` — "integration not found"
 - `SettingsService.UpdateThresholds()` — "disk group not found"
+
+---
+
+### Phase 4 Execution Notes
+
+**Completed:** 2026-03-07T03:34Z
+
+All 3 steps executed. Deviations:
+
+- **Step 4.1:** Added `ErrApprovalNotFound` and `ErrApprovalNotPending` sentinel errors. Updated `Approve()`, `Reject()`, and `Unsnooze()` to use `fmt.Errorf("%w: %v", ErrApprovalNotFound, err)` and `fmt.Errorf("%w (current: %s)", ErrApprovalNotPending, entry.Status)`. `Unsnooze()` reuses `ErrApprovalNotPending` for status mismatch (checking "not rejected") since the sentinel is a general "wrong status" indicator — the wrapped message provides specifics.
+- **Step 4.2:** Replaced string-based error matching in approve handler with `errors.Is()`. Extended reject and unsnooze handlers with proper `errors.Is()` matching (previously they returned 400 for all errors, including not-found). Updated `TestRejectEntry_NotFound` to expect HTTP 404 instead of 400 — this is a correctness improvement.
+- **Step 4.3:** Reviewed `routes/integrations.go` and `routes/preferences.go` — neither has string-based error matching on service results. All error handling uses `err != nil` only. No sentinel errors needed.
+
+Modified files: `internal/services/approval.go`, `routes/approval.go`, `routes/audit_test.go`.
 
 ---
 
@@ -296,6 +324,27 @@ Replace inline validation maps in:
 - `routes/integrations.go` (type validation)
 - `routes/preferences.go` (tiebreaker, execution mode, log level validation)
 - `routes/notifications.go` (channel type validation)
+
+---
+
+### Phase 5 Execution Notes
+
+**Completed:** 2026-03-07T03:34Z
+
+All steps executed as planned.
+
+- **Step 5.1:** Created `backend/internal/db/validation.go` with 6 exported validation maps: `ValidEffects`, `ValidExecutionModes`, `ValidTiebreakerMethods`, `ValidLogLevels`, `ValidIntegrationTypes`, `ValidNotificationChannelTypes`.
+- **Step 5.2:** Updated 5 files to use centralized maps:
+  - `services/rules.go` — removed local `validEffects`, now uses `db.ValidEffects`
+  - `routes/rules_portability.go` — removed local `validEffects`, now uses `db.ValidEffects`
+  - `routes/integrations.go` — removed inline `validTypes` map, now uses `db.ValidIntegrationTypes`
+  - `routes/preferences.go` — replaced `validTiebreakers`, `validModes`, `validLevels` with `db.ValidTiebreakerMethods`, `db.ValidExecutionModes`, `db.ValidLogLevels`
+  - `routes/notifications.go` — replaced inline `notifType*` comparisons in validation checks with `db.ValidNotificationChannelTypes[req.Type]`
+- `notifTypeDiscord`, `notifTypeSlack`, `notifTypeInApp` constants kept in `routes/notifications.go` — used for switch-case routing (test notifications) and webhook URL requirement checks, not for validation.
+
+New file: `backend/internal/db/validation.go`.
+
+`make ci` passes: 0 lint issues, all tests pass, no vulnerabilities.
 
 ---
 

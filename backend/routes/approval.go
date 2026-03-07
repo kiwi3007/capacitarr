@@ -2,6 +2,7 @@ package routes
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -69,11 +70,10 @@ func RegisterApprovalRoutes(g *echo.Group, reg *services.Registry) {
 		// Mark as approved via service (single fetch + status validation)
 		approved, err := reg.Approval.Approve(uint(entryID))
 		if err != nil {
-			if err.Error() == "entry is not pending (current status: approved)" ||
-				err.Error() == "entry is not pending (current status: rejected)" {
+			if errors.Is(err, services.ErrApprovalNotPending) {
 				return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 			}
-			if err.Error() == "approval queue entry not found: record not found" {
+			if errors.Is(err, services.ErrApprovalNotFound) {
 				return c.JSON(http.StatusNotFound, map[string]string{"error": "Approval queue entry not found"})
 			}
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to approve entry"})
@@ -146,7 +146,13 @@ func RegisterApprovalRoutes(g *echo.Group, reg *services.Registry) {
 
 		rejected, err := reg.Approval.Reject(uint(entryID), prefs.SnoozeDurationHours)
 		if err != nil {
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+			if errors.Is(err, services.ErrApprovalNotPending) {
+				return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+			}
+			if errors.Is(err, services.ErrApprovalNotFound) {
+				return c.JSON(http.StatusNotFound, map[string]string{"error": "Approval queue entry not found"})
+			}
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to reject entry"})
 		}
 
 		return c.JSON(http.StatusOK, rejected)
@@ -162,7 +168,13 @@ func RegisterApprovalRoutes(g *echo.Group, reg *services.Registry) {
 
 		unsnoozed, err := reg.Approval.Unsnooze(uint(entryID))
 		if err != nil {
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+			if errors.Is(err, services.ErrApprovalNotPending) {
+				return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+			}
+			if errors.Is(err, services.ErrApprovalNotFound) {
+				return c.JSON(http.StatusNotFound, map[string]string{"error": "Approval queue entry not found"})
+			}
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to unsnooze entry"})
 		}
 
 		return c.JSON(http.StatusOK, unsnoozed)

@@ -42,23 +42,20 @@ func RegisterPreferenceRoutes(protected *echo.Group, reg *services.Registry) {
 		}
 
 		// Validate tiebreaker method
-		validTiebreakers := map[string]bool{"size_desc": true, "size_asc": true, "name_asc": true, "oldest_first": true, "newest_first": true}
 		if payload.TiebreakerMethod == "" {
 			payload.TiebreakerMethod = "size_desc"
 		}
-		if !validTiebreakers[payload.TiebreakerMethod] {
+		if !db.ValidTiebreakerMethods[payload.TiebreakerMethod] {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Tiebreaker method must be size_desc, size_asc, name_asc, oldest_first, or newest_first"})
 		}
 
 		// Validate execution mode
-		validModes := map[string]bool{"dry-run": true, "approval": true, "auto": true}
-		if !validModes[payload.ExecutionMode] {
+		if !db.ValidExecutionModes[payload.ExecutionMode] {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Execution mode must be dry-run, approval, or auto"})
 		}
 
 		// Validate log level
-		validLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
-		if !validLevels[payload.LogLevel] {
+		if !db.ValidLogLevels[payload.LogLevel] {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Log level must be debug, info, warn, or error"})
 		}
 

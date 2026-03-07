@@ -57,12 +57,6 @@ type importRequest struct {
 	IntegrationMapping map[string]uint `json:"integrationMapping"`
 }
 
-// validEffects enumerates the allowed effect values for custom rules.
-var validEffects = map[string]bool{
-	"always_keep": true, "prefer_keep": true, "lean_keep": true,
-	"lean_remove": true, "prefer_remove": true, "always_remove": true,
-}
-
 // RegisterRulePortabilityRoutes sets up the export/import endpoints for custom rules.
 func RegisterRulePortabilityRoutes(protected *echo.Group, reg *services.Registry) {
 	database := reg.DB
@@ -158,7 +152,7 @@ func handleImportRules(database *gorm.DB, bus *events.EventBus) echo.HandlerFunc
 					"error": fmt.Sprintf("Rule at index %d is missing required fields (field, operator, value, effect)", i),
 				})
 			}
-			if !validEffects[r.Effect] {
+			if !db.ValidEffects[r.Effect] {
 				return c.JSON(http.StatusBadRequest, map[string]string{
 					"error": fmt.Sprintf("Rule at index %d has invalid effect %q", i, r.Effect),
 				})

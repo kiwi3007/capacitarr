@@ -5,13 +5,14 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
-	"gorm.io/gorm"
 
 	"capacitarr/internal/db"
+	"capacitarr/internal/services"
 )
 
 // RegisterActivityRoutes sets up the API endpoints for activity events.
-func RegisterActivityRoutes(g *echo.Group, database *gorm.DB) {
+func RegisterActivityRoutes(g *echo.Group, reg *services.Registry) {
+	database := reg.DB
 	// Recent activity events (system events only)
 	g.GET("/activity/recent", func(c echo.Context) error {
 		limit := 5

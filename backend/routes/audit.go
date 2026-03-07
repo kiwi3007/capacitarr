@@ -7,14 +7,15 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"gorm.io/gorm"
 
 	"capacitarr/internal/db"
+	"capacitarr/internal/services"
 )
 
 // RegisterAuditRoutes sets up the API endpoints for the audit log (history-only).
 // Approval queue endpoints are in approval.go.
-func RegisterAuditRoutes(g *echo.Group, database *gorm.DB) {
+func RegisterAuditRoutes(g *echo.Group, reg *services.Registry) {
+	database := reg.DB
 	// Recent audit: lightweight list of the most recent N entries (for dashboard mini-feed)
 	g.GET("/audit-log/recent", func(c echo.Context) error {
 		limit := 5
