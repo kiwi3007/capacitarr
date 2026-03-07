@@ -181,3 +181,49 @@ services:
 4. Built-in JWT authentication continues to work as a fallback
 
 > **⚠️ Security:** Only enable `AUTH_HEADER` when Capacitarr is exclusively accessible through your auth proxy. If Capacitarr is also directly reachable, an attacker could forge the header and bypass authentication.
+
+---
+
+## Database Backups
+
+Capacitarr stores all configuration, rules, audit history, and statistics in a single SQLite database file at `/config/capacitarr.db`. This is the only file you need to back up.
+
+### Backup Methods
+
+#### Simple File Copy
+
+SQLite uses WAL (Write-Ahead Logging) mode, which allows safe file copies while the application is running:
+
+```bash
+# Copy the database file (safe while Capacitarr is running)
+cp /path/to/config/capacitarr.db /path/to/backup/capacitarr-$(date +%Y%m%d).db
+```
+
+#### SQLite Backup Command
+
+For a guaranteed-consistent backup, use the SQLite backup command:
+
+```bash
+docker exec capacitarr sqlite3 /config/capacitarr.db ".backup /config/capacitarr-backup.db"
+```
+
+### What's Included
+
+The database contains:
+
+- **Authentication:** User credentials and API keys
+- **Integrations:** Connection URLs and API keys for \*arr apps, Plex, Tautulli, etc.
+- **Preferences:** Scoring weights, execution mode, poll interval, thresholds
+- **Custom Rules:** All user-defined keep/remove rules
+- **Notification Channels:** Discord/Slack webhook configurations
+- **Audit Log:** History of all deletions and dry-runs
+- **Approval Queue:** Pending, approved, and snoozed items
+- **Engine Statistics:** Run history and lifetime counters
+- **Disk Groups:** Detected mount points and threshold settings
+
+### Backup Recommendations
+
+- Back up before upgrading Capacitarr to a new version
+- Schedule regular backups (daily or weekly) for production use
+- Store backups in a separate location from the `/config` volume
+- The database file is typically small (under 50 MB) even with extensive history

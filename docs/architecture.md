@@ -79,8 +79,12 @@ flowchart TD
         INTEGRATION_SVC["IntegrationService<br/>CRUD / Test / Sync"]
         AUTH_SVC["AuthService<br/>Login / ChangePassword / ChangeUsername / GenerateAPIKey"]
         AUDIT_SVC["AuditLogService<br/>Create / Upsert / Dedup"]
-        NOTIF_CHANNEL_SVC["NotificationChannelService<br/>CRUD / Test"]
-        DATA_SVC["DataService<br/>Reset"]
+        NOTIF_CHANNEL_SVC["NotificationChannelService<br/>CRUD for notification channels"]
+        NOTIF_DISPATCH_SVC["NotificationDispatchService<br/>Two-gate flush / digest + alerts"]
+        DATA_SVC["DataService<br/>Data reset operations"]
+        RULES_SVC["RulesService<br/>Custom rule CRUD + validation"]
+        METRICS_SVC["MetricsService<br/>History / rollup / lifetime stats"]
+        VERSION_SVC["VersionService<br/>Update check via GitLab releases"]
     end
 
     subgraph EVENT_SYSTEM["Event System"]
@@ -109,17 +113,23 @@ All services are instantiated in `main.go` and held in a `services.Registry` str
 
 ```go
 type Registry struct {
-    DB                  *gorm.DB
-    Cfg                 *config.Config
-    Approval            *ApprovalService
-    Deletion            *DeletionService
-    AuditLog            *AuditLogService
-    Engine              *EngineService
-    Settings            *SettingsService
-    Integration         *IntegrationService
-    Auth                *AuthService
-    NotificationChannel *NotificationChannelService
-    Data                *DataService
+    DB  *gorm.DB
+    Bus *events.EventBus
+    Cfg *config.Config
+
+    Approval             *ApprovalService
+    Deletion             *DeletionService
+    AuditLog             *AuditLogService
+    Engine               *EngineService
+    Settings             *SettingsService
+    Integration          *IntegrationService
+    Auth                 *AuthService
+    NotificationChannel  *NotificationChannelService
+    NotificationDispatch *NotificationDispatchService
+    Data                 *DataService
+    Rules                *RulesService
+    Metrics              *MetricsService
+    Version              *VersionService
 }
 ```
 
@@ -151,6 +161,30 @@ When a service performs an action (e.g., approving an item, completing an engine
 1. **ActivityPersister** — writes the event to the `activity_events` table for the dashboard feed
 2. **NotificationDispatcher** — filters events against notification channel subscriptions and delivers to Discord/Slack/in-app
 3. **SSEBroadcaster** — serializes the event as an SSE message and pushes it to all connected browser tabs
+
+### Notification Dispatch
+
+The `NotificationDispatchService` uses a **two-gate flush pattern** to ensure cycle digest notifications contain complete data from both the evaluation phase and the deletion phase of an engine run.
+
+```mermaid
+flowchart LR
+    ENGINE_COMPLETE["EngineCompleteEvent<br/>Gate 1: evaluation stats"]
+    DELETION_BATCH["DeletionBatchCompleteEvent<br/>Gate 2: deletion stats"]
+    FLUSH["Flush<br/>Build digest + dispatch"]
+    CHANNELS["Discord / Slack"]
+    INAPP["In-App<br/>always-on"]
+
+    ENGINE_COMPLETE --> FLUSH
+    DELETION_BATCH --> FLUSH
+    FLUSH --> CHANNELS
+    FLUSH --> INAPP
+```
+
+**Cycle digests** are batched summaries sent once per engine run. They include evaluated count, flagged count, deleted count, freed bytes, duration, and disk usage. The digest is only dispatched after both gates fire, ensuring deletion results are included.
+
+**Instant alerts** fire immediately when their trigger event occurs — they are not batched. Alert types include engine errors, mode changes, server started, threshold breaches, update available, and approval activity.
+
+**In-app notifications** are always-on: every digest and alert is automatically recorded to the in-app notification store regardless of whether the user has configured any external channels. Users do not need to create a channel for in-app notifications — they work out of the box. See [notifications.md](notifications.md) for the full user-facing guide, and [plans/20260307T1403Z-notification-overhaul.md](plans/20260307T1403Z-notification-overhaul.md) for the design details.
 
 ### Event Types (39 total)
 
@@ -294,7 +328,7 @@ capacitarr/
 │   │   ├── events/                 # Event bus, typed events, SSE broadcaster, activity persister
 │   │   ├── integrations/           # *arr, Plex, Jellyfin, Emby, Overseerr, Tautulli clients
 │   │   ├── jobs/                   # Cron scheduling (retention cleanup, time-series rollups)
-│   │   ├── notifications/          # Discord, Slack, in-app notification dispatcher
+│   │   ├── notifications/          # Discord, Slack, in-app senders + HTTP client
 │   │   ├── poller/                 # Engine orchestrator + deletion worker
 │   │   ├── services/               # Service layer (business logic)
 │   │   └── logger/                 # Structured logging
