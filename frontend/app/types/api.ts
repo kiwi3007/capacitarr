@@ -346,17 +346,3 @@ export interface NotificationChannel {
   createdAt: string;
   updatedAt: string;
 }
-
-// ---------------------------------------------------------------------------
-// In-App Notification
-// ---------------------------------------------------------------------------
-
-export interface InAppNotification {
-  id: number;
-  title: string;
-  message: string;
-  severity: 'info' | 'warning' | 'error' | 'success';
-  read: boolean;
-  eventType: string;
-  createdAt: string;
-}

@@ -1,6 +1,6 @@
 # Notifications
 
-Capacitarr provides real-time notifications through Discord webhooks, Slack webhooks, and a built-in in-app notification center. Notifications keep you informed about engine activity, disk usage alerts, and system events without needing to check the dashboard.
+Capacitarr provides real-time notifications through Discord webhooks and Slack webhooks. Notifications keep you informed about engine activity, disk usage alerts, and system events without needing to check the dashboard. System events are also recorded in the **Activity Log** on the dashboard for at-a-glance visibility.
 
 ## Notification Types
 
@@ -33,20 +33,6 @@ Instant alerts fire immediately when their trigger event occurs — they are not
 | **Threshold Breached** | Disk usage has exceeded the configured threshold for a disk group |
 | **Update Available** | A newer Capacitarr release was detected on GitLab |
 | **Approval Activity** | An item was approved or rejected in the approval queue |
-
-## In-App Notifications
-
-In-app notifications are always active — no configuration is needed. Every cycle digest and instant alert is automatically recorded to the in-app notification store, regardless of whether you have configured any Discord or Slack channels.
-
-In-app notifications appear in the **notification bell** (🔔) in the UI header bar. Key features:
-
-- **Always-on:** Works out of the box with no setup required
-- **Notification badge:** Shows the unread count on the bell icon
-- **Mark as read:** Click individual notifications or use "Mark all as read"
-- **Clear all:** Remove all notifications from the panel
-- **Auto-pruning:** Notifications are automatically cleaned up based on the audit log retention setting (default: 90 days)
-
-In-app notifications mirror the same content sent to external channels — digests show the engine run summary, and alerts show the event title and message.
 
 ## Discord Setup
 

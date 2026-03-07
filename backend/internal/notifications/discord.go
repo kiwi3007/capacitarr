@@ -1,4 +1,4 @@
-// Package notifications dispatches alerts via Discord, Slack, and in-app channels.
+// Package notifications dispatches alerts via Discord and Slack channels.
 package notifications
 
 import (

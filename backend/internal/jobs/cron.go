@@ -88,28 +88,7 @@ func Start(reg *services.Registry) *cron.Cron {
 		slog.Error("Failed to add engine stats cleanup cron", "component", "jobs", "operation", "add_cron", "error", err)
 	}
 
-	// 6. Prune old in-app notifications — uses audit log retention setting
-	_, err = c.AddFunc("@daily", func() {
-		prefs, prefsErr := reg.Settings.GetPreferences()
-		if prefsErr != nil {
-			slog.Error("Failed to fetch preferences for notification cleanup", "component", "jobs", "error", prefsErr)
-			return
-		}
-		if prefs.AuditLogRetentionDays <= 0 {
-			return // 0 = keep forever
-		}
-		cutoff := time.Now().Add(-time.Duration(prefs.AuditLogRetentionDays) * 24 * time.Hour)
-		if deleted, pruneErr := reg.NotificationChannel.PruneOldInApp(cutoff); pruneErr != nil {
-			slog.Error("Failed to prune old notifications", "component", "jobs", "error", pruneErr)
-		} else if deleted > 0 {
-			slog.Info("Pruned old in-app notifications", "component", "jobs", "deleted", deleted, "retentionDays", prefs.AuditLogRetentionDays)
-		}
-	})
-	if err != nil {
-		slog.Error("Failed to add notification cleanup cron", "component", "jobs", "operation", "add_cron", "error", err)
-	}
-
-	// 7. Prune old activity events — fixed 7-day retention
+	// 6. Prune old activity events — fixed 7-day retention
 	_, err = c.AddFunc("@daily", func() {
 		if deleted, pruneErr := reg.Settings.PruneOldActivities(7); pruneErr != nil {
 			slog.Error("Failed to prune activity events", "component", "jobs", "error", pruneErr)
@@ -121,7 +100,7 @@ func Start(reg *services.Registry) *cron.Cron {
 		slog.Error("Failed to add activity events cleanup cron", "component", "jobs", "operation", "add_cron", "error", err)
 	}
 
-	// 8. Prune old audit log entries — uses audit log retention setting
+	// 7. Prune old audit log entries — uses audit log retention setting
 	_, err = c.AddFunc("@daily", func() {
 		prefs, prefsErr := reg.Settings.GetPreferences()
 		if prefsErr != nil {

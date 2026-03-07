@@ -19,8 +19,7 @@ const (
 	notifTypeSlack   = "slack"
 )
 
-// RegisterNotificationRoutes sets up CRUD endpoints for notification channels
-// and management endpoints for in-app notifications.
+// RegisterNotificationRoutes sets up CRUD endpoints for notification channels.
 func RegisterNotificationRoutes(g *echo.Group, reg *services.Registry) {
 	// --- Notification Channel CRUD ---
 
@@ -164,55 +163,4 @@ func RegisterNotificationRoutes(g *echo.Group, reg *services.Registry) {
 		return c.JSON(http.StatusOK, map[string]string{"status": "sent"})
 	})
 
-	// --- In-App Notification Management ---
-
-	// GET /api/v1/notifications — list in-app notifications (newest first, limit 50)
-	g.GET("/notifications", func(c echo.Context) error {
-		items, err := reg.NotificationChannel.ListInApp(50)
-		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch notifications"})
-		}
-		return c.JSON(http.StatusOK, items)
-	})
-
-	// GET /api/v1/notifications/unread-count — return count of unread notifications
-	g.GET("/notifications/unread-count", func(c echo.Context) error {
-		count, err := reg.NotificationChannel.UnreadCount()
-		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to count unread notifications"})
-		}
-		return c.JSON(http.StatusOK, map[string]int64{"count": count})
-	})
-
-	// PUT /api/v1/notifications/:id/read — mark a notification as read
-	g.PUT("/notifications/:id/read", func(c echo.Context) error {
-		id := c.Param("id")
-
-		idNum, convErr := strconv.ParseUint(id, 10, 64)
-		if convErr != nil {
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid ID"})
-		}
-
-		if err := reg.NotificationChannel.MarkRead(uint(idNum)); err != nil {
-			return c.JSON(http.StatusNotFound, map[string]string{"error": "Notification not found"})
-		}
-
-		return c.JSON(http.StatusOK, map[string]string{"status": "read"})
-	})
-
-	// PUT /api/v1/notifications/read-all — mark all notifications as read
-	g.PUT("/notifications/read-all", func(c echo.Context) error {
-		if err := reg.NotificationChannel.MarkAllRead(); err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to mark all notifications as read"})
-		}
-		return c.JSON(http.StatusOK, map[string]string{"status": "all_read"})
-	})
-
-	// DELETE /api/v1/notifications — delete all in-app notifications
-	g.DELETE("/notifications", func(c echo.Context) error {
-		if err := reg.NotificationChannel.ClearAllInApp(); err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to clear notifications"})
-		}
-		return c.JSON(http.StatusOK, map[string]string{"status": "cleared"})
-	})
 }

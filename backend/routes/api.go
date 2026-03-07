@@ -86,7 +86,7 @@ func RegisterAPIRoutes(g *echo.Group, reg *services.Registry, appVersion, appCom
 	// Engine routes (history + run)
 	RegisterEngineRoutes(protected, reg)
 
-	// Notification routes (channels CRUD + in-app notifications)
+	// Notification routes (channels CRUD)
 	RegisterNotificationRoutes(protected, reg)
 
 	// Data management routes (reset/clear)

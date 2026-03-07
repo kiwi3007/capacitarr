@@ -181,10 +181,10 @@ type LifetimeStats struct {
 	UpdatedAt           time.Time `json:"updatedAt"`
 }
 
-// NotificationConfig stores a configured notification channel (Discord, Slack, or in-app).
+// NotificationConfig stores a configured notification channel (Discord or Slack).
 type NotificationConfig struct {
 	ID         uint   `gorm:"primarykey" json:"id"`
-	Type       string `gorm:"not null" json:"type"` // "discord", "slack", "inapp"
+	Type       string `gorm:"not null" json:"type"` // "discord", "slack"
 	Name       string `gorm:"not null" json:"name"` // User-friendly name
 	WebhookURL string `json:"webhookUrl,omitempty"` // Discord/Slack webhook URL
 	Enabled    bool   `gorm:"default:true" json:"enabled"`
@@ -198,17 +198,6 @@ type NotificationConfig struct {
 	OnApprovalActivity bool      `gorm:"default:true" json:"onApprovalActivity"`
 	CreatedAt          time.Time `json:"createdAt"`
 	UpdatedAt          time.Time `json:"updatedAt"`
-}
-
-// InAppNotification stores a notification displayed in the UI notification panel.
-type InAppNotification struct {
-	ID        uint      `gorm:"primarykey" json:"id"`
-	Title     string    `gorm:"not null" json:"title"`
-	Message   string    `gorm:"not null" json:"message"`
-	Severity  string    `gorm:"not null;default:'info'" json:"severity"` // "info", "warning", "error", "success"
-	Read      bool      `gorm:"default:false" json:"read"`
-	EventType string    `gorm:"not null" json:"eventType"` // "threshold_breach", "deletion_executed", etc.
-	CreatedAt time.Time `json:"createdAt"`
 }
 
 // ActivityEvent stores system-level activity events for the dashboard feed.

@@ -76,9 +76,9 @@ func TestStart_RegistersExpectedEntries(t *testing.T) {
 
 	entries := c.Entries()
 	// Expected: hourly rollup, daily rollup, weekly rollup, monthly prune,
-	// engine stats prune, notification prune, activity prune, audit log prune
-	if len(entries) != 8 {
-		t.Errorf("Expected 8 cron entries, got %d", len(entries))
+	// engine stats prune, activity prune, audit log prune
+	if len(entries) != 7 {
+		t.Errorf("Expected 7 cron entries, got %d", len(entries))
 	}
 }
 

@@ -3,18 +3,12 @@ package notifications
 import "fmt"
 
 // Sender is the interface for delivering notifications to external channels.
-// Each channel type (Discord, Slack, in-app) implements this interface.
+// Each channel type (Discord, Slack) implements this interface.
 type Sender interface {
 	// SendDigest delivers a cycle digest notification summarizing an engine run.
 	SendDigest(webhookURL string, digest CycleDigest) error
 	// SendAlert delivers an immediate alert notification.
 	SendAlert(webhookURL string, alert Alert) error
-}
-
-// InAppCreator is the narrow interface used by InAppSender to persist
-// in-app notification records. Satisfied by NotificationChannelService.
-type InAppCreator interface {
-	CreateInApp(title, message, severity, eventType string) error
 }
 
 // CycleDigest contains the accumulated data for a single engine cycle
@@ -73,14 +67,6 @@ const (
 const (
 	titleCleanupComplete = "🧹 Cleanup Complete"
 	titleAllClear        = "✅ All Clear"
-)
-
-// In-app notification severity constants.
-const (
-	severityInfo    = "info"
-	severityWarning = "warning"
-	severityError   = "error"
-	severitySuccess = "success"
 )
 
 // Discord embed colors.
@@ -223,34 +209,4 @@ func alertColor(t AlertType) int {
 	default:
 		return ColorBlue
 	}
-}
-
-// alertSeverity returns the in-app notification severity for an alert type.
-func alertSeverity(t AlertType) string {
-	switch t {
-	case AlertError:
-		return severityError
-	case AlertModeChanged:
-		return severityWarning
-	case AlertServerStarted:
-		return severitySuccess
-	case AlertThresholdBreached:
-		return severityWarning
-	case AlertUpdateAvailable:
-		return severityInfo
-	case AlertApprovalActivity:
-		return severityInfo
-	case AlertTest:
-		return severityInfo
-	default:
-		return severityInfo
-	}
-}
-
-// digestSeverity returns the in-app notification severity for a cycle digest.
-func digestSeverity(d CycleDigest) string {
-	if d.Failed > 0 {
-		return "warning"
-	}
-	return "success"
 }

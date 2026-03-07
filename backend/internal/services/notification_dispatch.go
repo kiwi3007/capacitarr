@@ -19,7 +19,6 @@ var ErrUnknownChannelType = errors.New("unknown channel type")
 type ChannelProvider interface {
 	ListEnabled() ([]db.NotificationConfig, error)
 	GetByID(id uint) (*db.NotificationConfig, error)
-	CreateInApp(title, message, severity, eventType string) error
 }
 
 // VersionChecker abstracts the version service for populating update banners
@@ -60,7 +59,6 @@ func NewNotificationDispatchService(
 	senders := map[string]notifications.Sender{
 		"discord": notifications.NewDiscordSender(),
 		"slack":   notifications.NewSlackSender(),
-		"inapp":   notifications.NewInAppSender(channels),
 	}
 
 	return &NotificationDispatchService{
@@ -297,12 +295,6 @@ func (s *NotificationDispatchService) dispatchDigest(digest notifications.CycleD
 			continue
 		}
 
-		// Skip inapp channels in the external dispatch loop — in-app is handled
-		// unconditionally after the loop (always-on, not user-configured).
-		if cfg.Type == "inapp" {
-			continue
-		}
-
 		sender, ok := s.senders[cfg.Type]
 		if !ok {
 			slog.Warn("Unknown notification channel type", "component", "notifications", "type", cfg.Type)
@@ -340,23 +332,6 @@ func (s *NotificationDispatchService) dispatchDigest(digest notifications.CycleD
 			}
 		}()
 	}
-
-	// Unconditionally write in-app notification for every digest —
-	// in-app is always-on and independent of user-configured channels.
-	if inappSender, ok := s.senders["inapp"]; ok {
-		if sendErr := inappSender.SendDigest("", digest); sendErr != nil {
-			slog.Error("Failed to write in-app digest notification",
-				"component", "notifications",
-				"error", sendErr,
-			)
-		} else {
-			s.bus.Publish(events.NotificationSentEvent{
-				ChannelType: "inapp",
-				Name:        "in-app",
-				TriggerType: "cycle_digest",
-			})
-		}
-	}
 }
 
 // dispatchAlert sends an immediate alert to all enabled channels matching
@@ -374,12 +349,6 @@ func (s *NotificationDispatchService) dispatchAlert(alert notifications.Alert, s
 
 	for _, cfg := range configs {
 		if !subscribes(cfg) {
-			continue
-		}
-
-		// Skip inapp channels in the external dispatch loop — in-app is handled
-		// unconditionally after the loop (always-on, not user-configured).
-		if cfg.Type == "inapp" {
 			continue
 		}
 
@@ -421,24 +390,6 @@ func (s *NotificationDispatchService) dispatchAlert(alert notifications.Alert, s
 				})
 			}
 		}()
-	}
-
-	// Unconditionally write in-app notification for every alert —
-	// in-app is always-on and independent of user-configured channels.
-	if inappSender, ok := s.senders["inapp"]; ok {
-		if sendErr := inappSender.SendAlert("", alert); sendErr != nil {
-			slog.Error("Failed to write in-app alert notification",
-				"component", "notifications",
-				"alertType", alert.Type,
-				"error", sendErr,
-			)
-		} else {
-			s.bus.Publish(events.NotificationSentEvent{
-				ChannelType: "inapp",
-				Name:        "in-app",
-				TriggerType: string(alert.Type),
-			})
-		}
 	}
 }
 

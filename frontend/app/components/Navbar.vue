@@ -64,89 +64,6 @@
           <!-- Engine Control -->
           <EngineControlPopover />
 
-          <!-- Notification Bell -->
-          <UiPopover @update:open="onNotifPopoverToggle">
-            <UiPopoverTrigger as-child>
-              <UiButton variant="ghost" size="icon" aria-label="Notifications" class="relative">
-                <component :is="BellIcon" class="w-5 h-5" />
-                <span
-                  v-if="unreadCount > 0"
-                  class="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold leading-none px-1"
-                >
-                  {{ unreadCount > 99 ? '99+' : unreadCount }}
-                </span>
-              </UiButton>
-            </UiPopoverTrigger>
-            <UiPopoverContent align="end" class="w-80 p-0">
-              <div class="flex items-center justify-between px-4 py-3 border-b border-border">
-                <h4 class="text-sm font-semibold">
-                  {{ $t('nav.notifications') }}
-                </h4>
-                <div class="flex items-center gap-1">
-                  <UiButton
-                    v-if="unreadCount > 0"
-                    variant="ghost"
-                    size="sm"
-                    class="h-auto py-1 px-2 text-xs"
-                    @click="markAllAsRead"
-                  >
-                    {{ $t('nav.markAllRead') }}
-                  </UiButton>
-                  <UiButton
-                    v-if="notifications.length > 0"
-                    variant="ghost"
-                    size="sm"
-                    class="h-auto py-1 px-2 text-xs text-destructive hover:text-destructive"
-                    @click="clearAll"
-                  >
-                    {{ $t('nav.clearAll') }}
-                  </UiButton>
-                </div>
-              </div>
-              <div class="max-h-80 overflow-y-auto">
-                <div v-if="notifLoading" class="flex justify-center py-8">
-                  <component :is="LoaderCircleIcon" class="w-5 h-5 text-primary animate-spin" />
-                </div>
-                <div
-                  v-else-if="notifications.length === 0"
-                  class="text-center py-8 text-sm text-muted-foreground"
-                >
-                  {{ $t('nav.noNotifications') }}
-                </div>
-                <div v-else>
-                  <button
-                    v-for="notif in notifications"
-                    :key="notif.id"
-                    class="flex items-start gap-3 w-full px-4 py-3 text-left transition-colors hover:bg-accent border-b border-border last:border-0"
-                    :class="notif.read ? 'opacity-60' : ''"
-                    @click="onNotifClick(notif)"
-                  >
-                    <component
-                      :is="severityIcon(notif.severity)"
-                      class="w-4 h-4 mt-0.5 shrink-0"
-                      :class="severityColor(notif.severity)"
-                    />
-                    <div class="flex-1 min-w-0">
-                      <p class="text-sm font-medium leading-tight truncate">
-                        {{ notif.title }}
-                      </p>
-                      <p class="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                        {{ notif.message }}
-                      </p>
-                      <p class="text-[10px] text-muted-foreground/60 mt-1">
-                        <DateDisplay :date="notif.createdAt" />
-                      </p>
-                    </div>
-                    <span
-                      v-if="!notif.read"
-                      class="w-2 h-2 rounded-full bg-primary shrink-0 mt-1.5"
-                    />
-                  </button>
-                </div>
-              </div>
-            </UiPopoverContent>
-          </UiPopover>
-
           <!-- Version / Update Indicator (always visible) -->
           <UiPopover>
             <UiPopoverTrigger as-child>
@@ -367,83 +284,16 @@ import {
   CircleHelpIcon,
   PaletteIcon,
   CheckIcon,
-  BellIcon,
-  LoaderCircleIcon,
-  AlertTriangleIcon,
-  XCircleIcon,
-  CheckCircleIcon,
-  InfoIcon,
   GlobeIcon,
   ArrowUpCircleIcon,
   RefreshCwIcon,
 } from 'lucide-vue-next';
 import type { ThemeMeta } from '~/composables/useTheme';
-import type { InAppNotification } from '~/types/api';
 
 const { mode: colorMode, setMode } = useAppColorMode();
 const { theme, setTheme, themes } = useTheme();
 const { uiVersion, apiVersion, updateAvailable, latestVersion, releaseUrl, checking, checkNow } =
   useVersion();
-const {
-  unreadCount,
-  notifications,
-  loading: notifLoading,
-  fetchNotifications,
-  markAsRead,
-  markAllAsRead,
-  clearAll,
-  start: startNotifications,
-} = useNotifications();
-
-/** Map severity to icon component */
-function severityIcon(severity: string) {
-  switch (severity) {
-    case 'info':
-      return InfoIcon;
-    case 'warning':
-      return AlertTriangleIcon;
-    case 'error':
-      return XCircleIcon;
-    case 'success':
-      return CheckCircleIcon;
-    default:
-      return InfoIcon;
-  }
-}
-
-/** Map severity to text color class */
-function severityColor(severity: string) {
-  switch (severity) {
-    case 'info':
-      return 'text-blue-500';
-    case 'warning':
-      return 'text-amber-500';
-    case 'error':
-      return 'text-red-500';
-    case 'success':
-      return 'text-green-500';
-    default:
-      return 'text-muted-foreground';
-  }
-}
-
-/** When the popover opens, fetch notifications; when it closes, do nothing */
-function onNotifPopoverToggle(open: boolean) {
-  if (open) {
-    fetchNotifications();
-  }
-}
-
-/** Click a notification to mark it as read */
-function onNotifClick(notif: InAppNotification) {
-  if (!notif.read) {
-    markAsRead(notif.id);
-  }
-}
-
-onMounted(() => {
-  startNotifications();
-});
 
 const router = useRouter();
 const authenticated = useCookie('authenticated');
