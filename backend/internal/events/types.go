@@ -370,6 +370,68 @@ func (e DeletionDryRunEvent) EventMessage() string {
 	return fmt.Sprintf("Dry-run flagged: %s", e.MediaName)
 }
 
+// DeletionBatchCompleteEvent is published when all queued deletions for an
+// engine cycle have been processed (successfully or not). This is the "gate 2"
+// signal that the NotificationDispatchService waits for before flushing the
+// cycle digest notification.
+type DeletionBatchCompleteEvent struct {
+	Succeeded int `json:"succeeded"`
+	Failed    int `json:"failed"`
+}
+
+// EventType implements Event.
+func (e DeletionBatchCompleteEvent) EventType() string { return "deletion_batch_complete" }
+
+// EventMessage implements Event.
+func (e DeletionBatchCompleteEvent) EventMessage() string {
+	return fmt.Sprintf("Deletion batch complete: %d succeeded, %d failed", e.Succeeded, e.Failed)
+}
+
+// =============================================================================
+// Disk Events
+// =============================================================================
+
+// ThresholdBreachedEvent is published when disk usage exceeds the configured
+// threshold during an engine evaluation cycle. This is distinct from
+// ThresholdChangedEvent, which fires when an admin changes the threshold
+// settings — ThresholdBreachedEvent fires on actual disk usage detection.
+type ThresholdBreachedEvent struct {
+	MountPath    string  `json:"mountPath"`
+	CurrentPct   float64 `json:"currentPct"`
+	ThresholdPct float64 `json:"thresholdPct"`
+	TargetPct    float64 `json:"targetPct"`
+}
+
+// EventType implements Event.
+func (e ThresholdBreachedEvent) EventType() string { return "threshold_breached" }
+
+// EventMessage implements Event.
+func (e ThresholdBreachedEvent) EventMessage() string {
+	return fmt.Sprintf("Disk threshold breached on %s: %.1f%% (threshold: %.0f%%)",
+		e.MountPath, e.CurrentPct, e.ThresholdPct)
+}
+
+// =============================================================================
+// Version Events
+// =============================================================================
+
+// UpdateAvailableEvent is published when the VersionService detects a new
+// release for the first time. It fires at most once per version to avoid
+// repeated notifications on cache refresh.
+type UpdateAvailableEvent struct {
+	CurrentVersion string `json:"currentVersion"`
+	LatestVersion  string `json:"latestVersion"`
+	ReleaseURL     string `json:"releaseUrl"`
+}
+
+// EventType implements Event.
+func (e UpdateAvailableEvent) EventType() string { return "update_available" }
+
+// EventMessage implements Event.
+func (e UpdateAvailableEvent) EventMessage() string {
+	return fmt.Sprintf("Update available: %s → %s", e.CurrentVersion, e.LatestVersion)
+}
+
 // =============================================================================
 // Rule Events
 // =============================================================================

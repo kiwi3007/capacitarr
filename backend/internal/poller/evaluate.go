@@ -11,21 +11,23 @@ import (
 
 	"capacitarr/internal/db"
 	"capacitarr/internal/engine"
+	"capacitarr/internal/events"
 	"capacitarr/internal/integrations"
 	"capacitarr/internal/services"
 )
 
 // evaluateAndCleanDisk scores all media items on a disk group and, when the
 // threshold is breached, queues the highest-scoring candidates for deletion.
-func (p *Poller) evaluateAndCleanDisk(group db.DiskGroup, allItems []integrations.MediaItem, serviceClients map[uint]integrations.Integration, runStatsID uint) {
+// Returns the number of items queued to the DeletionService worker (auto mode only).
+func (p *Poller) evaluateAndCleanDisk(group db.DiskGroup, allItems []integrations.MediaItem, serviceClients map[uint]integrations.Integration, runStatsID uint) int {
 	prefs, err := p.reg.Settings.GetPreferences()
 	if err != nil {
 		slog.Error("Failed to load preferences", "component", "poller", "operation", "load_preferences", "error", err)
-		return
+		return 0
 	}
 
 	if group.TotalBytes == 0 {
-		return
+		return 0
 	}
 	currentPct := float64(group.UsedBytes) / float64(group.TotalBytes) * 100
 	if currentPct < group.ThresholdPct {
@@ -39,11 +41,18 @@ func (p *Poller) evaluateAndCleanDisk(group db.DiskGroup, allItems []integration
 			slog.Error("Failed to clear active snoozes", "component", "poller", "error", err)
 		}
 
-		return
+		return 0
 	}
 
 	slog.Info("Disk threshold breached, evaluating media for deletion", "component", "poller",
 		"mount", group.MountPath, "currentPct", fmt.Sprintf("%.1f", currentPct), "threshold", group.ThresholdPct)
+
+	p.reg.Bus.Publish(events.ThresholdBreachedEvent{
+		MountPath:    group.MountPath,
+		CurrentPct:   currentPct,
+		ThresholdPct: group.ThresholdPct,
+		TargetPct:    group.TargetPct,
+	})
 
 	// Filter items on this mount
 	var diskItems []integrations.MediaItem
@@ -59,7 +68,7 @@ func (p *Poller) evaluateAndCleanDisk(group db.DiskGroup, allItems []integration
 	rules, err := p.reg.Rules.List()
 	if err != nil {
 		slog.Error("Failed to load custom rules", "component", "poller", "operation", "load_rules", "error", err)
-		return
+		return 0
 	}
 
 	// Evaluate
@@ -82,7 +91,7 @@ func (p *Poller) evaluateAndCleanDisk(group db.DiskGroup, allItems []integration
 
 	targetBytesToFree := int64((currentPct - group.TargetPct) / 100.0 * float64(group.TotalBytes))
 	if targetBytesToFree <= 0 {
-		return
+		return 0
 	}
 
 	slog.Debug("Evaluation summary", "component", "poller",
@@ -92,6 +101,7 @@ func (p *Poller) evaluateAndCleanDisk(group db.DiskGroup, allItems []integration
 		"targetBytesToFree", targetBytesToFree)
 
 	var bytesFreed int64
+	var deletionsQueued int
 
 	// Pre-build set of shows that have season-level entries in the evaluation results.
 	// When season entries exist, prefer them over show-level entries so each season
@@ -139,6 +149,7 @@ func (p *Poller) evaluateAndCleanDisk(group db.DiskGroup, allItems []integration
 					continue
 				}
 				bytesFreed += ev.Item.SizeBytes
+				deletionsQueued++
 				continue // Skip the synchronous DB insert below, worker handles it
 			}
 			slog.Error("Integration client not found for deletion", "component", "poller",
@@ -204,4 +215,6 @@ func (p *Poller) evaluateAndCleanDisk(group db.DiskGroup, allItems []integration
 		slog.Info("Engine action taken", "component", "poller",
 			"media", ev.Item.Title, "action", db.ActionDryRun, "score", ev.Score, "freed", ev.Item.SizeBytes)
 	}
+
+	return deletionsQueued
 }

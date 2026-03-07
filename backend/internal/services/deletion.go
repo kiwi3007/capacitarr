@@ -42,6 +42,14 @@ type DeletionService struct {
 	currentlyDeleting atomic.Value // string
 	processed         atomic.Int64
 	failed            atomic.Int64
+
+	// Batch tracking — per engine cycle. Set by the poller via SignalBatchSize(),
+	// incremented by processJob(). When batchProcessed reaches batchExpected,
+	// DeletionBatchCompleteEvent is published.
+	batchExpected  atomic.Int64
+	batchProcessed atomic.Int64
+	batchSucceeded atomic.Int64
+	batchFailed    atomic.Int64
 }
 
 // SettingsReader provides read access to application preferences.
@@ -122,6 +130,24 @@ func (s *DeletionService) Failed() int64 {
 	return s.failed.Load()
 }
 
+// SignalBatchSize tells the deletion service how many items were queued in this
+// engine cycle. When all items are processed, DeletionBatchCompleteEvent is
+// published. If count is 0 (no items to process), the event is published
+// immediately — the DeletionService owns this event.
+func (s *DeletionService) SignalBatchSize(count int) {
+	if count == 0 {
+		s.bus.Publish(events.DeletionBatchCompleteEvent{
+			Succeeded: 0,
+			Failed:    0,
+		})
+		return
+	}
+	s.batchExpected.Store(int64(count))
+	s.batchProcessed.Store(0)
+	s.batchSucceeded.Store(0)
+	s.batchFailed.Store(0)
+}
+
 func (s *DeletionService) worker() {
 	defer close(s.done)
 	defer func() {
@@ -139,6 +165,7 @@ func (s *DeletionService) worker() {
 func (s *DeletionService) processJob(job DeleteJob) {
 	s.currentlyDeleting.Store(job.Item.Title)
 	defer s.currentlyDeleting.Store("")
+	defer s.checkBatchComplete()
 
 	// Check whether actual deletions are enabled via SettingsService
 	deletionsEnabled := false
@@ -155,6 +182,7 @@ func (s *DeletionService) processJob(job DeleteJob) {
 	if !deletionsEnabled {
 		// Dry-Delete: log but do not actually remove the file
 		s.processed.Add(1)
+		s.batchSucceeded.Add(1)
 
 		logEntry := db.AuditLogEntry{
 			MediaName:    job.Item.Title,
@@ -183,6 +211,7 @@ func (s *DeletionService) processJob(job DeleteJob) {
 	if err := job.Client.DeleteMediaItem(job.Item); err != nil {
 		slog.Error("Deletion failed", "component", "services", "item", job.Item.Title, "error", err)
 		s.failed.Add(1)
+		s.batchFailed.Add(1)
 
 		s.bus.Publish(events.DeletionFailedEvent{
 			MediaName:     job.Item.Title,
@@ -194,6 +223,7 @@ func (s *DeletionService) processJob(job DeleteJob) {
 	}
 
 	s.processed.Add(1)
+	s.batchSucceeded.Add(1)
 
 	// Increment deleted counter and freed bytes on the engine run stats row via EngineService
 	if err := s.engine.IncrementDeletedStats(job.RunStatsID, job.Item.SizeBytes); err != nil {
@@ -226,4 +256,22 @@ func (s *DeletionService) processJob(job DeleteJob) {
 
 	slog.Info("Deletion completed", "component", "services",
 		"media", job.Item.Title, "action", "Deleted", "freed", job.Item.SizeBytes)
+}
+
+// checkBatchComplete increments the batch processed counter and publishes
+// DeletionBatchCompleteEvent when all expected items have been processed.
+func (s *DeletionService) checkBatchComplete() {
+	expected := s.batchExpected.Load()
+	if expected <= 0 {
+		return
+	}
+
+	processed := s.batchProcessed.Add(1)
+	if processed >= expected {
+		s.bus.Publish(events.DeletionBatchCompleteEvent{
+			Succeeded: int(s.batchSucceeded.Load()),
+			Failed:    int(s.batchFailed.Load()),
+		})
+		s.batchExpected.Store(0) // reset for next cycle
+	}
 }

@@ -15,6 +15,7 @@ import (
 	"gorm.io/gorm"
 
 	"capacitarr/internal/db"
+	"capacitarr/internal/events"
 )
 
 // DefaultGitLabReleasesURL is the GitLab API endpoint for Capacitarr releases.
@@ -31,19 +32,22 @@ type VersionCheckResult struct {
 
 // VersionService manages update checks against the GitLab releases API.
 type VersionService struct {
-	db          *gorm.DB
-	appVersion  string
-	releasesURL string
-	cache       *VersionCheckResult
-	mu          sync.Mutex
-	cacheTTL    time.Duration
+	db                   *gorm.DB
+	bus                  *events.EventBus
+	appVersion           string
+	releasesURL          string
+	cache                *VersionCheckResult
+	mu                   sync.Mutex
+	cacheTTL             time.Duration
+	lastNotifiedVersion  string // tracks which version we've already published UpdateAvailableEvent for
 }
 
 // NewVersionService creates a new VersionService.
 // releasesURL is the GitLab releases API URL; pass DefaultGitLabReleasesURL for production.
-func NewVersionService(database *gorm.DB, appVersion, releasesURL string) *VersionService {
+func NewVersionService(database *gorm.DB, bus *events.EventBus, appVersion, releasesURL string) *VersionService {
 	return &VersionService{
 		db:          database,
+		bus:         bus,
 		appVersion:  appVersion,
 		releasesURL: releasesURL,
 		cacheTTL:    6 * time.Hour,
@@ -187,13 +191,26 @@ func (s *VersionService) fetchLatestRelease() VersionCheckResult {
 
 	updateAvailable := CompareSemver(latestClean, currentClean) > 0
 
-	return VersionCheckResult{
+	result := VersionCheckResult{
 		Current:         s.appVersion,
 		Latest:          latestTag,
 		UpdateAvailable: updateAvailable,
 		ReleaseURL:      fmt.Sprintf("https://gitlab.com/starshadow/software/capacitarr/-/releases/%s", latestTag),
 		CheckedAt:       time.Now(),
 	}
+
+	// Publish UpdateAvailableEvent once per detected version to avoid
+	// repeated notifications on every cache refresh cycle.
+	if updateAvailable && s.bus != nil && latestClean != s.lastNotifiedVersion {
+		s.lastNotifiedVersion = latestClean
+		s.bus.Publish(events.UpdateAvailableEvent{
+			CurrentVersion: s.appVersion,
+			LatestVersion:  latestTag,
+			ReleaseURL:     result.ReleaseURL,
+		})
+	}
+
+	return result
 }
 
 // CompareSemver compares two semantic versions and returns:

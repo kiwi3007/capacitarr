@@ -76,5 +76,5 @@ func NewRegistry(database *gorm.DB, bus *events.EventBus, cfg *config.Config) *R
 // InitVersion creates and registers the VersionService. Called by main.go
 // after Registry construction, when the application version string is known.
 func (r *Registry) InitVersion(appVersion string) {
-	r.Version = NewVersionService(r.DB, appVersion, DefaultGitLabReleasesURL)
+	r.Version = NewVersionService(r.DB, r.Bus, appVersion, DefaultGitLabReleasesURL)
 }

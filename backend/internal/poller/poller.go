@@ -159,6 +159,7 @@ func (p *Poller) poll() {
 	mediaMounts := findMediaMounts(fetched.diskMap, fetched.rootFolders)
 
 	// Update DiskGroups and record history only for media mounts
+	var totalDeletionsQueued int
 	for mountPath := range mediaMounts {
 		disk := fetched.diskMap[mountPath]
 		usedBytes := disk.TotalBytes - disk.FreeBytes
@@ -180,7 +181,7 @@ func (p *Poller) poll() {
 		}
 
 		// Evaluate and trigger cleanup if threshold breached
-		p.evaluateAndCleanDisk(*group, fetched.allItems, fetched.serviceClients, runStatsID)
+		totalDeletionsQueued += p.evaluateAndCleanDisk(*group, fetched.allItems, fetched.serviceClients, runStatsID)
 	}
 
 	// Clean up orphaned disk groups that are no longer media mounts
@@ -191,6 +192,11 @@ func (p *Poller) poll() {
 			slog.Info("Removed orphaned disk groups", "component", "poller", "count", deleted)
 		}
 	}
+
+	// Signal the deletion service with the batch size so it can publish
+	// DeletionBatchCompleteEvent when all items are processed. If zero items
+	// were queued, SignalBatchSize(0) publishes the event immediately.
+	p.reg.Deletion.SignalBatchSize(totalDeletionsQueued)
 
 	// Update engine run stats via service
 	evaluated := atomic.LoadInt64(&p.lastRunEvaluated)
