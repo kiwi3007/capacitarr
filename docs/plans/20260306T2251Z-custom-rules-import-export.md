@@ -29,7 +29,7 @@ Key design decisions:
     {
       "field": "title",
       "operator": "contains",
-      "value": "Star Trek",
+      "value": "Firefly",
       "effect": "always_keep",
       "enabled": true,
       "integrationName": "Main",

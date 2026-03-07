@@ -438,7 +438,7 @@ curl -s -X PUT -H "X-Api-Key: $CAPACITARR_API_KEY" \
   -d '{
     "field": "title",
     "operator": "contains",
-    "value": "Star Trek",
+    "value": "Firefly",
     "effect": "always_keep",
     "integrationId": null
   }' | jq

@@ -124,7 +124,7 @@ func TestExportRules_WithRulesNoIntegration(t *testing.T) {
 	e := testutil.SetupTestServer(t, database)
 
 	// Seed rules without integration (global rules)
-	seedRule(t, database, "title", "contains", "Star Trek", "always_keep", 0)
+	seedRule(t, database, "title", "contains", "Firefly", "always_keep", 0)
 	seedRule(t, database, "quality", "==", "4K", "prefer_keep", 1)
 
 	req := testutil.AuthenticatedRequest(t, http.MethodGet, "/api/custom-rules/export", nil)
@@ -148,8 +148,8 @@ func TestExportRules_WithRulesNoIntegration(t *testing.T) {
 	if resp.Rules[0].Field != "title" {
 		t.Errorf("Expected field 'title', got %q", resp.Rules[0].Field)
 	}
-	if resp.Rules[0].Value != "Star Trek" {
-		t.Errorf("Expected value 'Star Trek', got %q", resp.Rules[0].Value)
+	if resp.Rules[0].Value != "Firefly" {
+		t.Errorf("Expected value 'Firefly', got %q", resp.Rules[0].Value)
 	}
 	if resp.Rules[0].IntegrationName != nil {
 		t.Errorf("Expected nil integrationName, got %v", resp.Rules[0].IntegrationName)
@@ -164,7 +164,7 @@ func TestExportRules_WithIntegration(t *testing.T) {
 	e := testutil.SetupTestServer(t, database)
 
 	ic := seedIntegration(t, database, "sonarr", "Main Sonarr")
-	seedRuleWithIntegration(t, database, "title", "contains", "Star Trek", "always_keep", 0, ic.ID)
+	seedRuleWithIntegration(t, database, "title", "contains", "Firefly", "always_keep", 0, ic.ID)
 
 	req := testutil.AuthenticatedRequest(t, http.MethodGet, "/api/custom-rules/export", nil)
 	rec := httptest.NewRecorder()
@@ -241,7 +241,7 @@ func TestImportRules_BasicSuccess(t *testing.T) {
 				{
 					"field": "title",
 					"operator": "contains",
-					"value": "Star Trek",
+					"value": "Firefly",
 					"effect": "always_keep",
 					"enabled": true
 				}
@@ -362,7 +362,7 @@ func TestImportRules_AutoMatchIntegration(t *testing.T) {
 				{
 					"field": "title",
 					"operator": "contains",
-					"value": "Star Trek",
+					"value": "Firefly",
 					"effect": "always_keep",
 					"enabled": true,
 					"integrationName": "Main",
@@ -408,7 +408,7 @@ func TestImportRules_ExplicitMapping(t *testing.T) {
 				{
 					"field": "title",
 					"operator": "contains",
-					"value": "Star Trek",
+					"value": "Firefly",
 					"effect": "always_keep",
 					"enabled": true,
 					"integrationName": "Old Server",
@@ -451,7 +451,7 @@ func TestImportRules_UnmappedIntegration(t *testing.T) {
 				{
 					"field": "title",
 					"operator": "contains",
-					"value": "Star Trek",
+					"value": "Firefly",
 					"effect": "always_keep",
 					"enabled": true,
 					"integrationName": "OldServer",
@@ -558,7 +558,7 @@ func TestImportRules_MultipleRulesMultipleIntegrations(t *testing.T) {
 				{
 					"field": "title",
 					"operator": "contains",
-					"value": "Star Trek",
+					"value": "Firefly",
 					"effect": "always_keep",
 					"enabled": true,
 					"integrationName": "TV Shows",
@@ -682,7 +682,7 @@ func TestExportImportRoundTrip(t *testing.T) {
 
 	// Setup: create an integration and some rules
 	ic := seedIntegration(t, database, "sonarr", "Main")
-	seedRuleWithIntegration(t, database, "title", "contains", "Star Trek", "always_keep", 0, ic.ID)
+	seedRuleWithIntegration(t, database, "title", "contains", "Firefly", "always_keep", 0, ic.ID)
 	seedRule(t, database, "quality", "==", "4K", "prefer_keep", 1)
 
 	// Step 1: Export
@@ -723,8 +723,8 @@ func TestExportImportRoundTrip(t *testing.T) {
 	if len(rules) != 2 {
 		t.Fatalf("Expected 2 rules after round-trip, got %d", len(rules))
 	}
-	if rules[0].Value != "Star Trek" {
-		t.Errorf("Expected first rule value 'Star Trek', got %q", rules[0].Value)
+	if rules[0].Value != "Firefly" {
+		t.Errorf("Expected first rule value 'Firefly', got %q", rules[0].Value)
 	}
 	if rules[0].IntegrationID == nil || *rules[0].IntegrationID != ic.ID {
 		t.Errorf("Expected first rule linked to integration %d", ic.ID)
