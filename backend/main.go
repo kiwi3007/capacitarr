@@ -177,15 +177,18 @@ func main() {
 	sseBroadcaster := events.NewSSEBroadcaster(bus)
 	sseBroadcaster.Start()
 
-	// Notification Subscriber — dispatches notifications via configured channels
-	notifSubscriber := notifications.NewEventBusSubscriber(db.DB, bus)
-	notifSubscriber.Start()
-
-	slog.Info("Event bus started", "component", "main", "subscribers", "activity_persister, sse_broadcaster, notification_subscriber")
+	slog.Info("Event bus started (partial)", "component", "main", "subscribers", "activity_persister, sse_broadcaster")
 
 	// ─── Service Registry ──────────────────────────────────────────────────
 	reg := services.NewRegistry(db.DB, bus, cfg)
 	reg.InitVersion(version)
+
+	// Notification Subscriber — dispatches notifications via configured channels
+	// Must be created after the service registry since it depends on NotificationChannel service
+	notifSubscriber := notifications.NewEventBusSubscriber(reg.NotificationChannel, bus)
+	notifSubscriber.Start()
+
+	slog.Info("Notification subscriber started", "component", "main")
 
 	// Start the background deletion worker (replaces old init() goroutine)
 	reg.Deletion.Start()

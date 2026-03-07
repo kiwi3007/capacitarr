@@ -4,26 +4,31 @@ import (
 	"fmt"
 	"log/slog"
 
-	"gorm.io/gorm"
-
 	"capacitarr/internal/db"
 	"capacitarr/internal/events"
 )
+
+// NotificationProvider abstracts the notification channel service to avoid
+// import cycles between the notifications and services packages.
+type NotificationProvider interface {
+	ListEnabled() ([]db.NotificationConfig, error)
+	CreateInApp(title, message, severity, eventType string) error
+}
 
 // EventBusSubscriber subscribes to the event bus and dispatches notifications
 // to configured channels. It replaces the inline Dispatch() calls scattered
 // throughout the codebase.
 type EventBusSubscriber struct {
-	database *gorm.DB
+	provider NotificationProvider
 	bus      *events.EventBus
 	ch       chan events.Event
 	done     chan struct{}
 }
 
 // NewEventBusSubscriber creates a new notification subscriber.
-func NewEventBusSubscriber(database *gorm.DB, bus *events.EventBus) *EventBusSubscriber {
+func NewEventBusSubscriber(provider NotificationProvider, bus *events.EventBus) *EventBusSubscriber {
 	return &EventBusSubscriber{
-		database: database,
+		provider: provider,
 		bus:      bus,
 		done:     make(chan struct{}),
 	}
@@ -55,8 +60,8 @@ func (s *EventBusSubscriber) handle(event events.Event) {
 		return // This event type doesn't trigger notifications
 	}
 
-	var configs []db.NotificationConfig
-	if err := s.database.Where("enabled = ?", true).Find(&configs).Error; err != nil {
+	configs, err := s.provider.ListEnabled()
+	if err != nil {
 		slog.Error("Failed to query notification configs", "component", "notifications", "error", err)
 		return
 	}
@@ -69,32 +74,33 @@ func (s *EventBusSubscriber) handle(event events.Event) {
 		c := cfg
 		ne := notifEvent
 		go func() {
-			var err error
+			var sendErr error
 			switch c.Type {
 			case "discord":
-				err = SendDiscord(c.WebhookURL, ne)
+				sendErr = SendDiscord(c.WebhookURL, ne)
 			case "slack":
-				err = SendSlack(c.WebhookURL, ne)
+				sendErr = SendSlack(c.WebhookURL, ne)
 			case "inapp":
-				err = SendInApp(s.database, ne)
+				severity := severityForEvent(ne.Type)
+				sendErr = s.provider.CreateInApp(ne.Title, ne.Message, severity, ne.Type)
 			default:
 				slog.Warn("Unknown notification channel type", "component", "notifications", "type", c.Type)
 				return
 			}
 
-			if err != nil {
+			if sendErr != nil {
 				slog.Error("Failed to send notification",
 					"component", "notifications",
 					"channel", c.Name,
 					"type", c.Type,
 					"event", ne.Type,
-					"error", err,
+					"error", sendErr,
 				)
 				s.bus.Publish(events.NotificationDeliveryFailedEvent{
 					ChannelID:   c.ID,
 					ChannelType: c.Type,
 					Name:        c.Name,
-					Error:       err.Error(),
+					Error:       sendErr.Error(),
 				})
 			} else {
 				slog.Debug("Notification sent via event bus subscriber",
