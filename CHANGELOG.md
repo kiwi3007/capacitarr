@@ -1,3 +1,19 @@
+## [1.0.0-rc.11] - 2026-03-07
+
+### 🚀 Features
+
+- *(notifications)* Add event system foundation for notification overhaul ([9a8e319](https://gitlab.com/starshadow/software/capacitarr/-/commit/9a8e319faee65604768f0bfd5854555dd7445c86))
+- *(notifications)* Implement notification overhaul (Phase 1.6-7) ([a50a8e6](https://gitlab.com/starshadow/software/capacitarr/-/commit/a50a8e644c4ab2a74f047b7ca33038b2e1c06825))
+- *(notifications)* Add approval activity toggle and toggle descriptions ([a5e7cf6](https://gitlab.com/starshadow/software/capacitarr/-/commit/a5e7cf61db65d3f1b6907e3ab6c3ade6bf3d216b))
+
+### 🐛 Bug Fixes
+
+- *(frontend)* Remove @click.prevent on MediaPosterCard component emits ([a6aafb4](https://gitlab.com/starshadow/software/capacitarr/-/commit/a6aafb4925d89c84784684dc1ad9c7ebcdf304d8))
+- *(notifications)* Persist OnApprovalActivity toggle and report freed bytes in approval mode ([94a4121](https://gitlab.com/starshadow/software/capacitarr/-/commit/94a412124627e2174f266dd271f2d3ca4f8f1347))
+
+### 🛡️ Security
+
+- *(plans)* Mark service layer remediation plan as complete (Phases 7-10) ([b4a3d9d](https://gitlab.com/starshadow/software/capacitarr/-/commit/b4a3d9d8250e34a6ebf850b82facb951dbbe9854))
 ## [1.0.0-rc.9] - 2026-03-07
 
 ### 🚀 Features
