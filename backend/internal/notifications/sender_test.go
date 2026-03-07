@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -195,7 +196,7 @@ func TestDiscordSender_SendDigest_WithUpdateBanner(t *testing.T) {
 		t.Error("expected non-empty description")
 	}
 	// Check that the update banner is present in the description
-	if !containsSubstring(embed.Description, "v1.5.0") {
+	if !strings.Contains(embed.Description, "v1.5.0") {
 		t.Error("expected description to contain update version 'v1.5.0'")
 	}
 }
@@ -419,19 +420,4 @@ func TestInAppSender_SendAlert(t *testing.T) {
 	if call.eventType != "alert_error" {
 		t.Errorf("expected eventType 'alert_error', got %q", call.eventType)
 	}
-}
-
-// --- Utilities ---
-
-func containsSubstring(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && findSubstring(s, substr))
-}
-
-func findSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

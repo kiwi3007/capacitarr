@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
@@ -113,9 +114,8 @@ func RegisterAuthRoutes(public *echo.Group, protected *echo.Group, reg *services
 		}
 
 		if err := reg.Auth.ChangePassword(username, req.CurrentPassword, req.NewPassword); err != nil {
-			// Distinguish between "wrong password" and other errors
-			if err.Error() == "current password is incorrect" {
-				return c.JSON(http.StatusUnauthorized, map[string]string{"error": err.Error()})
+			if errors.Is(err, services.ErrWrongPassword) {
+				return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Current password is incorrect"})
 			}
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		}
@@ -155,7 +155,7 @@ func RegisterAuthRoutes(public *echo.Group, protected *echo.Group, reg *services
 		}
 
 		if err := reg.Auth.ChangeUsername(currentUser, req.NewUsername, req.CurrentPassword); err != nil {
-			if err.Error() == "password is incorrect" {
+			if errors.Is(err, services.ErrWrongPassword) {
 				return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Current password is incorrect"})
 			}
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})

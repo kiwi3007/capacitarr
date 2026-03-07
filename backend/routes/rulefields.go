@@ -1,10 +1,10 @@
 package routes
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/labstack/echo/v4"
 
@@ -180,17 +180,15 @@ func RegisterRuleFieldRoutes(protected *echo.Group, reg *services.Registry) {
 
 		result, fetchErr := reg.Integration.FetchRuleValues(uint(integrationID), action)
 		if fetchErr != nil {
-			errMsg := fetchErr.Error()
-			switch errMsg {
-			case "integration not found: record not found":
+			switch {
+			case errors.Is(fetchErr, services.ErrNotFound):
 				return c.JSON(http.StatusNotFound, map[string]string{"error": "Integration not found"})
-			case "unsupported integration type for rule values",
-				"integration does not support rule value lookups":
-				return c.JSON(http.StatusBadRequest, map[string]string{"error": errMsg})
+			case errors.Is(fetchErr, services.ErrUnsupportedIntegrationType),
+				errors.Is(fetchErr, services.ErrIntegrationNoRuleValues):
+				return c.JSON(http.StatusBadRequest, map[string]string{"error": fetchErr.Error()})
+			case errors.Is(fetchErr, services.ErrUnknownAction):
+				return c.JSON(http.StatusBadRequest, map[string]string{"error": fetchErr.Error()})
 			default:
-				if strings.HasPrefix(errMsg, "unknown action:") {
-					return c.JSON(http.StatusBadRequest, map[string]string{"error": errMsg})
-				}
 				slog.Warn("Failed to fetch rule values", "component", "api", "integrationId", integrationID, "action", action, "error", fetchErr)
 				return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch rule values"})
 			}

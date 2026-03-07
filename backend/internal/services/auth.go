@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -16,6 +17,12 @@ import (
 	"capacitarr/internal/config"
 	"capacitarr/internal/db"
 	"capacitarr/internal/events"
+)
+
+// Sentinel errors for authentication operations.
+var (
+	ErrWrongPassword = errors.New("password is incorrect")
+	ErrUserNotFound  = errors.New("user not found")
 )
 
 // BcryptCost is the cost factor for bcrypt password hashing across all auth
@@ -64,11 +71,11 @@ func (s *AuthService) Login(username, password string) (string, error) {
 func (s *AuthService) ChangePassword(username, currentPwd, newPwd string) error {
 	var auth db.AuthConfig
 	if err := s.db.Where("username = ?", username).First(&auth).Error; err != nil {
-		return fmt.Errorf("user not found")
+		return fmt.Errorf("%w: %v", ErrUserNotFound, err)
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(auth.Password), []byte(currentPwd)); err != nil {
-		return fmt.Errorf("current password is incorrect")
+		return ErrWrongPassword
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(newPwd), BcryptCost)
@@ -88,11 +95,11 @@ func (s *AuthService) ChangePassword(username, currentPwd, newPwd string) error 
 func (s *AuthService) ChangeUsername(currentUser, newUsername, password string) error {
 	var auth db.AuthConfig
 	if err := s.db.Where("username = ?", currentUser).First(&auth).Error; err != nil {
-		return fmt.Errorf("user not found")
+		return fmt.Errorf("%w: %v", ErrUserNotFound, err)
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(auth.Password), []byte(password)); err != nil {
-		return fmt.Errorf("password is incorrect")
+		return ErrWrongPassword
 	}
 
 	if err := s.db.Model(&auth).Update("username", newUsername).Error; err != nil {

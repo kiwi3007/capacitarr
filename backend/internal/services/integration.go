@@ -15,8 +15,13 @@ import (
 	"capacitarr/internal/integrations"
 )
 
-// ErrNotFound is returned when a requested record does not exist.
-var ErrNotFound = errors.New("record not found")
+// Sentinel errors for integration and general service operations.
+var (
+	ErrNotFound                   = errors.New("record not found")
+	ErrUnsupportedIntegrationType = errors.New("unsupported integration type for rule values")
+	ErrIntegrationNoRuleValues    = errors.New("integration does not support rule value lookups")
+	ErrUnknownAction              = errors.New("unknown action")
+)
 
 // DiskGroupUpserter provides write access to disk groups.
 // Defined here to avoid import cycles between IntegrationService and SettingsService.
@@ -253,17 +258,17 @@ func (s *IntegrationService) FetchRuleValues(integrationID uint, action string) 
 	// Dynamic fields — require API call to the *arr service
 	cfg, err := s.GetByID(integrationID)
 	if err != nil {
-		return nil, fmt.Errorf("integration not found: %w", err)
+		return nil, err
 	}
 
 	client := integrations.NewClient(cfg.Type, cfg.URL, cfg.APIKey)
 	if client == nil {
-		return nil, fmt.Errorf("unsupported integration type for rule values")
+		return nil, ErrUnsupportedIntegrationType
 	}
 
 	fetcher, ok := client.(integrations.RuleValueFetcher)
 	if !ok {
-		return nil, fmt.Errorf("integration does not support rule value lookups")
+		return nil, ErrIntegrationNoRuleValues
 	}
 
 	var result map[string]interface{}
@@ -316,7 +321,7 @@ func (s *IntegrationService) FetchRuleValues(integrationID uint, action string) 
 		result = map[string]interface{}{"type": "closed", "options": langs}
 
 	default:
-		return nil, fmt.Errorf("unknown action: %s", action)
+		return nil, fmt.Errorf("%w: %s", ErrUnknownAction, action)
 	}
 
 	s.ruleValueCache.Set(cacheKey, result)

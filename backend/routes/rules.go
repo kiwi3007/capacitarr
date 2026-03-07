@@ -67,7 +67,7 @@ func RegisterRuleRoutes(protected *echo.Group, reg *services.Registry) {
 
 		rule, err := reg.Rules.Update(uint(id), updated)
 		if err != nil {
-			if errors.Is(err, errors.New("rule not found")) || err.Error() == "rule not found: record not found" {
+			if errors.Is(err, services.ErrRuleNotFound) {
 				return c.JSON(http.StatusNotFound, map[string]string{"error": "Rule not found"})
 			}
 			slog.Error("Failed to update custom rule", "component", "api", "operation", "update_rule", "id", id, "error", err)
@@ -85,8 +85,7 @@ func RegisterRuleRoutes(protected *echo.Group, reg *services.Registry) {
 
 		rule, err := reg.Rules.Create(newRule)
 		if err != nil {
-			// Validation errors from the service are returned as 400
-			if isValidationError(err) {
+			if errors.Is(err, services.ErrRuleValidation) {
 				return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 			}
 			slog.Error("Failed to create custom rule", "component", "api", "operation", "create_rule", "error", err)
@@ -102,7 +101,7 @@ func RegisterRuleRoutes(protected *echo.Group, reg *services.Registry) {
 		}
 
 		if err := reg.Rules.Delete(uint(id)); err != nil {
-			if err.Error() == "rule not found: record not found" {
+			if errors.Is(err, services.ErrRuleNotFound) {
 				return c.JSON(http.StatusNotFound, map[string]string{"error": "Rule not found"})
 			}
 			slog.Error("Failed to delete custom rule", "component", "api", "operation", "delete_rule", "id", id, "error", err)
@@ -110,20 +109,4 @@ func RegisterRuleRoutes(protected *echo.Group, reg *services.Registry) {
 		}
 		return c.NoContent(http.StatusNoContent)
 	})
-}
-
-// isValidationError returns true if err represents a user-input validation
-// failure (missing fields, invalid effect, etc.) rather than an internal error.
-func isValidationError(err error) bool {
-	msg := err.Error()
-	switch msg {
-	case "field, operator, and value are required",
-		"effect field is required":
-		return true
-	}
-	// Effect enum validation
-	if len(msg) > 20 && msg[:20] == "effect must be one o" {
-		return true
-	}
-	return false
 }

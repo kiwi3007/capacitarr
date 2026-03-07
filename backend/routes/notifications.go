@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"errors"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -154,7 +155,7 @@ func RegisterNotificationRoutes(g *echo.Group, reg *services.Registry) {
 		}
 
 		if err := reg.NotificationDispatch.TestChannel(uint(idNum)); err != nil {
-			if err.Error() == "not found" {
+			if errors.Is(err, services.ErrNotFound) {
 				return c.JSON(http.StatusNotFound, map[string]string{"error": "Notification channel not found"})
 			}
 			return c.JSON(http.StatusBadGateway, map[string]string{"error": "Test notification failed: " + err.Error()})

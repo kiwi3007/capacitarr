@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -10,6 +11,12 @@ import (
 	"capacitarr/internal/db"
 	"capacitarr/internal/events"
 )
+
+// ErrRuleNotFound is returned when a rule cannot be found by ID.
+var ErrRuleNotFound = errors.New("rule not found")
+
+// ErrRuleValidation is returned when a rule fails input validation.
+var ErrRuleValidation = errors.New("rule validation failed")
 
 // RuleExportEnvelope wraps exported rules with version metadata.
 type RuleExportEnvelope struct {
@@ -64,15 +71,15 @@ func (s *RulesService) List() ([]db.CustomRule, error) {
 func (s *RulesService) Create(rule db.CustomRule) (*db.CustomRule, error) {
 	// Validate required fields
 	if rule.Field == "" || rule.Operator == "" || rule.Value == "" {
-		return nil, fmt.Errorf("field, operator, and value are required")
+		return nil, fmt.Errorf("%w: field, operator, and value are required", ErrRuleValidation)
 	}
 
 	// Validate effect
 	if rule.Effect == "" {
-		return nil, fmt.Errorf("effect field is required")
+		return nil, fmt.Errorf("%w: effect field is required", ErrRuleValidation)
 	}
 	if !db.ValidEffects[rule.Effect] {
-		return nil, fmt.Errorf("effect must be one of: always_keep, prefer_keep, lean_keep, lean_remove, prefer_remove, always_remove")
+		return nil, fmt.Errorf("%w: effect must be one of: always_keep, prefer_keep, lean_keep, lean_remove, prefer_remove, always_remove", ErrRuleValidation)
 	}
 
 	// Ensure new rules are enabled by default
@@ -96,7 +103,7 @@ func (s *RulesService) Create(rule db.CustomRule) (*db.CustomRule, error) {
 func (s *RulesService) Update(id uint, rule db.CustomRule) (*db.CustomRule, error) {
 	var existing db.CustomRule
 	if err := s.db.First(&existing, id).Error; err != nil {
-		return nil, fmt.Errorf("rule not found: %w", err)
+		return nil, fmt.Errorf("%w: %v", ErrRuleNotFound, err)
 	}
 
 	// Preserve the ID from the existing record
@@ -119,7 +126,7 @@ func (s *RulesService) Update(id uint, rule db.CustomRule) (*db.CustomRule, erro
 func (s *RulesService) Delete(id uint) error {
 	var existing db.CustomRule
 	if err := s.db.First(&existing, id).Error; err != nil {
-		return fmt.Errorf("rule not found: %w", err)
+		return fmt.Errorf("%w: %v", ErrRuleNotFound, err)
 	}
 
 	if err := s.db.Delete(&existing).Error; err != nil {
