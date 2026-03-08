@@ -126,6 +126,16 @@ export function useEngineControl() {
       runNowLoading.value = false;
       addToast(`Engine error: ${event.error || 'Unknown error'}`, 'error');
     });
+
+    on('engine_mode_changed', (data: unknown) => {
+      const event = data as { newMode?: string };
+      if (workerStats.value && event.newMode) {
+        workerStats.value = {
+          ...workerStats.value,
+          executionMode: event.newMode,
+        };
+      }
+    });
   }
 
   // -------------------------------------------------------------------------

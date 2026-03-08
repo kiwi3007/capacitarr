@@ -1,5 +1,11 @@
 # Capacitarr
 
+[![Pipeline](https://img.shields.io/gitlab/pipeline-status/starshadow%2Fsoftware%2Fcapacitarr?branch=main&logo=gitlab&label=pipeline)](https://gitlab.com/starshadow/software/capacitarr/-/pipelines)
+[![Release](https://img.shields.io/gitlab/v/release/starshadow%2Fsoftware%2Fcapacitarr?logo=gitlab&label=release)](https://gitlab.com/starshadow/software/capacitarr/-/releases)
+[![License](https://img.shields.io/badge/license-PolyForm%20NC%201.0-blue)](https://gitlab.com/starshadow/software/capacitarr/-/blob/main/LICENSE)
+[![Discord](https://img.shields.io/badge/discord-join-5865F2?logo=discord&logoColor=white)](https://discord.gg/fbFkND5qgt)
+[![Reddit](https://img.shields.io/badge/r%2Fcapacitarr-join-FF4500?logo=reddit&logoColor=white)](https://www.reddit.com/r/capacitarr/)
+
 **Capacitarr** is an intelligent media library capacity manager. It monitors disk usage across your media servers and automatically identifies content for cleanup when storage runs low — using a preference-based scoring engine instead of rigid rules.
 
 ## How It Works

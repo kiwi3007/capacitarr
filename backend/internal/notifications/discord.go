@@ -87,7 +87,8 @@ func (s *DiscordSender) SendAlert(webhookURL string, alert Alert) error {
 		return fmt.Errorf("discord webhook URL is empty")
 	}
 
-	authorName := fmt.Sprintf("⚡ Capacitarr %s", alert.Version)
+	// Include the trigger label so recipients know what action produced this alert
+	authorName := fmt.Sprintf("⚡ Capacitarr %s • %s", alert.Version, TriggerLabel(alert.Type))
 
 	embed := discordEmbed{
 		Author:      &discordAuthor{Name: authorName, IconURL: capacitarrIconURL},

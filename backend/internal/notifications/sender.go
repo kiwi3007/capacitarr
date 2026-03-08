@@ -56,6 +56,29 @@ type Alert struct {
 	Version string            `json:"version"`
 }
 
+// TriggerLabel returns a human-readable label for the alert type,
+// suitable for display in notification headers (e.g., "Update Available").
+func TriggerLabel(t AlertType) string {
+	switch t {
+	case AlertError:
+		return "Engine Error"
+	case AlertModeChanged:
+		return "Mode Change"
+	case AlertServerStarted:
+		return "Server Started"
+	case AlertThresholdBreached:
+		return "Threshold Breached"
+	case AlertUpdateAvailable:
+		return "Update Available"
+	case AlertApprovalActivity:
+		return "Approval Activity"
+	case AlertTest:
+		return "Test"
+	default:
+		return string(t)
+	}
+}
+
 // Execution mode constants used for digest title/color selection.
 const (
 	ModeAuto     = "auto"

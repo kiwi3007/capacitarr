@@ -1,6 +1,11 @@
 # Capacitarr
 
-[![GitLab Container Registry](https://img.shields.io/badge/Container_Registry-GitLab-orange?logo=gitlab)](https://gitlab.com/starshadow/software/capacitarr/container_registry)
+[![Pipeline](https://img.shields.io/gitlab/pipeline-status/starshadow%2Fsoftware%2Fcapacitarr?branch=main&logo=gitlab&label=pipeline)](https://gitlab.com/starshadow/software/capacitarr/-/pipelines)
+[![Release](https://img.shields.io/gitlab/v/release/starshadow%2Fsoftware%2Fcapacitarr?logo=gitlab&label=release)](https://gitlab.com/starshadow/software/capacitarr/-/releases)
+[![License](https://img.shields.io/badge/license-PolyForm%20NC%201.0-blue)](LICENSE)
+[![Container Registry](https://img.shields.io/badge/Container_Registry-GitLab-orange?logo=gitlab)](https://gitlab.com/starshadow/software/capacitarr/container_registry)
+[![Discord](https://img.shields.io/badge/discord-join-5865F2?logo=discord&logoColor=white)](https://discord.gg/fbFkND5qgt)
+[![Reddit](https://img.shields.io/badge/r%2Fcapacitarr-join-FF4500?logo=reddit&logoColor=white)](https://www.reddit.com/r/capacitarr/)
 
 **Intelligent media library capacity manager for the *arr ecosystem.**
 
@@ -268,6 +273,11 @@ Key documentation pages:
 - [Scoring Algorithm](docs/scoring.md) — Detailed scoring factor documentation
 - [API Reference](docs/api/README.md) — REST API and SSE endpoint documentation
 - [Releasing](docs/releasing.md) — Release process and versioning
+
+## Community
+
+- [Discord](https://discord.gg/fbFkND5qgt) — Chat, support, and feature discussions
+- [Reddit](https://www.reddit.com/r/capacitarr/) — r/capacitarr community
 
 ## License
 

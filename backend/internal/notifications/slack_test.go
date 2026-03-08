@@ -74,4 +74,14 @@ func TestSlackSender_SendAlert_Format(t *testing.T) {
 	if len(received.Blocks) == 0 {
 		t.Fatal("expected at least 1 Slack block")
 	}
+
+	// Verify the header includes the trigger label
+	headerBlock := received.Blocks[0]
+	if headerBlock.Text == nil {
+		t.Fatal("expected non-nil header text")
+	}
+	expectedHeader := "⚡ Capacitarr v1.0.0 • Mode Change"
+	if headerBlock.Text.Text != expectedHeader {
+		t.Errorf("expected header text %q, got %q", expectedHeader, headerBlock.Text.Text)
+	}
 }

@@ -234,9 +234,13 @@ func (s *MetricsService) PruneHistory(resolution string, before time.Time) (int6
 func (s *MetricsService) GetWorkerMetrics() map[string]any {
 	stats := s.engine.GetStats()
 
-	// Add poll interval from preferences via SettingsService
+	// Add poll interval and execution mode from preferences via SettingsService.
+	// The execution mode MUST come from the preferences table (source of truth),
+	// not from the last EngineRunStats record (which reflects the mode at the time
+	// of the last run, not the current configured mode).
 	if prefs, err := s.settings.GetPreferences(); err == nil {
 		stats["pollIntervalSeconds"] = prefs.PollIntervalSeconds
+		stats["executionMode"] = prefs.ExecutionMode
 	}
 
 	// Add deletion worker state

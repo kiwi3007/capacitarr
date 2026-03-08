@@ -283,6 +283,7 @@ func TestMetricsService_GetWorkerMetrics_ReturnsExpectedKeys(t *testing.T) {
 		"lastRunFlagged",
 		"protectedCount",
 		"pollIntervalSeconds",
+		"executionMode",
 		"queueDepth",
 		"currentlyDeleting",
 		"processed",
@@ -293,5 +294,35 @@ func TestMetricsService_GetWorkerMetrics_ReturnsExpectedKeys(t *testing.T) {
 		if _, ok := metrics[key]; !ok {
 			t.Errorf("Expected key %q in worker metrics", key)
 		}
+	}
+}
+
+func TestMetricsService_GetWorkerMetrics_ExecutionModeFromPreferences(t *testing.T) {
+	database := setupTestDB(t)
+	bus := events.NewEventBus()
+	t.Cleanup(func() { bus.Close() })
+	engine := NewEngineService(database, bus)
+	auditLog := NewAuditLogService(database)
+	deletion := NewDeletionService(bus, auditLog)
+	settings := NewSettingsService(database, bus)
+	svc := NewMetricsService(database, engine, deletion)
+	svc.SetSettingsService(settings)
+	deletion.SetDependencies(settings, engine, svc)
+
+	// Create an engine run stats record with "dry-run" mode (simulating a past run)
+	database.Create(&db.EngineRunStats{ExecutionMode: "dry-run"})
+
+	// Change the preference to "auto" (user changed mode without running engine)
+	database.Save(&db.PreferenceSet{ID: 1, ExecutionMode: "auto", PollIntervalSeconds: 300, TiebreakerMethod: "size_desc", LogLevel: "info"})
+
+	metrics := svc.GetWorkerMetrics()
+
+	// The worker metrics should reflect the PREFERENCE value, not the last run
+	mode, ok := metrics["executionMode"].(string)
+	if !ok {
+		t.Fatal("Expected executionMode to be a string")
+	}
+	if mode != "auto" {
+		t.Errorf("Expected executionMode %q from preferences, got %q (likely reading from engine run stats)", "auto", mode)
 	}
 }

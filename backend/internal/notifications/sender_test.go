@@ -341,3 +341,30 @@ func TestSlackSender_SendAlert_WithFields(t *testing.T) {
 		t.Fatalf("expected at least 3 blocks (with fields), got %d", len(captured.Blocks))
 	}
 }
+
+// --- TriggerLabel Tests ---
+
+func TestTriggerLabel(t *testing.T) {
+	tests := []struct {
+		alertType AlertType
+		expected  string
+	}{
+		{AlertError, "Engine Error"},
+		{AlertModeChanged, "Mode Change"},
+		{AlertServerStarted, "Server Started"},
+		{AlertThresholdBreached, "Threshold Breached"},
+		{AlertUpdateAvailable, "Update Available"},
+		{AlertApprovalActivity, "Approval Activity"},
+		{AlertTest, "Test"},
+		{AlertType("unknown"), "unknown"},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.alertType), func(t *testing.T) {
+			got := TriggerLabel(tt.alertType)
+			if got != tt.expected {
+				t.Errorf("TriggerLabel(%q) = %q, want %q", tt.alertType, got, tt.expected)
+			}
+		})
+	}
+}

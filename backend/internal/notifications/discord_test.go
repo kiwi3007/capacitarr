@@ -83,4 +83,12 @@ func TestDiscordSender_SendAlert_Format(t *testing.T) {
 	if embed.Title != "Capacitarr Started" {
 		t.Errorf("expected title 'Capacitarr Started', got %q", embed.Title)
 	}
+	// Verify the author line includes the trigger label
+	if embed.Author == nil {
+		t.Fatal("expected non-nil author")
+	}
+	expectedAuthor := "⚡ Capacitarr v1.0.0 • Server Started"
+	if embed.Author.Name != expectedAuthor {
+		t.Errorf("expected author name %q, got %q", expectedAuthor, embed.Author.Name)
+	}
 }

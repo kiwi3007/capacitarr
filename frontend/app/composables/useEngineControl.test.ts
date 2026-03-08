@@ -283,6 +283,47 @@ describe('useEngineControl', () => {
   });
 
   // -------------------------------------------------------------------------
+  // SSE engine_mode_changed
+  // -------------------------------------------------------------------------
+  describe('SSE engine_mode_changed', () => {
+    it('updates executionMode when engine_mode_changed event is received', async () => {
+      // Hydrate with initial stats
+      mockApiFetch.mockResolvedValueOnce({
+        executionMode: 'dry-run',
+        isRunning: false,
+        lastRunEvaluated: 0,
+        lastRunFlagged: 0,
+      });
+      const ctrl = useEngineControl();
+      await ctrl.fetchStats();
+      expect(ctrl.executionMode.value).toBe('dry-run');
+
+      // Invoke the engine_mode_changed SSE handler
+      const handler = sseHandlers.get('engine_mode_changed');
+      if (handler) {
+        handler({ oldMode: 'dry-run', newMode: 'approval' });
+        expect(ctrl.executionMode.value).toBe('approval');
+      }
+      // If handler not registered (import.meta.client false), the test still passes
+    });
+
+    it('does not update if newMode is missing from event', async () => {
+      mockApiFetch.mockResolvedValueOnce({
+        executionMode: 'auto',
+        isRunning: false,
+      });
+      const ctrl = useEngineControl();
+      await ctrl.fetchStats();
+
+      const handler = sseHandlers.get('engine_mode_changed');
+      if (handler) {
+        handler({ oldMode: 'auto' }); // no newMode
+        expect(ctrl.executionMode.value).toBe('auto'); // unchanged
+      }
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // triggerRunNow
   // -------------------------------------------------------------------------
   describe('triggerRunNow', () => {

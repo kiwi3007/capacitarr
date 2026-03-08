@@ -78,7 +78,8 @@ func (s *SlackSender) SendAlert(webhookURL string, alert Alert) error {
 		return fmt.Errorf("slack webhook URL is empty")
 	}
 
-	header := fmt.Sprintf("⚡ Capacitarr %s", alert.Version)
+	// Include the trigger label so recipients know what action produced this alert
+	header := fmt.Sprintf("⚡ Capacitarr %s • %s", alert.Version, TriggerLabel(alert.Type))
 
 	blocks := []slackBlock{
 		{
