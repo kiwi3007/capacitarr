@@ -255,7 +255,7 @@
           <UiPopover>
             <UiPopoverTrigger as-child>
               <UiButton variant="ghost" size="icon" :aria-label="$t('donate.ariaLabel')">
-                <component :is="HeartHandshakeIcon" class="w-5 h-5" />
+                <component :is="donateIcon" class="w-5 h-5" />
               </UiButton>
             </UiPopoverTrigger>
             <UiPopoverContent align="end" class="w-72 p-4">
@@ -392,12 +392,17 @@ import {
   GlobeIcon,
   ArrowUpCircleIcon,
   RefreshCwIcon,
-  HeartHandshakeIcon,
+  CatIcon,
+  DogIcon,
   HeartIcon,
   PawPrintIcon,
   ExternalLinkIcon,
 } from 'lucide-vue-next';
 import type { ThemeMeta } from '~/composables/useTheme';
+
+/** Randomly pick a Cat or Dog icon for the donation button (chosen once per mount) */
+const donateIcons = [CatIcon, DogIcon] as const;
+const donateIcon = donateIcons[Math.floor(Math.random() * donateIcons.length)];
 
 const { mode: colorMode, setMode } = useAppColorMode();
 const { theme, setTheme, themes } = useTheme();
