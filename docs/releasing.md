@@ -142,8 +142,8 @@ The changelog is configured in [`cliff.toml`](../cliff.toml) at the project root
 | `changelog` | release | `orhunp/git-cliff:latest` | Extract release notes for the tagged version |
 | `release:goreleaser` | release | `goreleaser/goreleaser:latest` | Cross-compile binaries, create GitLab release with assets |
 | `release:docker:build` | release | `docker:latest` | Build and push multi-arch Docker images to GitLab CR |
-| `release:docker:dockerhub` | release | `gcr.io/go-containerregistry/crane` | Mirror image from GitLab CR to Docker Hub |
-| `release:docker:ghcr` | release | `gcr.io/go-containerregistry/crane` | Mirror image from GitLab CR to GHCR |
+| `release:docker:dockerhub` | release | `alpine` + `crane` | Mirror image from GitLab CR to Docker Hub |
+| `release:docker:ghcr` | release | `alpine` + `crane` | Mirror image from GitLab CR to GHCR |
 | `pages` | pages | `node:22-alpine` | Rebuild project site with latest changelog |
 
 ## Release Artifacts
