@@ -1,3 +1,14 @@
+## [1.2.0] - 2026-03-08
+
+### 🚀 Features
+
+- *(ci)* Add multi-registry Docker publishing to Docker Hub and GHCR ([fa3e1ac](https://gitlab.com/starshadow/software/capacitarr/-/commit/fa3e1acaad0f00bb80e321f0941c3bc324826f5e))
+
+### 🐛 Bug Fixes
+
+- *(docs)* Constrain shields.io badge sizing on pages site ([e9f6579](https://gitlab.com/starshadow/software/capacitarr/-/commit/e9f6579f8728c3d06868b64258596a2e3ba43192))
+- Runtime subdirectory reverse proxy support via HTML rewriting ([a1668f2](https://gitlab.com/starshadow/software/capacitarr/-/commit/a1668f20c08dae92595b72ea36bc7e89dc96c367))
+- *(frontend)* Resolve subdirectory proxy cosmetic issues ([95c974a](https://gitlab.com/starshadow/software/capacitarr/-/commit/95c974a528240ceabddbb935c7ea80ed6724690b))
 ## [1.1.0] - 2026-03-08
 
 ### 🚀 Features
