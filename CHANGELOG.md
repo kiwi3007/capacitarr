@@ -1,3 +1,10 @@
+## [1.2.3] - 2026-03-08
+
+### 📝 Documentation
+
+- Add support and donation links (UAnimals, ASPCA, GitHub Sponsors, Ko-fi, Buy Me a Coffee) across README, docs, help page, and marketing site
+- Add `.github/FUNDING.yml` for GitHub Sponsor button
+
 ## [1.2.2] - 2026-03-08
 
 ### 🐛 Bug Fixes
