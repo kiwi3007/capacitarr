@@ -1,3 +1,8 @@
+## [1.2.2] - 2026-03-08
+
+### 🐛 Bug Fixes
+
+- *(ci)* Use alpine+crane for Docker mirror jobs ([b3548e0](https://gitlab.com/starshadow/software/capacitarr/-/commit/b3548e07e59b6a8499198707db8c666da986a714))
 ## [1.2.1] - 2026-03-08
 
 ### 🐛 Bug Fixes
