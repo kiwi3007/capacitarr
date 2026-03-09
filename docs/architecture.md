@@ -5,6 +5,7 @@ Capacitarr is a single-container application that bundles a Go backend, a Nuxt 4
 ## High-Level Overview
 
 ```mermaid
+%%{init: {"flowchart": {"defaultRenderer": "elk"}} }%%
 flowchart TD
     subgraph CONTAINER["Docker Container"]
         direction LR
@@ -73,6 +74,7 @@ flowchart TD
 All business logic lives in the service layer (`backend/internal/services/`). Route handlers are thin — they parse requests, call services, and return responses.
 
 ```mermaid
+%%{init: {"flowchart": {"defaultRenderer": "elk"}} }%%
 flowchart TD
     subgraph HTTP_LAYER["HTTP Layer — thin handlers"]
         ROUTES["Route Handlers<br/>Parse request, call service, return response"]
@@ -185,6 +187,7 @@ When a service performs an action (e.g., approving an item, completing an engine
 The `NotificationDispatchService` uses a **two-gate flush pattern** to ensure cycle digest notifications contain complete data from both the evaluation phase and the deletion phase of an engine run.
 
 ```mermaid
+%%{init: {"flowchart": {"defaultRenderer": "elk"}} }%%
 flowchart LR
     ENGINE_COMPLETE["EngineCompleteEvent<br/>Gate 1: evaluation stats"]
     DELETION_BATCH["DeletionBatchCompleteEvent<br/>Gate 2: deletion stats"]
@@ -302,6 +305,7 @@ Transient dashboard feed with 7-day retention:
 The frontend uses a singleton `useEventStream` composable that maintains a single `EventSource` connection shared across all components:
 
 ```mermaid
+%%{init: {"flowchart": {"defaultRenderer": "elk"}} }%%
 flowchart LR
     SSE_ENDPOINT["GET /api/v1/events"]
     EVENT_SOURCE["EventSource<br/>(singleton)"]

@@ -200,6 +200,7 @@ Capacitarr is a single-container application that bundles a Go backend, a Nuxt 4
 The backend uses a **service layer** pattern — all business logic lives in injectable services, not in route handlers. A typed **event bus** publishes 39 event types that drive activity logging, notifications, and real-time UI updates via **Server-Sent Events (SSE)**.
 
 ```mermaid
+%%{init: {"flowchart": {"defaultRenderer": "elk"}} }%%
 flowchart TD
     subgraph CONTAINER["Docker Container"]
         FRONTEND["Nuxt 4 Frontend<br/>Vue 3 + Tailwind CSS 4 + shadcn-vue"]
