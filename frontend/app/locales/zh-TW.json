@@ -49,7 +49,6 @@
   "nav.changeTheme": "變更佈景主題",
   "nav.darkMode": "切換至深色模式",
   "nav.lightMode": "切換至淺色模式",
-
   "donate.title": "支持動物救助",
   "donate.message": "Capacitarr 是免費軟體。如果它為您節省了時間，我們希望您能捐贈給動物救助機構，而非直接支持我們。",
   "donate.uanimalsName": "UAnimals",
@@ -61,7 +60,6 @@
   "donate.kofi": "Ko-fi",
   "donate.buyMeACoffee": "Buy Me a Coffee",
   "donate.ariaLabel": "支持與捐贈",
-
   "login.title": "歡迎回來",
   "login.subtitle": "登入 Capacitarr",
   "login.username": "使用者名稱",
@@ -172,21 +170,6 @@
   "rules.noItemsToEvaluate": "沒有可評估的項目。請連接整合並確保存在媒體。",
   "rules.orderDisclaimer": "規則順序僅用於組織管理 — 所有規則都會被評估，與位置無關。",
   "rules.ruleCount": "{count} 條規則",
-  "rules.importRules": "匯入",
-  "rules.exportRules": "匯出",
-  "rules.exportEmpty": "沒有可匯出的規則",
-  "rules.importSuccess": "已匯入 {count} 條規則",
-  "rules.importError": "匯入規則失敗",
-  "rules.importConfirm": "匯入規則",
-  "rules.importConfirmDesc": "這將向您現有的規則中新增 {count} 條規則。",
-  "rules.importInvalidFile": "無效的檔案格式",
-  "rules.importInvalidVersion": "不支援的匯出版本",
-  "rules.importMappingRequired": "部分整合需要對應",
-  "rules.importMappingDesc": "匯出檔案中的以下整合與您已設定的整合不相符。請進行對應：",
-  "rules.importSelectIntegration": "選擇整合…",
-  "rules.importSkipRules": "跳過這些規則",
-  "rules.exportSuccess": "規則已匯出",
-  "rules.importFile": "選擇檔案",
   "approval.title": "Approval Queue",
   "approval.subtitle": "Items flagged by the engine awaiting your review",
   "approval.pendingCount": "{count} pending",
@@ -414,5 +397,6 @@
   "update.upToDate": "Up to Date",
   "update.upToDateDesc": "You're running the latest version of Capacitarr.",
   "update.checkNow": "Check Now",
-  "update.checking": "Checking…"
+  "update.checking": "Checking…",
+  "rules.backupRestore": "Backup & Restore"
 }

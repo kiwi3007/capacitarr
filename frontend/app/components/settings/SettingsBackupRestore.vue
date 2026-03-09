@@ -1,0 +1,462 @@
+<template>
+  <div class="space-y-8">
+    <!-- Export Section -->
+    <UiCard>
+      <UiCardHeader>
+        <UiCardTitle>{{ $t('settings.export') }}</UiCardTitle>
+        <UiCardDescription>{{ $t('settings.exportDesc') }}</UiCardDescription>
+      </UiCardHeader>
+      <UiCardContent class="space-y-4">
+        <UiLabel class="text-sm font-medium">{{ $t('settings.sectionsToExport') }}</UiLabel>
+        <div class="space-y-3">
+          <div class="flex items-start gap-3">
+            <UiCheckbox
+              id="export-preferences"
+              :checked="exportSections.preferences"
+              @update:checked="(v: boolean) => (exportSections.preferences = v)"
+            />
+            <div class="grid gap-0.5 leading-none">
+              <UiLabel for="export-preferences" class="cursor-pointer">
+                {{ $t('settings.sectionPreferences') }}
+              </UiLabel>
+              <p class="text-xs text-muted-foreground">
+                {{ $t('settings.sectionPreferencesDesc') }}
+              </p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <UiCheckbox
+              id="export-rules"
+              :checked="exportSections.rules"
+              @update:checked="(v: boolean) => (exportSections.rules = v)"
+            />
+            <UiLabel for="export-rules" class="cursor-pointer">
+              {{ $t('settings.sectionRules') }}
+            </UiLabel>
+          </div>
+          <div class="flex items-start gap-3">
+            <UiCheckbox
+              id="export-integrations"
+              :checked="exportSections.integrations"
+              @update:checked="(v: boolean) => (exportSections.integrations = v)"
+            />
+            <div class="grid gap-0.5 leading-none">
+              <UiLabel for="export-integrations" class="cursor-pointer">
+                {{ $t('settings.sectionIntegrations') }}
+              </UiLabel>
+              <p class="text-xs text-muted-foreground">
+                {{ $t('settings.sectionIntegrationsDesc') }}
+              </p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <UiCheckbox
+              id="export-diskgroups"
+              :checked="exportSections.diskGroups"
+              @update:checked="(v: boolean) => (exportSections.diskGroups = v)"
+            />
+            <UiLabel for="export-diskgroups" class="cursor-pointer">
+              {{ $t('settings.sectionDiskGroups') }}
+            </UiLabel>
+          </div>
+          <div class="flex items-start gap-3">
+            <UiCheckbox
+              id="export-notifications"
+              :checked="exportSections.notificationChannels"
+              @update:checked="(v: boolean) => (exportSections.notificationChannels = v)"
+            />
+            <div class="grid gap-0.5 leading-none">
+              <UiLabel for="export-notifications" class="cursor-pointer">
+                {{ $t('settings.sectionNotifications') }}
+              </UiLabel>
+              <p class="text-xs text-muted-foreground">
+                {{ $t('settings.sectionNotificationsDesc') }}
+              </p>
+            </div>
+          </div>
+        </div>
+        <UiButton :disabled="!anyExportSelected || exporting" @click="doExport">
+          <component :is="DownloadIcon" class="w-4 h-4" />
+          {{ exporting ? $t('common.loading') : $t('settings.exportButton') }}
+        </UiButton>
+      </UiCardContent>
+    </UiCard>
+
+    <!-- Import Section -->
+    <UiCard>
+      <UiCardHeader>
+        <UiCardTitle>{{ $t('settings.import') }}</UiCardTitle>
+        <UiCardDescription>{{ $t('settings.importDesc') }}</UiCardDescription>
+      </UiCardHeader>
+      <UiCardContent class="space-y-4">
+        <!-- File upload area -->
+        <div
+          class="relative flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/25 p-8 transition-colors hover:border-muted-foreground/50 cursor-pointer"
+          :class="{ 'border-primary bg-primary/5': isDragOver }"
+          @click="fileInputRef?.click()"
+          @dragover.prevent="isDragOver = true"
+          @dragleave="isDragOver = false"
+          @drop.prevent="onFileDrop"
+        >
+          <component :is="UploadIcon" class="w-8 h-8 text-muted-foreground/50" />
+          <p class="text-sm text-muted-foreground">
+            {{ $t('settings.importDragDrop') }}
+          </p>
+          <input
+            ref="fileInputRef"
+            type="file"
+            accept=".json"
+            class="hidden"
+            @change="onFileSelected"
+          />
+        </div>
+
+        <!-- Preview after file is loaded -->
+        <template v-if="parsedPayload">
+          <UiCard class="bg-muted/30">
+            <UiCardHeader class="pb-3">
+              <UiCardTitle class="text-sm">{{ $t('settings.importPreview') }}</UiCardTitle>
+            </UiCardHeader>
+            <UiCardContent class="space-y-1 text-sm text-muted-foreground">
+              <p v-if="parsedPayload.preferences">✓ {{ $t('settings.sectionPreferences') }}</p>
+              <p v-if="parsedPayload.rules?.length">
+                ✓
+                {{
+                  $t(
+                    'settings.importResultRules',
+                    { count: parsedPayload.rules.length },
+                    parsedPayload.rules.length,
+                  )
+                }}
+              </p>
+              <p v-if="parsedPayload.integrations?.length">
+                ✓
+                {{
+                  $t(
+                    'settings.importResultIntegrations',
+                    { count: parsedPayload.integrations.length },
+                    parsedPayload.integrations.length,
+                  )
+                }}
+              </p>
+              <p v-if="parsedPayload.diskGroups?.length">
+                ✓
+                {{
+                  $t(
+                    'settings.importResultDiskGroups',
+                    { count: parsedPayload.diskGroups.length },
+                    parsedPayload.diskGroups.length,
+                  )
+                }}
+              </p>
+              <p v-if="parsedPayload.notificationChannels?.length">
+                ✓
+                {{
+                  $t(
+                    'settings.importResultNotifications',
+                    { count: parsedPayload.notificationChannels.length },
+                    parsedPayload.notificationChannels.length,
+                  )
+                }}
+              </p>
+            </UiCardContent>
+          </UiCard>
+
+          <!-- Import section checkboxes -->
+          <UiLabel class="text-sm font-medium">{{ $t('settings.sectionsToImport') }}</UiLabel>
+          <div class="space-y-3">
+            <div v-if="parsedPayload.preferences" class="flex items-center gap-3">
+              <UiCheckbox
+                id="import-preferences"
+                :checked="importSections.preferences"
+                @update:checked="(v: boolean) => (importSections.preferences = v)"
+              />
+              <UiLabel for="import-preferences" class="cursor-pointer">
+                {{ $t('settings.sectionPreferences') }}
+              </UiLabel>
+            </div>
+            <div v-if="parsedPayload.rules?.length" class="flex items-center gap-3">
+              <UiCheckbox
+                id="import-rules"
+                :checked="importSections.rules"
+                @update:checked="(v: boolean) => (importSections.rules = v)"
+              />
+              <UiLabel for="import-rules" class="cursor-pointer">
+                {{ $t('settings.sectionRules') }}
+              </UiLabel>
+            </div>
+            <div v-if="parsedPayload.integrations?.length" class="flex items-center gap-3">
+              <UiCheckbox
+                id="import-integrations"
+                :checked="importSections.integrations"
+                @update:checked="(v: boolean) => (importSections.integrations = v)"
+              />
+              <UiLabel for="import-integrations" class="cursor-pointer">
+                {{ $t('settings.sectionIntegrations') }}
+              </UiLabel>
+            </div>
+            <div v-if="parsedPayload.diskGroups?.length" class="flex items-center gap-3">
+              <UiCheckbox
+                id="import-diskgroups"
+                :checked="importSections.diskGroups"
+                @update:checked="(v: boolean) => (importSections.diskGroups = v)"
+              />
+              <UiLabel for="import-diskgroups" class="cursor-pointer">
+                {{ $t('settings.sectionDiskGroups') }}
+              </UiLabel>
+            </div>
+            <div v-if="parsedPayload.notificationChannels?.length" class="flex items-center gap-3">
+              <UiCheckbox
+                id="import-notifications"
+                :checked="importSections.notificationChannels"
+                @update:checked="(v: boolean) => (importSections.notificationChannels = v)"
+              />
+              <UiLabel for="import-notifications" class="cursor-pointer">
+                {{ $t('settings.sectionNotifications') }}
+              </UiLabel>
+            </div>
+          </div>
+
+          <!-- Credential warning -->
+          <UiAlert variant="default">
+            <component :is="AlertTriangleIcon" class="w-4 h-4" />
+            <UiAlertTitle>{{ $t('common.warning') }}</UiAlertTitle>
+            <UiAlertDescription>
+              {{ $t('settings.importCredentialWarning') }}
+            </UiAlertDescription>
+          </UiAlert>
+
+          <!-- Import button -->
+          <div class="flex items-center gap-3">
+            <UiButton :disabled="!anyImportSelected || importing" @click="doImport">
+              <component :is="UploadIcon" class="w-4 h-4" />
+              {{ importing ? $t('common.loading') : $t('settings.importButton') }}
+            </UiButton>
+            <UiButton variant="outline" @click="clearImport">
+              {{ $t('common.cancel') }}
+            </UiButton>
+          </div>
+        </template>
+
+        <!-- Import result -->
+        <UiAlert v-if="importResult" variant="default">
+          <component :is="CheckCircleIcon" class="w-4 h-4" />
+          <UiAlertTitle>{{ $t('settings.importResult') }}</UiAlertTitle>
+          <UiAlertDescription class="space-y-1">
+            <p v-if="importResult.preferencesImported">
+              ✓ {{ $t('settings.importResultPreferences') }}
+            </p>
+            <p v-if="importResult.rulesImported > 0">
+              ✓
+              {{
+                $t(
+                  'settings.importResultRules',
+                  { count: importResult.rulesImported },
+                  importResult.rulesImported,
+                )
+              }}
+            </p>
+            <p v-if="importResult.integrationsImported > 0">
+              ✓
+              {{
+                $t(
+                  'settings.importResultIntegrations',
+                  { count: importResult.integrationsImported },
+                  importResult.integrationsImported,
+                )
+              }}
+            </p>
+            <p v-if="importResult.diskGroupsImported > 0">
+              ✓
+              {{
+                $t(
+                  'settings.importResultDiskGroups',
+                  { count: importResult.diskGroupsImported },
+                  importResult.diskGroupsImported,
+                )
+              }}
+            </p>
+            <p v-if="importResult.notificationChannelsImported > 0">
+              ✓
+              {{
+                $t(
+                  'settings.importResultNotifications',
+                  { count: importResult.notificationChannelsImported },
+                  importResult.notificationChannelsImported,
+                )
+              }}
+            </p>
+          </UiAlertDescription>
+        </UiAlert>
+      </UiCardContent>
+    </UiCard>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { DownloadIcon, UploadIcon, AlertTriangleIcon, CheckCircleIcon } from 'lucide-vue-next';
+import type {
+  SettingsExportEnvelope,
+  ExportSections,
+  ImportSections,
+  ImportResult,
+} from '~/types/api';
+
+const api = useApi();
+const { addToast } = useToast();
+const { t } = useI18n();
+const route = useRoute();
+
+// ─── Export State ────────────────────────────────────────────────────────────
+
+const exporting = ref(false);
+
+// Pre-select sections based on query param (e.g., ?section=rules from Custom Rules page)
+const preselectedSection = route.query.section as string | undefined;
+
+const exportSections = reactive<ExportSections>({
+  preferences: preselectedSection ? preselectedSection === 'preferences' : true,
+  rules: preselectedSection ? preselectedSection === 'rules' : true,
+  integrations: preselectedSection ? preselectedSection === 'integrations' : true,
+  diskGroups: preselectedSection ? preselectedSection === 'diskGroups' : true,
+  notificationChannels: preselectedSection ? preselectedSection === 'notifications' : true,
+});
+
+const anyExportSelected = computed(
+  () =>
+    exportSections.preferences ||
+    exportSections.rules ||
+    exportSections.integrations ||
+    exportSections.diskGroups ||
+    exportSections.notificationChannels,
+);
+
+async function doExport() {
+  exporting.value = true;
+  try {
+    const sectionParams: string[] = [];
+    if (exportSections.preferences) sectionParams.push('preferences');
+    if (exportSections.rules) sectionParams.push('rules');
+    if (exportSections.integrations) sectionParams.push('integrations');
+    if (exportSections.diskGroups) sectionParams.push('diskGroups');
+    if (exportSections.notificationChannels) sectionParams.push('notifications');
+
+    const query = sectionParams.join(',');
+    const data = (await api(`/api/v1/settings/export?sections=${query}`)) as SettingsExportEnvelope;
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const date = new Date().toISOString().slice(0, 10);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `capacitarr-settings-${date}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    addToast(t('settings.exportSuccess'), 'success');
+  } catch {
+    addToast(t('settings.exportError'), 'error');
+  } finally {
+    exporting.value = false;
+  }
+}
+
+// ─── Import State ────────────────────────────────────────────────────────────
+
+const fileInputRef = ref<HTMLInputElement | null>(null);
+const parsedPayload = ref<SettingsExportEnvelope | null>(null);
+const importing = ref(false);
+const isDragOver = ref(false);
+const importResult = ref<ImportResult | null>(null);
+
+const importSections = reactive<ImportSections>({
+  preferences: false,
+  rules: false,
+  integrations: false,
+  diskGroups: false,
+  notificationChannels: false,
+});
+
+const anyImportSelected = computed(
+  () =>
+    importSections.preferences ||
+    importSections.rules ||
+    importSections.integrations ||
+    importSections.diskGroups ||
+    importSections.notificationChannels,
+);
+
+function onFileSelected(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+  parseFile(file);
+  input.value = '';
+}
+
+function onFileDrop(event: DragEvent) {
+  isDragOver.value = false;
+  const file = event.dataTransfer?.files?.[0];
+  if (!file) return;
+  parseFile(file);
+}
+
+function parseFile(file: File) {
+  importResult.value = null;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result as string) as SettingsExportEnvelope;
+
+      if (!data || typeof data.version !== 'number') {
+        addToast(t('settings.importInvalidFile'), 'error');
+        return;
+      }
+      if (data.version !== 1) {
+        addToast(t('settings.importInvalidVersion'), 'error');
+        return;
+      }
+
+      parsedPayload.value = data;
+
+      // Pre-check sections based on what's in the file
+      importSections.preferences = !!data.preferences;
+      importSections.rules = (data.rules?.length ?? 0) > 0;
+      importSections.integrations = (data.integrations?.length ?? 0) > 0;
+      importSections.diskGroups = (data.diskGroups?.length ?? 0) > 0;
+      importSections.notificationChannels = (data.notificationChannels?.length ?? 0) > 0;
+    } catch {
+      addToast(t('settings.importInvalidFile'), 'error');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function clearImport() {
+  parsedPayload.value = null;
+  importResult.value = null;
+}
+
+async function doImport() {
+  if (!parsedPayload.value) return;
+  importing.value = true;
+  try {
+    const result = (await api('/api/v1/settings/import', {
+      method: 'POST',
+      body: {
+        payload: parsedPayload.value,
+        sections: { ...importSections },
+      },
+    })) as ImportResult;
+
+    importResult.value = result;
+    parsedPayload.value = null;
+    addToast(t('settings.importSuccess'), 'success');
+  } catch {
+    addToast(t('settings.importError'), 'error');
+  } finally {
+    importing.value = false;
+  }
+}
+</script>

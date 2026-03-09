@@ -310,10 +310,27 @@ export interface SelectedDetailItem {
 }
 
 // ---------------------------------------------------------------------------
-// Custom Rule Import/Export (API endpoints: /api/v1/custom-rules/export, /import)
+// Settings Backup & Restore (API endpoints: /api/v1/settings/export, /import)
 // ---------------------------------------------------------------------------
 
-export interface ExportedRule {
+export interface PreferencesExport {
+  logLevel: string;
+  auditLogRetentionDays: number;
+  pollIntervalSeconds: number;
+  watchHistoryWeight: number;
+  lastWatchedWeight: number;
+  fileSizeWeight: number;
+  ratingWeight: number;
+  timeInLibraryWeight: number;
+  seriesStatusWeight: number;
+  executionMode: string;
+  tiebreakerMethod: string;
+  deletionsEnabled: boolean;
+  snoozeDurationHours: number;
+  checkForUpdates: boolean;
+}
+
+export interface RuleExport {
   field: string;
   operator: string;
   value: string;
@@ -323,20 +340,66 @@ export interface ExportedRule {
   integrationType: string | null;
 }
 
-export interface RuleExportEnvelope {
+export interface IntegrationExport {
+  name: string;
+  type: string;
+  url: string;
+  enabled: boolean;
+}
+
+export interface DiskGroupExport {
+  mountPath: string;
+  thresholdPct: number;
+  targetPct: number;
+}
+
+export interface NotificationExport {
+  name: string;
+  type: string;
+  enabled: boolean;
+  appriseTags?: string;
+  onCycleDigest: boolean;
+  onError: boolean;
+  onModeChanged: boolean;
+  onServerStarted: boolean;
+  onThresholdBreach: boolean;
+  onUpdateAvailable: boolean;
+  onApprovalActivity: boolean;
+}
+
+export interface SettingsExportEnvelope {
   version: number;
   exportedAt: string;
-  rules: ExportedRule[];
+  appVersion: string;
+  preferences?: PreferencesExport;
+  rules?: RuleExport[];
+  integrations?: IntegrationExport[];
+  diskGroups?: DiskGroupExport[];
+  notificationChannels?: NotificationExport[];
 }
 
-export interface RuleImportRequest {
-  payload: RuleExportEnvelope;
-  integrationMapping?: Record<string, number>;
+export interface ExportSections {
+  preferences: boolean;
+  rules: boolean;
+  integrations: boolean;
+  diskGroups: boolean;
+  notificationChannels: boolean;
 }
 
-export interface RuleImportResponse {
-  imported: number;
-  skipped: number;
+export interface ImportSections {
+  preferences: boolean;
+  rules: boolean;
+  integrations: boolean;
+  diskGroups: boolean;
+  notificationChannels: boolean;
+}
+
+export interface ImportResult {
+  preferencesImported: boolean;
+  rulesImported: number;
+  integrationsImported: number;
+  diskGroupsImported: number;
+  notificationChannelsImported: number;
 }
 
 // ---------------------------------------------------------------------------

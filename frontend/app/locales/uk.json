@@ -49,7 +49,6 @@
   "nav.changeTheme": "Змінити тему",
   "nav.darkMode": "Перейти до темного режиму",
   "nav.lightMode": "Перейти до світлого режиму",
-
   "donate.title": "Підтримайте порятунок тварин",
   "donate.message": "Capacitarr — безкоштовне програмне забезпечення. Якщо воно економить ваш час, ми б хотіли, щоб ви пожертвували на порятунок тварин замість прямої підтримки нас.",
   "donate.uanimalsName": "UAnimals",
@@ -61,7 +60,6 @@
   "donate.kofi": "Ko-fi",
   "donate.buyMeACoffee": "Buy Me a Coffee",
   "donate.ariaLabel": "Підтримка та пожертви",
-
   "login.title": "З поверненням",
   "login.subtitle": "Увійдіть до Capacitarr",
   "login.username": "Ім'я користувача",
@@ -172,21 +170,6 @@
   "rules.noItemsToEvaluate": "Немає елементів для оцінки. Підключіть інтеграції та переконайтеся, що медіа існує.",
   "rules.orderDisclaimer": "Порядок правил лише для вашої організації — всі правила оцінюються незалежно від позиції.",
   "rules.ruleCount": "{count} правило | {count} правила | {count} правил",
-  "rules.importRules": "Імпорт",
-  "rules.exportRules": "Експорт",
-  "rules.exportEmpty": "Немає правил для експорту",
-  "rules.importSuccess": "{count} правило імпортовано | {count} правила імпортовано | {count} правил імпортовано",
-  "rules.importError": "Не вдалося імпортувати правила",
-  "rules.importConfirm": "Імпортувати правила",
-  "rules.importConfirmDesc": "Це додасть {count} правило до ваших існуючих правил. | Це додасть {count} правила до ваших існуючих правил. | Це додасть {count} правил до ваших існуючих правил.",
-  "rules.importInvalidFile": "Недійсний формат файлу",
-  "rules.importInvalidVersion": "Непідтримувана версія експорту",
-  "rules.importMappingRequired": "Деякі інтеграції потребують зіставлення",
-  "rules.importMappingDesc": "Наступні інтеграції з файлу експорту не відповідають жодній з ваших налаштованих інтеграцій. Будь ласка, зіставте їх:",
-  "rules.importSelectIntegration": "Виберіть інтеграцію…",
-  "rules.importSkipRules": "Пропустити ці правила",
-  "rules.exportSuccess": "Правила експортовано",
-  "rules.importFile": "Вибрати файл",
   "approval.title": "Approval Queue",
   "approval.subtitle": "Items flagged by the engine awaiting your review",
   "approval.pendingCount": "{count} pending",
@@ -414,5 +397,6 @@
   "update.upToDate": "Up to Date",
   "update.upToDateDesc": "You're running the latest version of Capacitarr.",
   "update.checkNow": "Check Now",
-  "update.checking": "Checking…"
+  "update.checking": "Checking…",
+  "rules.backupRestore": "Backup & Restore"
 }

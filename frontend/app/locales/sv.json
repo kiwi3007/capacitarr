@@ -49,7 +49,6 @@
   "nav.changeTheme": "Byt tema",
   "nav.darkMode": "Växla till mörkt läge",
   "nav.lightMode": "Växla till ljust läge",
-
   "donate.title": "Stöd djurräddning",
   "donate.message": "Capacitarr är gratis programvara. Om den sparar dig tid, vill vi gärna att du donerar till djurräddning istället för att stödja oss direkt.",
   "donate.uanimalsName": "UAnimals",
@@ -61,7 +60,6 @@
   "donate.kofi": "Ko-fi",
   "donate.buyMeACoffee": "Buy Me a Coffee",
   "donate.ariaLabel": "Stöd och donationer",
-
   "login.title": "Välkommen tillbaka",
   "login.subtitle": "Logga in på Capacitarr",
   "login.username": "Användarnamn",
@@ -172,21 +170,6 @@
   "rules.noItemsToEvaluate": "Inga objekt att utvärdera. Anslut integrationer och se till att media finns.",
   "rules.orderDisclaimer": "Regelordningen är bara för din organisation — alla regler utvärderas oavsett position.",
   "rules.ruleCount": "{count} regel | {count} regler",
-  "rules.importRules": "Importera",
-  "rules.exportRules": "Exportera",
-  "rules.exportEmpty": "Inga regler att exportera",
-  "rules.importSuccess": "{count} regel importerad | {count} regler importerade",
-  "rules.importError": "Kunde inte importera regler",
-  "rules.importConfirm": "Importera regler",
-  "rules.importConfirmDesc": "Detta lägger till {count} regel till dina befintliga regler. | Detta lägger till {count} regler till dina befintliga regler.",
-  "rules.importInvalidFile": "Ogiltigt filformat",
-  "rules.importInvalidVersion": "Exportversion stöds inte",
-  "rules.importMappingRequired": "Vissa integrationer behöver mappas",
-  "rules.importMappingDesc": "Följande integrationer från exportfilen matchar inte någon av dina konfigurerade integrationer. Vänligen mappa dem:",
-  "rules.importSelectIntegration": "Välj integration…",
-  "rules.importSkipRules": "Hoppa över dessa regler",
-  "rules.exportSuccess": "Regler exporterade",
-  "rules.importFile": "Välj fil",
   "approval.title": "Approval Queue",
   "approval.subtitle": "Items flagged by the engine awaiting your review",
   "approval.pendingCount": "{count} pending",
@@ -414,5 +397,6 @@
   "update.upToDate": "Up to Date",
   "update.upToDateDesc": "You're running the latest version of Capacitarr.",
   "update.checkNow": "Check Now",
-  "update.checking": "Checking…"
+  "update.checking": "Checking…",
+  "rules.backupRestore": "Backup & Restore"
 }

@@ -49,7 +49,6 @@
   "nav.changeTheme": "Vaihda teema",
   "nav.darkMode": "Vaihda tummaan tilaan",
   "nav.lightMode": "Vaihda vaaleaan tilaan",
-
   "donate.title": "Tue eläinten pelastamista",
   "donate.message": "Capacitarr on ilmainen ohjelmisto. Jos se säästää aikaasi, toivoisimme sinun lahjoittavan eläinten pelastamiseen suoran tukemisen sijaan.",
   "donate.uanimalsName": "UAnimals",
@@ -61,7 +60,6 @@
   "donate.kofi": "Ko-fi",
   "donate.buyMeACoffee": "Buy Me a Coffee",
   "donate.ariaLabel": "Tuki ja lahjoitukset",
-
   "login.title": "Tervetuloa takaisin",
   "login.subtitle": "Kirjaudu sisään Capacitarr",
   "login.username": "Käyttäjänimi",
@@ -172,21 +170,6 @@
   "rules.noItemsToEvaluate": "Ei kohteita arvioitavaksi. Yhdistä integraatiot ja varmista, että mediaa on olemassa.",
   "rules.orderDisclaimer": "Sääntöjen järjestys on vain organisointia varten — kaikki säännöt arvioidaan sijainnista riippumatta.",
   "rules.ruleCount": "{count} sääntö | {count} sääntöä",
-  "rules.importRules": "Tuo",
-  "rules.exportRules": "Vie",
-  "rules.exportEmpty": "Ei sääntöjä vietäväksi",
-  "rules.importSuccess": "{count} sääntö tuotu | {count} sääntöä tuotu",
-  "rules.importError": "Sääntöjen tuonti epäonnistui",
-  "rules.importConfirm": "Tuo säännöt",
-  "rules.importConfirmDesc": "Tämä lisää {count} säännön olemassa oleviin sääntöihisi. | Tämä lisää {count} sääntöä olemassa oleviin sääntöihisi.",
-  "rules.importInvalidFile": "Virheellinen tiedostomuoto",
-  "rules.importInvalidVersion": "Ei-tuettu vientiversio",
-  "rules.importMappingRequired": "Jotkut integraatiot täytyy yhdistää",
-  "rules.importMappingDesc": "Seuraavat vientitiedoston integraatiot eivät vastaa mitään määritetyistä integraatioistasi. Yhdistä ne:",
-  "rules.importSelectIntegration": "Valitse integraatio…",
-  "rules.importSkipRules": "Ohita nämä säännöt",
-  "rules.exportSuccess": "Säännöt viety",
-  "rules.importFile": "Valitse tiedosto",
   "approval.title": "Approval Queue",
   "approval.subtitle": "Items flagged by the engine awaiting your review",
   "approval.pendingCount": "{count} pending",
@@ -414,5 +397,6 @@
   "update.upToDate": "Up to Date",
   "update.upToDateDesc": "You're running the latest version of Capacitarr.",
   "update.checkNow": "Check Now",
-  "update.checking": "Checking…"
+  "update.checking": "Checking…",
+  "rules.backupRestore": "Backup & Restore"
 }

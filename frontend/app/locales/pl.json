@@ -49,7 +49,6 @@
   "nav.changeTheme": "Zmień motyw",
   "nav.darkMode": "Przełącz na tryb ciemny",
   "nav.lightMode": "Przełącz na tryb jasny",
-
   "donate.title": "Wspieraj ratowanie zwierząt",
   "donate.message": "Capacitarr to darmowe oprogramowanie. Jeśli oszczędza ci czas, prosimy o wsparcie ratowania zwierząt zamiast bezpośredniego wspierania nas.",
   "donate.uanimalsName": "UAnimals",
@@ -61,7 +60,6 @@
   "donate.kofi": "Ko-fi",
   "donate.buyMeACoffee": "Buy Me a Coffee",
   "donate.ariaLabel": "Wsparcie i darowizny",
-
   "login.title": "Witaj ponownie",
   "login.subtitle": "Zaloguj się do Capacitarr",
   "login.username": "Nazwa użytkownika",
@@ -172,21 +170,6 @@
   "rules.noItemsToEvaluate": "Brak elementów do oceny. Połącz integracje i upewnij się, że istnieją media.",
   "rules.orderDisclaimer": "Kolejność reguł służy tylko do organizacji — wszystkie reguły są oceniane niezależnie od pozycji.",
   "rules.ruleCount": "{count} reguła | {count} reguły | {count} reguł",
-  "rules.importRules": "Importuj",
-  "rules.exportRules": "Eksportuj",
-  "rules.exportEmpty": "Brak reguł do eksportu",
-  "rules.importSuccess": "{count} reguła zaimportowana | {count} reguły zaimportowane | {count} reguł zaimportowanych",
-  "rules.importError": "Nie udało się zaimportować reguł",
-  "rules.importConfirm": "Importuj reguły",
-  "rules.importConfirmDesc": "To doda {count} regułę do istniejących reguł. | To doda {count} reguły do istniejących reguł. | To doda {count} reguł do istniejących reguł.",
-  "rules.importInvalidFile": "Nieprawidłowy format pliku",
-  "rules.importInvalidVersion": "Nieobsługiwana wersja eksportu",
-  "rules.importMappingRequired": "Niektóre integracje wymagają mapowania",
-  "rules.importMappingDesc": "Następujące integracje z pliku eksportu nie pasują do żadnej ze skonfigurowanych integracji. Proszę je zmapować:",
-  "rules.importSelectIntegration": "Wybierz integrację…",
-  "rules.importSkipRules": "Pomiń te reguły",
-  "rules.exportSuccess": "Reguły wyeksportowane",
-  "rules.importFile": "Wybierz plik",
   "approval.title": "Approval Queue",
   "approval.subtitle": "Items flagged by the engine awaiting your review",
   "approval.pendingCount": "{count} pending",
@@ -414,5 +397,6 @@
   "update.upToDate": "Up to Date",
   "update.upToDateDesc": "You're running the latest version of Capacitarr.",
   "update.checkNow": "Check Now",
-  "update.checking": "Checking…"
+  "update.checking": "Checking…",
+  "rules.backupRestore": "Backup & Restore"
 }

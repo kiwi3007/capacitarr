@@ -21,18 +21,9 @@
           </p>
         </div>
         <div class="flex items-center gap-2">
-          <UiButton variant="outline" size="sm" @click="triggerFileInput">
-            <component :is="UploadIcon" class="w-3.5 h-3.5" />
-            {{ $t('rules.importRules') }}
-          </UiButton>
-          <UiButton
-            variant="outline"
-            size="sm"
-            :disabled="rules.length === 0"
-            @click="$emit('export-rules')"
-          >
-            <component :is="DownloadIcon" class="w-3.5 h-3.5" />
-            {{ $t('rules.exportRules') }}
+          <UiButton variant="outline" size="sm" @click="goToBackupRestore">
+            <component :is="ArchiveIcon" class="w-3.5 h-3.5" />
+            {{ $t('rules.backupRestore') }}
           </UiButton>
           <UiButton size="sm" @click="showAddRule = !showAddRule">
             <component :is="PlusIcon" class="w-3.5 h-3.5" />
@@ -197,80 +188,6 @@
       </div>
     </UiCardContent>
   </UiCard>
-
-  <!-- Hidden file input for import -->
-  <input ref="fileInputRef" type="file" accept=".json" class="hidden" @change="onFileSelected" />
-
-  <!-- Import confirmation dialog (no mapping needed) -->
-  <UiDialog :open="showConfirmDialog" @update:open="(v: boolean) => (showConfirmDialog = v)">
-    <UiDialogContent class="max-w-sm">
-      <UiDialogHeader>
-        <UiDialogTitle>{{ $t('rules.importConfirm') }}</UiDialogTitle>
-      </UiDialogHeader>
-      <p class="text-sm text-muted-foreground">
-        {{
-          $t(
-            'rules.importConfirmDesc',
-            { count: parsedPayload?.rules?.length ?? 0 },
-            parsedPayload?.rules?.length ?? 0,
-          )
-        }}
-      </p>
-      <UiDialogFooter>
-        <UiButton variant="outline" @click="showConfirmDialog = false">
-          {{ $t('common.cancel') }}
-        </UiButton>
-        <UiButton @click="confirmImport">
-          {{ $t('rules.importConfirm') }}
-        </UiButton>
-      </UiDialogFooter>
-    </UiDialogContent>
-  </UiDialog>
-
-  <!-- Import mapping dialog (unmapped integrations) -->
-  <UiDialog :open="showMappingDialog" @update:open="(v: boolean) => (showMappingDialog = v)">
-    <UiDialogScrollContent class="max-w-md">
-      <UiDialogHeader>
-        <UiDialogTitle>{{ $t('rules.importMappingRequired') }}</UiDialogTitle>
-      </UiDialogHeader>
-      <p class="text-sm text-muted-foreground mb-4">
-        {{ $t('rules.importMappingDesc') }}
-      </p>
-      <div class="space-y-4">
-        <div v-for="key in unmappedKeys" :key="key" class="space-y-1.5">
-          <UiLabel class="text-sm font-medium">{{ key }}</UiLabel>
-          <UiSelect
-            :model-value="mappingSelections[key] ?? ''"
-            @update:model-value="(v: string) => (mappingSelections[key] = v)"
-          >
-            <UiSelectTrigger class="w-full">
-              <UiSelectValue :placeholder="$t('rules.importSelectIntegration')" />
-            </UiSelectTrigger>
-            <UiSelectContent>
-              <UiSelectItem value="__skip__">
-                {{ $t('rules.importSkipRules') }}
-              </UiSelectItem>
-              <UiSelectItem
-                v-for="integration in integrations"
-                :key="integration.id"
-                :value="String(integration.id)"
-              >
-                {{ integrationDisplayName(integration) }}
-              </UiSelectItem>
-            </UiSelectContent>
-          </UiSelect>
-        </div>
-      </div>
-      <UiDialogFooter class="mt-4">
-        <UiButton variant="outline" @click="showMappingDialog = false">
-          {{ $t('common.cancel') }}
-        </UiButton>
-        <UiButton :disabled="!allMapped" @click="confirmMappedImport">
-          {{ $t('rules.importConfirm') }}
-        </UiButton>
-      </UiDialogFooter>
-    </UiDialogScrollContent>
-  </UiDialog>
 </template>
 
 <script setup lang="ts">
@@ -280,8 +197,7 @@ import {
   AlertTriangleIcon,
   GripVerticalIcon,
   ChevronRightIcon,
-  UploadIcon,
-  DownloadIcon,
+  ArchiveIcon,
 } from 'lucide-vue-next';
 import {
   fieldLabel,
@@ -293,7 +209,7 @@ import {
   ruleValueSuffix,
   computeAllRuleConflicts,
 } from '~/utils/ruleFieldMaps';
-import type { CustomRule, IntegrationConfig, RuleExportEnvelope } from '~/types/api';
+import type { CustomRule, IntegrationConfig } from '~/types/api';
 
 interface RuleGroup {
   integrationId: number;
@@ -301,8 +217,7 @@ interface RuleGroup {
   rules: CustomRule[];
 }
 
-const { t } = useI18n();
-const { addToast } = useToast();
+const router = useRouter();
 
 const props = defineProps<{
   rules: CustomRule[];
@@ -316,116 +231,12 @@ const emit = defineEmits<{
   'delete-rule': [id: number];
   'toggle-enabled': [rule: CustomRule, enabled: boolean];
   reorder: [order: number[]];
-  'export-rules': [];
-  'import-rules': [
-    data: { payload: RuleExportEnvelope; integrationMapping?: Record<string, number> },
-  ];
 }>();
 
 const showAddRule = ref(false);
 
-// ─── Import State ───────────────────────────────────────────────────────────
-const fileInputRef = ref<HTMLInputElement | null>(null);
-const parsedPayload = ref<RuleExportEnvelope | null>(null);
-const showConfirmDialog = ref(false);
-const showMappingDialog = ref(false);
-const unmappedKeys = ref<string[]>([]);
-const mappingSelections = ref<Record<string, string>>({});
-
-function triggerFileInput() {
-  fileInputRef.value?.click();
-}
-
-function onFileSelected(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = () => {
-    // Reset the input so the same file can be re-selected
-    input.value = '';
-
-    try {
-      const data = JSON.parse(reader.result as string) as RuleExportEnvelope;
-
-      // Validate structure
-      if (!data || !Array.isArray(data.rules)) {
-        addToast(t('rules.importInvalidFile'), 'error');
-        return;
-      }
-      if (data.version !== 1) {
-        addToast(t('rules.importInvalidVersion'), 'error');
-        return;
-      }
-
-      parsedPayload.value = data;
-
-      // Check for unmapped integrations
-      const localLookup = new Set(props.integrations.map((i) => `${i.type}:${i.name}`));
-      const needsMapping = new Set<string>();
-      for (const rule of data.rules) {
-        if (rule.integrationName && rule.integrationType) {
-          const key = `${rule.integrationType}:${rule.integrationName}`;
-          if (!localLookup.has(key)) {
-            needsMapping.add(key);
-          }
-        }
-      }
-
-      if (needsMapping.size === 0) {
-        // All integrations match or no integrations referenced — show simple confirm
-        showConfirmDialog.value = true;
-      } else {
-        // Some integrations need mapping
-        unmappedKeys.value = [...needsMapping];
-        mappingSelections.value = {};
-        showMappingDialog.value = true;
-      }
-    } catch {
-      addToast(t('rules.importInvalidFile'), 'error');
-    }
-  };
-  reader.readAsText(file);
-}
-
-function confirmImport() {
-  if (!parsedPayload.value) return;
-  showConfirmDialog.value = false;
-  emit('import-rules', { payload: parsedPayload.value });
-  parsedPayload.value = null;
-}
-
-const allMapped = computed(() => {
-  return unmappedKeys.value.every((key) => !!mappingSelections.value[key]);
-});
-
-function confirmMappedImport() {
-  if (!parsedPayload.value) return;
-  showMappingDialog.value = false;
-
-  // Build the integration mapping: "type:name" → integration ID
-  const mapping: Record<string, number> = {};
-  for (const key of unmappedKeys.value) {
-    const val = mappingSelections.value[key];
-    if (val && val !== '__skip__') {
-      mapping[key] = Number(val);
-    }
-    // If __skip__, we don't add it to the mapping — the backend will skip those rules
-  }
-
-  emit('import-rules', {
-    payload: parsedPayload.value,
-    integrationMapping: Object.keys(mapping).length > 0 ? mapping : undefined,
-  });
-  parsedPayload.value = null;
-}
-
-function integrationDisplayName(integration: IntegrationConfig): string {
-  const typeName = integration.type
-    ? integration.type.charAt(0).toUpperCase() + integration.type.slice(1)
-    : '';
-  return typeName ? `${typeName}: ${integration.name}` : integration.name;
+function goToBackupRestore() {
+  router.push({ path: '/settings', query: { tab: 'backup', section: 'rules' } });
 }
 
 // Compute rule conflicts as a Map — runs once per rules change, not per render

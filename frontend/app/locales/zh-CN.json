@@ -49,7 +49,6 @@
   "nav.changeTheme": "更换主题",
   "nav.darkMode": "切换到深色模式",
   "nav.lightMode": "切换到浅色模式",
-
   "donate.title": "支持动物救助",
   "donate.message": "Capacitarr 是免费软件。如果它为您节省了时间，我们希望您能捐赠给动物救助机构，而非直接支持我们。",
   "donate.uanimalsName": "UAnimals",
@@ -61,7 +60,6 @@
   "donate.kofi": "Ko-fi",
   "donate.buyMeACoffee": "Buy Me a Coffee",
   "donate.ariaLabel": "支持与捐赠",
-
   "login.title": "欢迎回来",
   "login.subtitle": "登录到 Capacitarr",
   "login.username": "用户名",
@@ -172,21 +170,6 @@
   "rules.noItemsToEvaluate": "没有可评估的项目。请连接集成并确保存在媒体。",
   "rules.orderDisclaimer": "规则顺序仅用于组织管理 — 所有规则都会被评估，与位置无关。",
   "rules.ruleCount": "{count} 条规则",
-  "rules.importRules": "导入",
-  "rules.exportRules": "导出",
-  "rules.exportEmpty": "没有可导出的规则",
-  "rules.importSuccess": "已导入 {count} 条规则",
-  "rules.importError": "导入规则失败",
-  "rules.importConfirm": "导入规则",
-  "rules.importConfirmDesc": "这将向您现有的规则中添加 {count} 条规则。",
-  "rules.importInvalidFile": "无效的文件格式",
-  "rules.importInvalidVersion": "不支持的导出版本",
-  "rules.importMappingRequired": "部分集成需要映射",
-  "rules.importMappingDesc": "导出文件中的以下集成与您已配置的集成不匹配。请进行映射：",
-  "rules.importSelectIntegration": "选择集成…",
-  "rules.importSkipRules": "跳过这些规则",
-  "rules.exportSuccess": "规则已导出",
-  "rules.importFile": "选择文件",
   "approval.title": "Approval Queue",
   "approval.subtitle": "Items flagged by the engine awaiting your review",
   "approval.pendingCount": "{count} pending",
@@ -414,5 +397,6 @@
   "update.upToDate": "Up to Date",
   "update.upToDateDesc": "You're running the latest version of Capacitarr.",
   "update.checkNow": "Check Now",
-  "update.checking": "Checking…"
+  "update.checking": "Checking…",
+  "rules.backupRestore": "Backup & Restore"
 }

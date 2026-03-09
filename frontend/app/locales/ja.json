@@ -49,7 +49,6 @@
   "nav.changeTheme": "テーマを変更",
   "nav.darkMode": "ダークモードに切り替え",
   "nav.lightMode": "ライトモードに切り替え",
-
   "donate.title": "動物保護を支援する",
   "donate.message": "Capacitarrは無料ソフトウェアです。時間の節約になっていたら、直接の支援の代わりに動物保護への寄付をお願いします。",
   "donate.uanimalsName": "UAnimals",
@@ -61,7 +60,6 @@
   "donate.kofi": "Ko-fi",
   "donate.buyMeACoffee": "Buy Me a Coffee",
   "donate.ariaLabel": "サポートと寄付",
-
   "login.title": "おかえりなさい",
   "login.subtitle": "Capacitarr にサインイン",
   "login.username": "ユーザー名",
@@ -172,21 +170,6 @@
   "rules.noItemsToEvaluate": "評価するアイテムがありません。連携を接続し、メディアが存在することを確認してください。",
   "rules.orderDisclaimer": "ルールの順序は整理目的のみです — すべてのルールは位置に関係なく評価されます。",
   "rules.ruleCount": "{count} ルール",
-  "rules.importRules": "インポート",
-  "rules.exportRules": "エクスポート",
-  "rules.exportEmpty": "エクスポートするルールがありません",
-  "rules.importSuccess": "{count} 件のルールをインポートしました",
-  "rules.importError": "ルールのインポートに失敗しました",
-  "rules.importConfirm": "ルールをインポート",
-  "rules.importConfirmDesc": "既存のルールに {count} 件のルールを追加します。",
-  "rules.importInvalidFile": "無効なファイル形式",
-  "rules.importInvalidVersion": "サポートされていないエクスポートバージョン",
-  "rules.importMappingRequired": "一部の連携をマッピングする必要があります",
-  "rules.importMappingDesc": "エクスポートファイルの以下の連携が、設定済みの連携と一致しません。マッピングしてください：",
-  "rules.importSelectIntegration": "連携を選択…",
-  "rules.importSkipRules": "これらのルールをスキップ",
-  "rules.exportSuccess": "ルールをエクスポートしました",
-  "rules.importFile": "ファイルを選択",
   "approval.title": "Approval Queue",
   "approval.subtitle": "Items flagged by the engine awaiting your review",
   "approval.pendingCount": "{count} pending",
@@ -414,5 +397,6 @@
   "update.upToDate": "Up to Date",
   "update.upToDateDesc": "You're running the latest version of Capacitarr.",
   "update.checkNow": "Check Now",
-  "update.checking": "Checking…"
+  "update.checking": "Checking…",
+  "rules.backupRestore": "Backup & Restore"
 }

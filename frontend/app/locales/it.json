@@ -49,7 +49,6 @@
   "nav.changeTheme": "Cambia tema",
   "nav.darkMode": "Passa alla modalità scura",
   "nav.lightMode": "Passa alla modalità chiara",
-
   "donate.title": "Sostieni il soccorso animale",
   "donate.message": "Capacitarr è un software gratuito. Se ti fa risparmiare tempo, ci piacerebbe che donassi al soccorso animale invece di sostenerci direttamente.",
   "donate.uanimalsName": "UAnimals",
@@ -61,7 +60,6 @@
   "donate.kofi": "Ko-fi",
   "donate.buyMeACoffee": "Buy Me a Coffee",
   "donate.ariaLabel": "Supporto e donazioni",
-
   "login.title": "Bentornato",
   "login.subtitle": "Accedi a Capacitarr",
   "login.username": "Nome utente",
@@ -172,21 +170,6 @@
   "rules.noItemsToEvaluate": "Nessun elemento da valutare. Connetti le integrazioni e assicurati che esistano dei media.",
   "rules.orderDisclaimer": "L'ordine delle regole è solo per la tua organizzazione — tutte le regole vengono valutate indipendentemente dalla posizione.",
   "rules.ruleCount": "{count} regola | {count} regole",
-  "rules.importRules": "Importa",
-  "rules.exportRules": "Esporta",
-  "rules.exportEmpty": "Nessuna regola da esportare",
-  "rules.importSuccess": "{count} regola importata | {count} regole importate",
-  "rules.importError": "Importazione delle regole non riuscita",
-  "rules.importConfirm": "Importa regole",
-  "rules.importConfirmDesc": "Questo aggiungerà {count} regola alle tue regole esistenti. | Questo aggiungerà {count} regole alle tue regole esistenti.",
-  "rules.importInvalidFile": "Formato file non valido",
-  "rules.importInvalidVersion": "Versione di esportazione non supportata",
-  "rules.importMappingRequired": "Alcune integrazioni devono essere mappate",
-  "rules.importMappingDesc": "Le seguenti integrazioni dal file di esportazione non corrispondono a nessuna delle tue integrazioni configurate. Mappale:",
-  "rules.importSelectIntegration": "Seleziona integrazione…",
-  "rules.importSkipRules": "Salta queste regole",
-  "rules.exportSuccess": "Regole esportate",
-  "rules.importFile": "Seleziona file",
   "approval.title": "Approval Queue",
   "approval.subtitle": "Items flagged by the engine awaiting your review",
   "approval.pendingCount": "{count} pending",
@@ -414,5 +397,6 @@
   "update.upToDate": "Up to Date",
   "update.upToDateDesc": "You're running the latest version of Capacitarr.",
   "update.checkNow": "Check Now",
-  "update.checking": "Checking…"
+  "update.checking": "Checking…",
+  "rules.backupRestore": "Backup & Restore"
 }

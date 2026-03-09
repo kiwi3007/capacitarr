@@ -49,7 +49,6 @@
   "nav.changeTheme": "Bytt tema",
   "nav.darkMode": "Bytt til mørk modus",
   "nav.lightMode": "Bytt til lys modus",
-
   "donate.title": "Støtt dyreredning",
   "donate.message": "Capacitarr er gratis programvare. Hvis den sparer deg tid, vil vi gjerne at du donerer til dyreredning i stedet for å støtte oss direkte.",
   "donate.uanimalsName": "UAnimals",
@@ -61,7 +60,6 @@
   "donate.kofi": "Ko-fi",
   "donate.buyMeACoffee": "Buy Me a Coffee",
   "donate.ariaLabel": "Støtte og donasjoner",
-
   "login.title": "Velkommen tilbake",
   "login.subtitle": "Logg inn på Capacitarr",
   "login.username": "Brukernavn",
@@ -172,21 +170,6 @@
   "rules.noItemsToEvaluate": "Ingen elementer å evaluere. Koble til integrasjoner og sørg for at medier finnes.",
   "rules.orderDisclaimer": "Regelrekkefølgen er bare for din organisering — alle regler evalueres uavhengig av posisjon.",
   "rules.ruleCount": "{count} regel | {count} regler",
-  "rules.importRules": "Importer",
-  "rules.exportRules": "Eksporter",
-  "rules.exportEmpty": "Ingen regler å eksportere",
-  "rules.importSuccess": "{count} regel importert | {count} regler importert",
-  "rules.importError": "Kunne ikke importere regler",
-  "rules.importConfirm": "Importer regler",
-  "rules.importConfirmDesc": "Dette vil legge til {count} regel til dine eksisterende regler. | Dette vil legge til {count} regler til dine eksisterende regler.",
-  "rules.importInvalidFile": "Ugyldig filformat",
-  "rules.importInvalidVersion": "Ikke-støttet eksportversjon",
-  "rules.importMappingRequired": "Noen integrasjoner må tilordnes",
-  "rules.importMappingDesc": "Følgende integrasjoner fra eksportfilen samsvarer ikke med noen av dine konfigurerte integrasjoner. Vennligst tilordne dem:",
-  "rules.importSelectIntegration": "Velg integrasjon…",
-  "rules.importSkipRules": "Hopp over disse reglene",
-  "rules.exportSuccess": "Regler eksportert",
-  "rules.importFile": "Velg fil",
   "approval.title": "Approval Queue",
   "approval.subtitle": "Items flagged by the engine awaiting your review",
   "approval.pendingCount": "{count} pending",
@@ -414,5 +397,6 @@
   "update.upToDate": "Up to Date",
   "update.upToDateDesc": "You're running the latest version of Capacitarr.",
   "update.checkNow": "Check Now",
-  "update.checking": "Checking…"
+  "update.checking": "Checking…",
+  "rules.backupRestore": "Backup & Restore"
 }

@@ -16,7 +16,7 @@
     </div>
 
     <!-- Tabs -->
-    <UiTabs default-value="general" class="w-full">
+    <UiTabs :default-value="initialTab" class="w-full">
       <UiTabsList class="mb-6">
         <UiTabsTrigger value="general">
           {{ $t('settings.general') }}
@@ -26,6 +26,9 @@
         </UiTabsTrigger>
         <UiTabsTrigger value="notifications">
           {{ $t('settings.notifications') }}
+        </UiTabsTrigger>
+        <UiTabsTrigger value="backup">
+          {{ $t('settings.backupRestore') }}
         </UiTabsTrigger>
         <UiTabsTrigger value="security">
           {{ $t('settings.security') }}
@@ -50,6 +53,10 @@
         <SettingsNotifications />
       </UiTabsContent>
 
+      <UiTabsContent value="backup" class="space-y-6">
+        <SettingsBackupRestore />
+      </UiTabsContent>
+
       <UiTabsContent value="security" class="space-y-6">
         <SettingsSecurity />
       </UiTabsContent>
@@ -65,6 +72,14 @@
 import SettingsGeneral from '~/components/settings/SettingsGeneral.vue';
 import SettingsIntegrations from '~/components/settings/SettingsIntegrations.vue';
 import SettingsNotifications from '~/components/settings/SettingsNotifications.vue';
+import SettingsBackupRestore from '~/components/settings/SettingsBackupRestore.vue';
 import SettingsSecurity from '~/components/settings/SettingsSecurity.vue';
 import SettingsAdvanced from '~/components/settings/SettingsAdvanced.vue';
+
+const route = useRoute();
+
+// Open the backup tab automatically when navigated from another page with ?tab=backup
+const initialTab = computed(() => {
+  return route.query.tab === 'backup' ? 'backup' : 'general';
+});
 </script>
