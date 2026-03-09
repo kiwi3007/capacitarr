@@ -78,6 +78,31 @@ Gosec rule [G117](https://securego.io/docs/rules/g117.html) flags exported struc
 
 **Why not a global G117 exclusion?** A global exclusion would silently pass any future struct that accidentally exposes a secret field in JSON. The per-file approach ensures that each exemption is explicitly documented and the rest of the codebase remains protected.
 
+### Container Hardening
+
+The official Docker image uses a hardened Alpine runtime:
+
+- **Alpine digest pinned:** The runtime base image is pinned to a specific SHA-256 digest for reproducible, auditable builds. The digest is updated periodically (or via Renovate Bot) to pick up security patches
+- **Package manager removed:** `apk` is deleted after installing runtime dependencies (`ca-certificates`, `tzdata`, `su-exec`). An attacker with code execution cannot install additional tools
+- **No curl/wget packages:** Healthchecks use busybox `wget` (built into Alpine's busybox), eliminating the `curl` package from the attack surface
+- **Capabilities dropped:** `cap_drop: ALL` removes all Linux capabilities, then `cap_add` restores only the 4 needed by the PUID/PGID entrypoint: `CHOWN` (chown /config), `DAC_OVERRIDE` (create user in /etc/passwd), `SETUID`/`SETGID` (su-exec drops to PUID:PGID). The Go binary itself needs zero capabilities
+- **No privilege escalation:** `no-new-privileges: true` prevents any child process from gaining privileges via setuid/setgid binaries
+- **Non-root execution:** The `entrypoint.sh` creates a user with the configured PUID/PGID and uses `su-exec` to drop from root to that user before starting the application
+
+**Optional additional hardening** for advanced users:
+
+```yaml
+# Add to your docker-compose.yml for maximum lockdown:
+services:
+  capacitarr:
+    read_only: true        # Immutable root filesystem
+    tmpfs:
+      - /tmp:size=10M      # Writable temp directory in RAM
+    user: "1001:1001"      # Fixed UID/GID (replaces PUID/PGID env vars)
+```
+
+> **Note:** `read_only: true` requires using `user:` instead of `PUID/PGID` because the PUID/PGID entrypoint writes to `/etc/passwd` at startup. The `/config` volume is always writable regardless of `read_only`.
+
 ### Important Caveats
 
 - **`AUTH_HEADER` trust model:** When enabled, Capacitarr unconditionally trusts the configured header. The server **must** be behind a reverse proxy that sets this header. Direct internet exposure with `AUTH_HEADER` enabled allows authentication bypass

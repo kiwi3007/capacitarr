@@ -27,11 +27,20 @@ services:
     volumes:
       - capacitarr-config:/config
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:2187/api/v1/health"]
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://localhost:2187/api/v1/health"]
       interval: 30s
       timeout: 5s
       start_period: 15s
       retries: 3
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETUID
+      - SETGID
     restart: unless-stopped
 
 volumes:
