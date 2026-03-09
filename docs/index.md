@@ -3,29 +3,9 @@ title: Capacitarr
 hideTitle: true
 ---
 
-[![Pipeline](https://img.shields.io/gitlab/pipeline-status/starshadow%2Fsoftware%2Fcapacitarr?branch=main&logo=gitlab&label=pipeline)](https://gitlab.com/starshadow/software/capacitarr/-/pipelines)
-[![Release](https://img.shields.io/gitlab/v/release/starshadow%2Fsoftware%2Fcapacitarr?logo=gitlab&label=release)](https://gitlab.com/starshadow/software/capacitarr/-/releases)
-[![License](https://img.shields.io/badge/license-PolyForm%20NC%201.0-blue)](https://gitlab.com/starshadow/software/capacitarr/-/blob/main/LICENSE)
-[![Docker Hub](https://img.shields.io/docker/v/ghentstarshadow/capacitarr?label=Docker%20Hub&logo=docker&sort=semver)](https://hub.docker.com/r/ghentstarshadow/capacitarr)
-[![Docker Pulls](https://img.shields.io/docker/pulls/ghentstarshadow/capacitarr?logo=docker&label=pulls)](https://hub.docker.com/r/ghentstarshadow/capacitarr)
-[![Docker Image Size](https://img.shields.io/docker/image-size/ghentstarshadow/capacitarr?sort=semver&logo=docker&label=image%20size)](https://hub.docker.com/r/ghentstarshadow/capacitarr)
-
-[![GHCR](https://img.shields.io/badge/GHCR-ghcr.io-blue?logo=github)](https://github.com/ghent/packages/container/package/capacitarr)
-[![GitLab Registry](https://img.shields.io/badge/GitLab_Registry-orange?logo=gitlab)](https://gitlab.com/starshadow/software/capacitarr/container_registry)
-[![Go](https://img.shields.io/badge/go-1.26-00ADD8?logo=go&logoColor=white)](https://go.dev/)
-[![Nuxt](https://img.shields.io/badge/nuxt-4-00DC82?logo=nuxt&logoColor=white)](https://nuxt.com/)
-[![GitLab Stars](https://img.shields.io/gitlab/stars/starshadow%2Fsoftware%2Fcapacitarr?logo=gitlab&label=stars)](https://gitlab.com/starshadow/software/capacitarr)
-
-[![Discord](https://img.shields.io/badge/discord-join-5865F2?logo=discord&logoColor=white)](https://discord.gg/fbFkND5qgt)
-[![Reddit](https://img.shields.io/badge/r%2Fcapacitarr-join-FF4500?logo=reddit&logoColor=white)](https://www.reddit.com/r/capacitarr/)
-
-[![UAnimals](https://img.shields.io/badge/%E2%9D%A4_Donate-UAnimals_%F0%9F%87%BA%F0%9F%87%A6-FFD500?logoColor=black)](https://uanimals.org/en/)
-[![ASPCA](https://img.shields.io/badge/%E2%9D%A4_Donate-ASPCA_%F0%9F%90%BE-FF6B00?logoColor=white)](https://www.aspca.org/ways-to-help)
-[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub-ea4aaa?logo=github&logoColor=white)](https://github.com/sponsors/ghent)
-[![Ko-fi](https://img.shields.io/badge/Ko--fi-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/ghent)
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/ghentgames)
-
 **Capacitarr** is an intelligent media library capacity manager. It monitors disk usage across your media servers and automatically identifies content for cleanup when storage runs low — using a preference-based scoring engine instead of rigid rules.
+
+:icon{name="i-simple-icons-discord" class="size-4 align-middle text-[#5865F2]"} [Join our Discord](https://discord.gg/fbFkND5qgt){target="_blank"} · :icon{name="i-simple-icons-reddit" class="size-4 align-middle text-[#FF4500]"} [r/capacitarr](https://www.reddit.com/r/capacitarr/){target="_blank"}
 
 ## How It Works
 
