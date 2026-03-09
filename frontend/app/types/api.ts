@@ -345,9 +345,10 @@ export interface RuleImportResponse {
 
 export interface NotificationChannel {
   id: number;
-  type: 'discord' | 'slack';
+  type: 'discord' | 'apprise';
   name: string;
   webhookUrl?: string;
+  appriseTags?: string;
   enabled: boolean;
   onCycleDigest: boolean;
   onError: boolean;

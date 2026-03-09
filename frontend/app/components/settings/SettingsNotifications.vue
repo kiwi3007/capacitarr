@@ -22,7 +22,7 @@
     <component :is="BellIcon" class="w-16 h-16 text-muted-foreground/40 mx-auto mb-4" />
     <h3 class="text-lg font-medium text-foreground mb-2">No notification channels configured</h3>
     <p class="text-muted-foreground mb-6">
-      Set up Discord or Slack notifications for engine events.
+      Set up Discord or Apprise notifications for engine events.
     </p>
     <UiButton size="lg" @click="openAddChannelModal">
       <component :is="PlusIcon" class="w-4 h-4" />
@@ -219,7 +219,7 @@
             </UiSelectTrigger>
             <UiSelectContent>
               <UiSelectItem value="discord"> Discord </UiSelectItem>
-              <UiSelectItem value="slack"> Slack </UiSelectItem>
+              <UiSelectItem value="apprise"> Apprise </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
@@ -230,16 +230,26 @@
         </div>
 
         <div class="space-y-1.5">
-          <UiLabel>Webhook URL</UiLabel>
+          <UiLabel>
+            {{ channelForm.type === 'apprise' ? 'Apprise Server URL' : 'Discord Webhook URL' }}
+          </UiLabel>
           <UiInput
             v-model="channelForm.webhookUrl"
             type="text"
             :placeholder="
-              channelForm.type === 'discord'
-                ? 'https://discord.com/api/webhooks/...'
-                : 'https://hooks.slack.com/services/...'
+              channelForm.type === 'apprise'
+                ? 'http://apprise:8000/api/notify/mykey/'
+                : 'https://discord.com/api/webhooks/...'
             "
           />
+        </div>
+
+        <div v-if="channelForm.type === 'apprise'" class="space-y-1.5">
+          <UiLabel>Tags (optional)</UiLabel>
+          <UiInput v-model="channelForm.appriseTags" type="text" placeholder="discord,email" />
+          <p class="text-xs text-muted-foreground">
+            Comma-separated Apprise tags to route notifications to specific services.
+          </p>
         </div>
 
         <div class="space-y-3">
@@ -331,7 +341,7 @@
 </template>
 
 <script setup lang="ts">
-import { PlusIcon, LoaderCircleIcon, BellIcon, MessageSquareIcon, HashIcon } from 'lucide-vue-next';
+import { PlusIcon, LoaderCircleIcon, BellIcon, MessageSquareIcon, SendIcon } from 'lucide-vue-next';
 import type { NotificationChannel, ApiError } from '~/types/api';
 
 const api = useApi();
@@ -347,9 +357,10 @@ const channelFormError = ref('');
 const testingChannelId = ref<number | null>(null);
 
 const channelForm = reactive({
-  type: 'discord' as 'discord' | 'slack',
+  type: 'discord' as 'discord' | 'apprise',
   name: '',
   webhookUrl: '',
+  appriseTags: '',
   onCycleDigest: true,
   onError: true,
   onModeChanged: true,
@@ -363,8 +374,8 @@ function channelTypeIcon(type: string) {
   switch (type) {
     case 'discord':
       return MessageSquareIcon;
-    case 'slack':
-      return HashIcon;
+    case 'apprise':
+      return SendIcon;
     default:
       return BellIcon;
   }
@@ -374,8 +385,8 @@ function channelTypeColor(type: string) {
   switch (type) {
     case 'discord':
       return 'bg-indigo-500';
-    case 'slack':
-      return 'bg-green-500';
+    case 'apprise':
+      return 'bg-amber-500';
     default:
       return 'bg-muted-foreground';
   }
@@ -385,8 +396,8 @@ function channelTypeLabel(type: string) {
   switch (type) {
     case 'discord':
       return 'Discord';
-    case 'slack':
-      return 'Slack';
+    case 'apprise':
+      return 'Apprise';
     default:
       return type;
   }
@@ -409,6 +420,7 @@ function openAddChannelModal() {
   channelForm.type = 'discord';
   channelForm.name = '';
   channelForm.webhookUrl = '';
+  channelForm.appriseTags = '';
   channelForm.onCycleDigest = true;
   channelForm.onError = true;
   channelForm.onModeChanged = true;
@@ -424,6 +436,7 @@ function openEditChannelModal(channel: NotificationChannel) {
   channelForm.type = channel.type;
   channelForm.name = channel.name;
   channelForm.webhookUrl = channel.webhookUrl || '';
+  channelForm.appriseTags = channel.appriseTags || '';
   channelForm.onCycleDigest = channel.onCycleDigest;
   channelForm.onError = channel.onError;
   channelForm.onModeChanged = channel.onModeChanged;
@@ -438,7 +451,7 @@ async function onChannelSubmit() {
   savingChannel.value = true;
   channelFormError.value = '';
   try {
-    const body = {
+    const body: Record<string, unknown> = {
       type: channelForm.type,
       name: channelForm.name,
       webhookUrl: channelForm.webhookUrl,
@@ -450,6 +463,9 @@ async function onChannelSubmit() {
       onThresholdBreach: channelForm.onThresholdBreach,
       onUpdateAvailable: channelForm.onUpdateAvailable,
     };
+    if (channelForm.type === 'apprise') {
+      body.appriseTags = channelForm.appriseTags;
+    }
     if (editingChannel.value) {
       await api(`/api/v1/notifications/channels/${editingChannel.value.id}`, {
         method: 'PUT',
