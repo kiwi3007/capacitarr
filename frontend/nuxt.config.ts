@@ -18,7 +18,7 @@ function parseContributors(): string[] {
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  modules: ['@nuxt/eslint', '@nuxtjs/i18n'],
+  modules: ['@nuxt/eslint', '@nuxtjs/i18n', '@vite-pwa/nuxt'],
 
   ssr: false,
 
@@ -59,9 +59,21 @@ export default defineNuxtConfig({
         },
       ],
       noscript: [{ innerHTML: '<style>#capacitarr-splash{display:none}</style>' }],
+      meta: [
+        { name: 'apple-mobile-web-app-capable', content: 'yes' },
+        {
+          name: 'apple-mobile-web-app-status-bar-style',
+          content: 'black-translucent',
+        },
+        { name: 'apple-mobile-web-app-title', content: 'Capacitarr' },
+      ],
       link: [
         { rel: 'icon', type: 'image/svg+xml', href: 'favicon.svg' },
-        { rel: 'manifest', href: 'site.webmanifest' },
+        {
+          rel: 'apple-touch-icon',
+          href: 'pwa-192x192.png',
+          sizes: '192x192',
+        },
       ],
     },
   },
@@ -147,6 +159,46 @@ export default defineNuxtConfig({
     },
     bundle: {
       optimizeTranslationDirective: false,
+    },
+  },
+
+  pwa: {
+    registerType: 'autoUpdate',
+    manifest: {
+      name: 'Capacitarr',
+      short_name: 'Capacitarr',
+      description: 'Intelligent media library capacity management',
+      theme_color: '#7c3aed',
+      background_color: '#09090b',
+      display: 'standalone',
+      start_url: '/',
+      icons: [
+        {
+          src: 'pwa-192x192.png',
+          sizes: '192x192',
+          type: 'image/png',
+        },
+        {
+          src: 'pwa-512x512.png',
+          sizes: '512x512',
+          type: 'image/png',
+        },
+        {
+          src: 'pwa-512x512.png',
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'maskable',
+        },
+      ],
+    },
+    workbox: {
+      // Only cache static assets — never cache API responses
+      navigateFallback: '/',
+      globPatterns: ['**/*.{js,css,html,png,svg,ico,woff2}'],
+      navigateFallbackDenylist: [/^\/api\//],
+    },
+    devOptions: {
+      enabled: false,
     },
   },
 });

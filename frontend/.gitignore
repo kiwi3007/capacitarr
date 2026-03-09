@@ -9,6 +9,9 @@ dist
 # Node dependencies
 node_modules
 
+# pnpm store (local cache; Docker uses a different path)
+.pnpm-store
+
 # Logs
 logs
 *.log
