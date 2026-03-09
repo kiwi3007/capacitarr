@@ -460,53 +460,53 @@ curl -s -X DELETE -H "X-Api-Key: $CAPACITARR_API_KEY" \
   "$CAPACITARR_URL/custom-rules/1" | jq
 ```
 
-### Export custom rules
+### Export settings
 
 ```bash
-# Export all custom rules to a JSON file
-curl -s http://localhost:2187/api/v1/custom-rules/export \
-  -H "Authorization: Bearer $TOKEN" \
-  -o capacitarr-rules.json
+# Export all settings to a JSON file
+curl -s -H "X-Api-Key: $CAPACITARR_API_KEY" \
+  "$CAPACITARR_URL/settings/export" \
+  -o capacitarr-settings.json
+
+# Export only rules and preferences
+curl -s -H "X-Api-Key: $CAPACITARR_API_KEY" \
+  "$CAPACITARR_URL/settings/export?sections=rules,preferences" \
+  -o capacitarr-rules-prefs.json
 
 # View the export without saving
-curl -s http://localhost:2187/api/v1/custom-rules/export \
-  -H "Authorization: Bearer $TOKEN" | jq .
+curl -s -H "X-Api-Key: $CAPACITARR_API_KEY" \
+  "$CAPACITARR_URL/settings/export" | jq .
 ```
 
-### Import custom rules
+### Import settings
 
 ```bash
-# Import rules from an export file (auto-match integrations)
-curl -s http://localhost:2187/api/v1/custom-rules/import \
-  -H "Authorization: Bearer $TOKEN" \
+# Import all sections from a settings export file
+curl -s -X POST -H "X-Api-Key: $CAPACITARR_API_KEY" \
   -H "Content-Type: application/json" \
-  -d "{\"payload\": $(cat capacitarr-rules.json)}"
-
-# Import with explicit integration mapping
-curl -s http://localhost:2187/api/v1/custom-rules/import \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "payload": {
-      "version": 1,
-      "exportedAt": "2026-03-06T22:00:00Z",
-      "rules": [
-        {
-          "field": "genre",
-          "operator": "contains",
-          "value": "Anime",
-          "effect": "always_keep",
-          "enabled": true,
-          "integrationName": "Main",
-          "integrationType": "sonarr"
-        }
-      ]
-    },
-    "integrationMapping": {
-      "sonarr:Main": 3
+  "$CAPACITARR_URL/settings/import" \
+  -d "{
+    \"envelope\": $(cat capacitarr-settings.json),
+    \"sections\": {
+      \"preferences\": true,
+      \"rules\": true,
+      \"integrations\": true,
+      \"diskGroups\": true,
+      \"notifications\": true
     }
-  }'
+  }"
+
+# Import only rules from an export file
+curl -s -X POST -H "X-Api-Key: $CAPACITARR_API_KEY" \
+  -H "Content-Type: application/json" \
+  "$CAPACITARR_URL/settings/import" \
+  -d "{
+    \"envelope\": $(cat capacitarr-settings.json),
+    \"sections\": {\"rules\": true}
+  }"
 ```
+
+> **Note:** Sensitive credentials (API keys, webhook URLs) are stripped from exports. After importing integrations or notification channels, re-enter credentials manually.
 
 ---
 
@@ -767,7 +767,7 @@ curl -s -H "X-Api-Key: $CAPACITARR_API_KEY" \
   "$CAPACITARR_URL/notifications/channels" | jq
 ```
 
-### Create a notification channel
+### Create a Discord notification channel
 
 ```bash
 curl -s -X POST -H "X-Api-Key: $CAPACITARR_API_KEY" \
@@ -779,9 +779,26 @@ curl -s -X POST -H "X-Api-Key: $CAPACITARR_API_KEY" \
     "webhookUrl": "https://discord.com/api/webhooks/...",
     "enabled": true,
     "onThresholdBreach": true,
-    "onDeletionExecuted": true,
-    "onEngineError": true,
-    "onEngineComplete": false
+    "onCycleDigest": true,
+    "onError": true
+  }' | jq
+```
+
+### Create an Apprise notification channel
+
+```bash
+curl -s -X POST -H "X-Api-Key: $CAPACITARR_API_KEY" \
+  -H "Content-Type: application/json" \
+  "$CAPACITARR_URL/notifications/channels" \
+  -d '{
+    "type": "apprise",
+    "name": "Telegram via Apprise",
+    "webhookUrl": "http://apprise:8000",
+    "appriseTags": "telegram",
+    "enabled": true,
+    "onThresholdBreach": true,
+    "onCycleDigest": true,
+    "onError": true
   }' | jq
 ```
 

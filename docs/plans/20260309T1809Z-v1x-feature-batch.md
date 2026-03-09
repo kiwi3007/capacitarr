@@ -628,82 +628,86 @@ Fixed non-canonical media names in 4 test files (52 insertions, 52 deletions). N
 
 ## Phase 9: Documentation Audit
 
+**Status:** ✅ Complete
+
 ### Context
 
 After all features are implemented and tests pass, update all documentation to reflect the new functionality and remove outdated information.
 
 ### Steps
 
-#### Step 9.1: Update `README.md`
+#### Step 9.1: Update `README.md` ✅
 
-- Add Apprise to the notification integrations list
-- Remove Slack from the notification integrations list
-- Add watchlist enrichment to the enrichment integrations list
-- Update the feature list to include settings export/import, PWA support
-- Remove any references to rules-only import/export
+- Added Apprise to the notification integrations list (replaced Slack)
+- Added watchlist data to media server capabilities table (Plex on-deck, Jellyfin/Emby favorites)
+- Added "Settings Backup & Restore" and "Progressive Web App" to feature list
+- Updated scoring description to mention watchlist and collection rule fields
+- Updated project structure comment for notifications (Discord, Apprise)
 
-#### Step 9.2: Update `docs/notifications.md`
+#### Step 9.2: Update `docs/notifications.md` ✅
 
-- Add Apprise section with setup instructions (deploying Apprise container, configuring the channel, using tags)
-- Remove all Slack documentation
-- Keep Discord documentation as-is
+- Rewrote intro to reference Discord and Apprise (removed Slack)
+- Removed entire Slack Setup section
+- Added comprehensive Apprise Setup section with Docker Compose, URL format, and tags documentation
+- Updated Subscription Toggles to reference Discord or Apprise (not Slack)
+- Updated Digest Format to reference Markdown for Apprise (not Slack blocks)
 
-#### Step 9.3: Update `docs/scoring.md`
+#### Step 9.3: Update `docs/scoring.md` ✅
 
-- Add `watchlist` to the list of available rule fields
-- Add `collection` (string-type) to the list of available rule fields
-- Document the watchlist enrichment behavior (priority chain, which services provide watchlist data)
-- Document collection autocomplete in the rule builder
+- Added `collection` to string fields table (Plex collection name, ==, !=, contains, !contains)
+- Added `incollection` and `watchlist` to boolean fields table
+- Added Watchlist Enrichment subsection documenting Plex on-deck, Jellyfin/Emby favorites, priority chain
+- Added Collection Autocomplete subsection documenting combobox behavior
 
-#### Step 9.4: Update `docs/configuration.md`
+#### Step 9.4: Update `docs/configuration.md` ✅
 
-- Add settings export/import documentation with section-level granularity
-- Remove rules-only import/export documentation
-- Document the export format and what's included/excluded (credentials stripped)
-- Document that rules-only backup is possible by selecting only the Rules section
+- Added Settings Export & Import section with Exporting, Importing, What's Included/Excluded, and Rules-Only Backup subsections
+- No rules-only import/export sections existed to remove
 
-#### Step 9.5: Update `docs/architecture.md`
+#### Step 9.5: Update `docs/architecture.md` ✅
 
-- Add `BackupService` to the service layer documentation
-- Update the notification system section: remove Slack, add Apprise
-- Update the enrichment pipeline section to include watchlist data
-- Add `DeletionProgressEvent` to the event types documentation
+- Added `BackupService` to service registry listing
+- Updated NotificationDispatcher subscriber to reference Discord/Apprise (removed Slack)
+- Updated notification dispatch description text
+- Updated two-gate flush diagram to show Discord/Apprise (removed Slack and in-app)
+- Removed in-app notifications paragraph (feature was removed in prior phases)
+- Updated event types: added `deletion_progress`, `settings_exported`, `settings_imported`; removed `rules_exported`, `rules_imported`; updated total to 40
+- Updated project structure notifications comment
 
-#### Step 9.6: Update `docs/api/openapi.yaml`
+#### Step 9.6: Update `docs/api/openapi.yaml` ✅
 
-- Add new endpoints: `GET /settings/export`, `POST /settings/import`
-- Remove old endpoints: `GET /custom-rules/export`, `POST /custom-rules/import`
-- Update notification channel type enum: remove `"slack"`, add `"apprise"`
-- Add `appriseTags` field to notification channel schema
-- Add `onWatchlist` field to media item schema
-- Add `deletion_progress` to SSE event types
-- Add `collection` rule field
-- Update any response schemas that changed
+- Replaced `/custom-rules/export` and `/custom-rules/import` with `/settings/export` and `/settings/import`
+- Replaced `RuleExportPayload`, `RuleImportRequest`, `RuleImportResponse`, `RuleImportUnmappedError` schemas with `SettingsExportEnvelope`, `SettingsImportRequest`, `SettingsImportResponse`
+- Updated `NotificationChannel` and `NotificationChannelInput` enums: `slack` → `apprise`
+- Added `appriseTags` field to both notification channel schemas
 
-#### Step 9.7: Update `docs/api/examples.md` and `docs/api/workflows.md`
+#### Step 9.7: Update `docs/api/examples.md` and `docs/api/workflows.md` ✅
 
-- Update notification channel examples: remove Slack, add Apprise
-- Update settings management examples to use the new export/import endpoints
-- Remove rules-only import/export examples
+- Replaced rules export/import examples with settings export/import examples
+- Added Apprise notification channel creation example alongside Discord
+- Replaced Workflow 8 (Import/Export Rules) with Workflow 8 (Settings Export/Import) including full migration and rules-only backup examples
 
 #### Step 9.8: Update `CHANGELOG.md`
 
 This will be handled by git-cliff from conventional commit messages. Ensure all commits in the feature branch follow the conventional commits format so the changelog is auto-generated correctly.
 
-#### Step 9.9: Update `docs/quick-start.md`
+#### Step 9.9: Update `docs/quick-start.md` ✅
 
-- Mention PWA "Add to Home Screen" capability
-- Mention settings export as a backup mechanism
+- Added "Mobile Access (PWA)" section with iOS and Android instructions
+- Added "Back Up Your Configuration" section with export instructions
+- Added Notifications link to Next Steps
 
-#### Step 9.10: Review `docs/troubleshooting.md`
+#### Step 9.10: Review `docs/troubleshooting.md` ✅
 
-- Add troubleshooting for Apprise connection issues
-- Remove any Slack-related troubleshooting
-- Add troubleshooting for settings import failures
+- Updated "Notifications Not Sending" section: replaced Slack with Apprise references
+- Added "Apprise Connection Issues" section with symptoms, causes, and diagnosis steps
+- Added "Settings Import Failures" section with symptoms, causes, and resolution steps
 
-#### Step 9.11: Run `make ci` one final time
+#### Step 9.11: Run `make ci` one final time ✅
 
-Ensure everything passes after all documentation updates.
+Full CI pipeline passed: lint (0 issues), Go tests (all pass), frontend Vitest (73 tests pass), govulncheck (no vulnerabilities), pnpm audit (no vulnerabilities).
+
+**Commit:** `docs: update all documentation for v1.x feature batch`
 
 ---
 

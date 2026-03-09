@@ -100,7 +100,9 @@ Capacitarr integrates with your *arr apps, media servers, and request managers t
 - **Score Transparency** — Full per-item score breakdowns showing each factor's contribution
 - **Complete Audit Trail** — Separate approval queue (state machine) and audit log (permanent deletion history)
 - **39 Activity Event Types** — Every user-visible action is tracked and streamable via SSE
-- **Notifications** — Discord, Slack, and in-app notifications driven by the event bus
+- **Notifications** — Discord and Apprise (80+ services) notifications driven by the event bus
+- **Settings Backup & Restore** — Export and import your entire configuration (preferences, rules, integrations, disk groups, notifications) with section-level granularity
+- **Progressive Web App** — "Add to Home Screen" support for a native app experience on mobile devices
 - **Themeable UI** — Light/dark mode with customizable accent colors, 22 languages
 - **Reverse Proxy Ready** — Subdirectory deployments, proxy authentication (Authelia, Authentik, Organizr), SSE-compatible
 - **Single Container** — Go backend + Nuxt 4 frontend + SQLite database in one Docker image
@@ -178,13 +180,13 @@ For the complete configuration reference including subdirectory deployment and p
 | **Lidarr** | Music | Disk space, media items, quality profiles, tags, deletion |
 | **Readarr** | Books | Disk space, media items, quality profiles, tags, deletion |
 
-### Media Servers (Watch Data)
+### Media Servers (Watch Data + Watchlist)
 
 | Service | Capabilities |
 |---------|-------------|
-| **Plex** | Play count, last played date, library metadata |
-| **Jellyfin** | Play count, last played date, library metadata |
-| **Emby** | Play count, last played date, library metadata |
+| **Plex** | Play count, last played date, library metadata, collections, on-deck (watchlist) |
+| **Jellyfin** | Play count, last played date, library metadata, favorites (watchlist) |
+| **Emby** | Play count, last played date, library metadata, favorites (watchlist) |
 
 ### Enrichment Services
 
@@ -256,7 +258,7 @@ For the full architecture documentation, see [docs/architecture.md](docs/archite
 Capacitarr uses a two-layer system to decide which items to remove:
 
 1. **Preference-based scoring** — Each item is scored across six weighted factors (0–10 weight per factor). Higher score = more likely to be deleted.
-2. **Protection rules** — Override scores with `always_keep`, `prefer_keep`, `prefer_delete`, or `always_delete` actions based on conditions like genre, tag, quality profile, or rating.
+2. **Protection rules** — Override scores with `always_keep`, `prefer_keep`, `prefer_delete`, or `always_delete` actions based on conditions like genre, tag, quality profile, rating, watchlist status, or collection name.
 
 ### Scoring Factors
 
@@ -310,7 +312,7 @@ capacitarr/
 │   │   ├── events/                 # Event bus, typed events, SSE broadcaster, activity persister
 │   │   ├── integrations/           # *arr, Plex, Jellyfin, Emby, Overseerr, Tautulli clients
 │   │   ├── jobs/                   # Cron scheduling (retention cleanup, time-series rollups)
-│   │   ├── notifications/          # Discord, Slack, in-app notification dispatcher
+│   │   ├── notifications/          # Discord, Apprise notification senders + HTTP client
 │   │   ├── poller/                 # Engine orchestrator + deletion worker
 │   │   ├── services/               # Service layer (business logic)
 │   │   └── logger/                 # Structured logging

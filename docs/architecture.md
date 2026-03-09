@@ -110,7 +110,7 @@ flowchart TD
     subgraph EVENT_SYSTEM["Event System"]
         BUS["EventBus<br/>Typed pub/sub"]
         ACTIVITY_SUB["ActivityPersister<br/>subscriber, activity_events table"]
-        NOTIF_SUB["NotificationDispatcher<br/>subscriber, Discord / Slack"]
+        NOTIF_SUB["NotificationDispatcher<br/>subscriber, Discord / Apprise"]
         SSE_SUB["SSEBroadcaster<br/>subscriber, browser tabs"]
     end
 
@@ -150,6 +150,7 @@ type Registry struct {
     Rules                *RulesService
     Metrics              *MetricsService
     Version              *VersionService
+    Backup               *BackupService
 }
 ```
 
@@ -179,7 +180,7 @@ func (b *EventBus) Unsubscribe(ch <-chan Event)
 When a service performs an action (e.g., approving an item, completing an engine run), it publishes a typed event to the bus. Three subscribers react to every event:
 
 1. **ActivityPersister** — writes the event to the `activity_events` table for the dashboard feed
-2. **NotificationDispatcher** — filters events against notification channel subscriptions and delivers to Discord/Slack/in-app
+2. **NotificationDispatcher** — filters events against notification channel subscriptions and delivers to Discord/Apprise
 3. **SSEBroadcaster** — serializes the event as an SSE message and pushes it to all connected browser tabs
 
 ### Notification Dispatch
@@ -192,32 +193,30 @@ flowchart LR
     ENGINE_COMPLETE["EngineCompleteEvent<br/>Gate 1: evaluation stats"]
     DELETION_BATCH["DeletionBatchCompleteEvent<br/>Gate 2: deletion stats"]
     FLUSH["Flush<br/>Build digest + dispatch"]
-    CHANNELS["Discord / Slack"]
-    INAPP["In-App<br/>always-on"]
+    CHANNELS["Discord / Apprise"]
 
     ENGINE_COMPLETE -.->|"waits"| FLUSH
     DELETION_BATCH -.->|"waits"| FLUSH
     FLUSH --> CHANNELS
-    FLUSH --> INAPP
 ```
 
 **Cycle digests** are batched summaries sent once per engine run. They include evaluated count, flagged count, deleted count, freed bytes, duration, and disk usage. The digest is only dispatched after both gates fire, ensuring deletion results are included.
 
 **Instant alerts** fire immediately when their trigger event occurs — they are not batched. Alert types include engine errors, mode changes, server started, threshold breaches, update available, and approval activity.
 
-**In-app notifications** are always-on: every digest and alert is automatically recorded to the in-app notification store regardless of whether the user has configured any external channels. Users do not need to create a channel for in-app notifications — they work out of the box. See [notifications.md](notifications.md) for the full user-facing guide, and [plans/20260307T1403Z-notification-overhaul.md](plans/20260307T1403Z-notification-overhaul.md) for the design details.
+See [notifications.md](notifications.md) for the full user-facing guide, and [plans/20260307T1403Z-notification-overhaul.md](plans/20260307T1403Z-notification-overhaul.md) for the design details.
 
-### Event Types (39 total)
+### Event Types (40 total)
 
 | Category | Events |
 |----------|--------|
 | **Engine** | `engine_start`, `engine_complete`, `engine_error`, `manual_run_triggered` |
-| **Settings** | `engine_mode_changed`, `settings_changed`, `threshold_changed`, `threshold_breached` |
+| **Settings** | `engine_mode_changed`, `settings_changed`, `threshold_changed`, `threshold_breached`, `settings_exported`, `settings_imported` |
 | **Auth** | `login`, `password_changed`, `username_changed`, `api_key_generated` |
 | **Integration** | `integration_added`, `integration_updated`, `integration_removed`, `integration_test`, `integration_test_failed` |
 | **Approval** | `approval_approved`, `approval_rejected`, `approval_unsnoozed`, `approval_bulk_unsnoozed`, `approval_orphans_recovered` |
-| **Deletion** | `deletion_success`, `deletion_failed`, `deletion_dry_run`, `deletion_batch_complete` |
-| **Rules** | `rule_created`, `rule_updated`, `rule_deleted`, `rules_exported`, `rules_imported` |
+| **Deletion** | `deletion_success`, `deletion_failed`, `deletion_dry_run`, `deletion_batch_complete`, `deletion_progress` |
+| **Rules** | `rule_created`, `rule_updated`, `rule_deleted` |
 | **Notifications** | `notification_channel_added`, `notification_channel_updated`, `notification_channel_removed`, `notification_sent`, `notification_delivery_failed` |
 | **Data** | `data_reset` |
 | **System** | `server_started`, `update_available` |
@@ -350,7 +349,7 @@ capacitarr/
 │   │   ├── events/                 # Event bus, typed events, SSE broadcaster, activity persister
 │   │   ├── integrations/           # *arr, Plex, Jellyfin, Emby, Overseerr, Tautulli clients
 │   │   ├── jobs/                   # Cron scheduling (retention cleanup, time-series rollups)
-│   │   ├── notifications/          # Discord, Slack, in-app senders + HTTP client
+│   │   ├── notifications/          # Discord, Apprise notification senders + HTTP client
 │   │   ├── poller/                 # Engine orchestrator + deletion worker
 │   │   ├── services/               # Service layer (business logic)
 │   │   └── logger/                 # Structured logging

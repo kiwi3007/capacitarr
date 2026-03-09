@@ -115,6 +115,49 @@ The `/config` directory (mapped via Docker volumes) is the **only directory that
 - Alternatively, use [SQLite's `.backup` command](https://www.sqlite.org/cli.html#special_commands_to_sqlite3_dot_commands_) for online backups.
 - The database path can be customized via the `DB_PATH` environment variable.
 
+### Settings Export & Import
+
+Capacitarr provides a built-in settings export/import feature that lets you back up and restore your configuration without dealing with raw database files.
+
+#### Exporting Settings
+
+1. Navigate to **Settings** → **Backup & Restore**
+2. Select which sections to include in the export:
+   - **Preferences** — Scoring weights, execution mode, tiebreaker method
+   - **Rules** — All custom protection rules
+   - **Integrations** — Integration names, types, URLs, and enabled status
+   - **Disk Groups** — Mount paths and threshold/target percentages
+   - **Notifications** — Channel names, types, event subscriptions, and Apprise tags
+3. Click **Export** to download a JSON file
+
+> **Tip:** A **Backup & Restore** shortcut on the Scoring Engine page navigates to Settings with the Rules section pre-selected, making rules-only backups a single click.
+
+#### Importing Settings
+
+1. Navigate to **Settings** → **Backup & Restore**
+2. Upload a previously exported JSON file
+3. Review the import preview showing which sections are available
+4. Select which sections to import (you can choose a subset)
+5. Click **Import** to apply the settings
+
+#### What's Included and Excluded
+
+For security, **sensitive credentials are always stripped** from exports:
+
+| Section | Included | Excluded |
+|---------|----------|----------|
+| **Preferences** | All scoring weights, execution mode, tiebreaker | Internal IDs, timestamps |
+| **Rules** | Field, operator, value, effect, enabled, integration reference | Internal IDs |
+| **Integrations** | Name, type, URL, enabled status | **API keys** |
+| **Disk Groups** | Mount path, threshold %, target % | Transient disk usage data |
+| **Notifications** | Name, type, enabled, subscriptions, Apprise tags | **Webhook URLs** |
+
+After importing integrations or notification channels, you will need to re-enter API keys and webhook URLs manually.
+
+#### Rules-Only Backup
+
+To back up just your custom rules, select only the **Rules** section during export. This produces a portable JSON file containing all your protection rules that can be imported into another Capacitarr instance. Integration references use human-readable names instead of IDs for cross-instance compatibility.
+
 ## Approval Queue
 
 When the engine mode is set to **Approval**, items that meet deletion criteria are placed in the `approval_queue` table instead of being deleted automatically. A user must explicitly approve each item before deletion proceeds.

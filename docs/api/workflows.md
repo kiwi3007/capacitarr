@@ -451,52 +451,69 @@ You should see media from both Sonarr and Radarr in the scored list. If the new 
 
 ---
 
-## Workflow 8: Import/Export Rules
+## Workflow 8: Settings Export/Import
 
-Portable rule import/export allows backing up, sharing, and migrating custom rule configurations between Capacitarr instances.
+Back up, migrate, or share your Capacitarr configuration between instances with section-level granularity.
 
 ### Export Workflow
 
-1. **Export rules** — `GET /custom-rules/export`
+1. **Export settings** — `GET /settings/export` (optionally with `?sections=rules,preferences`)
 2. Save the JSON response to a file
 
-The export replaces integration IDs with human-readable `integrationName` and `integrationType` fields so the file is portable across instances.
+The export strips sensitive credentials (API keys, webhook URLs) and replaces internal IDs with portable references.
 
 ### Import Workflow
 
 1. **Read export file** — parse the JSON
-2. **Attempt import** — `POST /custom-rules/import` with the payload
-3. **Handle unmapped integrations** — if the response is 400 with an `unmapped` array:
-   a. List local integrations — `GET /integrations`
-   b. Build an `integrationMapping` object mapping each unmapped `"type:name"` to a local integration ID
-   c. Retry the import with the mapping included
+2. **Import settings** — `POST /settings/import` with the envelope and desired sections
+3. **Re-enter credentials** — after import, manually re-enter API keys on integrations and webhook URLs on notification channels
 
-Import is always **additive** — existing rules are never modified or deleted. Imported rules are appended after the last existing rule's sort order.
+Rules are imported **additively** — existing rules are never modified or deleted. Preferences, integrations, disk groups, and notification channels are upserted.
 
 ### Example: Full Migration
 
 ```bash
-# 1. Export from source instance
-curl -s http://source:2187/api/v1/custom-rules/export \
-  -H "Authorization: Bearer $SOURCE_TOKEN" \
-  -o rules-backup.json
+# 1. Export all settings from source instance
+curl -s -H "X-Api-Key: $SOURCE_API_KEY" \
+  "http://source:2187/api/v1/settings/export" \
+  -o capacitarr-settings.json
 
-# 2. Import into target instance
-curl -s http://target:2187/api/v1/custom-rules/import \
-  -H "Authorization: Bearer $TARGET_TOKEN" \
+# 2. Import all sections into target instance
+curl -s -X POST -H "X-Api-Key: $TARGET_API_KEY" \
   -H "Content-Type: application/json" \
-  -d "{\"payload\": $(cat rules-backup.json)}"
+  "http://target:2187/api/v1/settings/import" \
+  -d "{
+    \"envelope\": $(cat capacitarr-settings.json),
+    \"sections\": {
+      \"preferences\": true,
+      \"rules\": true,
+      \"integrations\": true,
+      \"diskGroups\": true,
+      \"notifications\": true
+    }
+  }"
 
-# 3. If unmapped, check available integrations on target
-curl -s http://target:2187/api/v1/integrations \
-  -H "Authorization: Bearer $TARGET_TOKEN" | jq '.[] | {id, name, type}'
-
-# 4. Retry with mapping
-curl -s http://target:2187/api/v1/custom-rules/import \
-  -H "Authorization: Bearer $TARGET_TOKEN" \
+# 3. Re-enter API keys on imported integrations
+curl -s -X PUT -H "X-Api-Key: $TARGET_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{
-    "payload": '"$(cat rules-backup.json)"',
-    "integrationMapping": {"sonarr:OldName": 5}
-  }'
+  "http://target:2187/api/v1/integrations/1" \
+  -d '{"apiKey": "your-api-key"}'
+```
+
+### Example: Rules-Only Backup
+
+```bash
+# Export only rules
+curl -s -H "X-Api-Key: $CAPACITARR_API_KEY" \
+  "$CAPACITARR_URL/settings/export?sections=rules" \
+  -o capacitarr-rules.json
+
+# Import only rules
+curl -s -X POST -H "X-Api-Key: $CAPACITARR_API_KEY" \
+  -H "Content-Type: application/json" \
+  "$CAPACITARR_URL/settings/import" \
+  -d "{
+    \"envelope\": $(cat capacitarr-rules.json),
+    \"sections\": {\"rules\": true}
+  }"
 ```

@@ -120,8 +120,30 @@ This is purely a session-signing key — it is not a password and is never expos
 
 ---
 
+## Mobile Access (PWA)
+
+Capacitarr is a Progressive Web App — you can add it to your phone's home screen for a native app-like experience:
+
+- **iOS:** Open Capacitarr in Safari → tap the Share button → tap "Add to Home Screen"
+- **Android:** Open Capacitarr in Chrome → tap the menu (⋮) → tap "Add to Home Screen" or "Install app"
+
+The PWA runs in standalone mode (no browser chrome) and caches static assets for faster loads.
+
+## Back Up Your Configuration
+
+Once you've configured integrations, rules, and preferences, export your settings as a backup:
+
+1. Navigate to **Settings** → **Backup & Restore**
+2. Click **Export** to download a JSON file containing your configuration
+3. Store the file safely — you can import it later to restore your setup
+
+See the [Configuration Reference](configuration.md#settings-export--import) for details on what's included in exports.
+
+---
+
 ## Next Steps
 
 - [Deployment Guide](deployment.md) — Reverse proxy setup, subdirectory deployments, proxy authentication
 - [Configuration Reference](configuration.md) — All environment variables
 - [Scoring Algorithm](scoring.md) — How the scoring engine works
+- [Notifications](notifications.md) — Discord and Apprise notification setup

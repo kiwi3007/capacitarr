@@ -895,71 +895,77 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  /custom-rules/export:
+  /settings/export:
     get:
-      operationId: exportCustomRules
-      tags: [Rules]
-      summary: Export all custom rules as portable JSON
+      operationId: exportSettings
+      tags: [Settings]
+      summary: Export application settings as portable JSON
       description: |
-        Returns all custom rules in a portable JSON format suitable for
-        backup, sharing, or importing into another Capacitarr instance.
-        Integration IDs are replaced with human-readable names and types.
-        Sets a Content-Disposition header suggesting a dated filename.
+        Returns application settings in a portable JSON format suitable for
+        backup or migration. Supports section-level granularity via the
+        `sections` query parameter. Sensitive credentials (API keys, webhook
+        URLs) are stripped from the export. Sets a Content-Disposition header
+        suggesting a dated filename.
+      parameters:
+        - name: sections
+          in: query
+          description: |
+            Comma-separated list of sections to export. If omitted, all
+            sections are included. Valid values: preferences, rules,
+            integrations, diskGroups, notifications.
+          schema:
+            type: string
+            example: "preferences,rules"
       responses:
         "200":
-          description: Portable rules export
+          description: Settings export envelope
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RuleExportPayload"
+                $ref: "#/components/schemas/SettingsExportEnvelope"
           headers:
             Content-Disposition:
               description: Suggested download filename
               schema:
                 type: string
-                example: 'attachment; filename="capacitarr-rules-2026-03-06.json"'
+                example: 'attachment; filename="capacitarr-settings-2026-03-06.json"'
         "401":
           $ref: "#/components/responses/Unauthorized"
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  /custom-rules/import:
+  /settings/import:
     post:
-      operationId: importCustomRules
-      tags: [Rules]
-      summary: Import custom rules from a portable export
+      operationId: importSettings
+      tags: [Settings]
+      summary: Import application settings from a portable export
       description: |
-        Imports rules from a portable export payload. Rules are appended
-        to the existing ruleset (additive, never destructive).
+        Imports settings from a previously exported envelope. Supports
+        section-level granularity — you can import a subset of the
+        available sections. Rules are appended (additive). Preferences,
+        integrations, disk groups, and notification channels are upserted.
 
-        Each rule's integrationName and integrationType are matched against
-        locally configured integrations. Include integrationMapping to
-        manually resolve ambiguous matches. Returns 400 with an unmapped
-        list if any integrations cannot be resolved.
-
-        Valid effects: always_keep, prefer_keep, lean_keep, lean_remove,
-        prefer_remove, always_remove.
+        Sensitive credentials (API keys, webhook URLs) are not included
+        in exports and must be re-entered manually after import.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/RuleImportRequest"
+              $ref: "#/components/schemas/SettingsImportRequest"
       responses:
         "200":
           description: Import completed successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RuleImportResponse"
+                $ref: "#/components/schemas/SettingsImportResponse"
         "400":
-          description: Validation failed or unmapped integrations
+          description: Validation failed (invalid version, malformed payload)
           content:
             application/json:
               schema:
-                oneOf:
-                  - $ref: "#/components/schemas/ErrorResponse"
-                  - $ref: "#/components/schemas/RuleImportUnmappedError"
+                $ref: "#/components/schemas/ErrorResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "500":
@@ -2072,9 +2078,9 @@ components:
           deprecated: true
       required: [field, operator, value]
 
-    RuleExportPayload:
+    SettingsExportEnvelope:
       type: object
-      description: Portable export envelope containing all custom rules
+      description: Portable settings export containing selected sections
       properties:
         version:
           type: integer
@@ -2084,11 +2090,34 @@ components:
           type: string
           format: date-time
           description: UTC timestamp when the export was generated
+        appVersion:
+          type: string
+          description: Capacitarr version that created the export
+          example: "1.2.0"
+        preferences:
+          type: object
+          description: Scoring weights, execution mode, tiebreaker (if included)
         rules:
           type: array
+          description: Custom protection rules (if included)
           items:
             $ref: "#/components/schemas/PortableRule"
-      required: [version, exportedAt, rules]
+        integrations:
+          type: array
+          description: Integration configs without API keys (if included)
+          items:
+            type: object
+        diskGroups:
+          type: array
+          description: Disk group thresholds (if included)
+          items:
+            type: object
+        notificationChannels:
+          type: array
+          description: Notification channels without webhook URLs (if included)
+          items:
+            type: object
+      required: [version, exportedAt, appVersion]
 
     PortableRule:
       type: object
@@ -2122,46 +2151,49 @@ components:
           example: sonarr
       required: [field, operator, value, effect, enabled]
 
-    RuleImportRequest:
+    SettingsImportRequest:
       type: object
       properties:
-        payload:
-          $ref: "#/components/schemas/RuleExportPayload"
-        integrationMapping:
+        envelope:
+          $ref: "#/components/schemas/SettingsExportEnvelope"
+        sections:
           type: object
-          additionalProperties:
-            type: integer
-          description: |
-            Optional mapping of "type:name" keys to local integration IDs.
-            Example: {"sonarr:Main": 3, "radarr:Movies": 7}
-      required: [payload]
+          description: Which sections to import (all default to false)
+          properties:
+            preferences:
+              type: boolean
+            rules:
+              type: boolean
+            integrations:
+              type: boolean
+            diskGroups:
+              type: boolean
+            notifications:
+              type: boolean
+      required: [envelope]
 
-    RuleImportResponse:
+    SettingsImportResponse:
       type: object
       properties:
-        imported:
+        preferencesImported:
+          type: boolean
+          description: Whether preferences were imported
+        rulesImported:
           type: integer
-          description: Number of rules successfully imported
+          description: Number of rules imported
           example: 5
-        skipped:
+        integrationsImported:
           type: integer
-          description: Number of rules skipped
-          example: 0
-      required: [imported, skipped]
-
-    RuleImportUnmappedError:
-      type: object
-      description: Returned when some integration references cannot be resolved
-      properties:
-        error:
-          type: string
-          example: unmapped integrations
-        unmapped:
-          type: array
-          items:
-            type: string
-          example: ["sonarr:OldServer"]
-      required: [error, unmapped]
+          description: Number of integrations imported
+          example: 2
+        diskGroupsImported:
+          type: integer
+          description: Number of disk groups imported
+          example: 1
+        notificationChannelsImported:
+          type: integer
+          description: Number of notification channels imported
+          example: 1
 
     RuleField:
       type: object
@@ -2795,11 +2827,14 @@ components:
           type: integer
         type:
           type: string
-          enum: [discord, slack]
+          enum: [discord, apprise]
         name:
           type: string
         webhookUrl:
           type: string
+        appriseTags:
+          type: string
+          description: Comma-separated Apprise tags for routing (Apprise channels only)
         enabled:
           type: boolean
         onCycleDigest:
@@ -2829,11 +2864,14 @@ components:
       properties:
         type:
           type: string
-          enum: [discord, slack]
+          enum: [discord, apprise]
         name:
           type: string
         webhookUrl:
           type: string
+        appriseTags:
+          type: string
+          description: Comma-separated Apprise tags for routing (optional, Apprise channels only)
         enabled:
           type: boolean
         onCycleDigest:

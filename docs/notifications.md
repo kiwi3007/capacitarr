@@ -1,6 +1,6 @@
 # Notifications
 
-Capacitarr provides real-time notifications through Discord webhooks and Slack webhooks. Notifications keep you informed about engine activity, disk usage alerts, and system events without needing to check the dashboard. System events are also recorded in the **Activity Log** on the dashboard for at-a-glance visibility.
+Capacitarr provides real-time notifications through Discord webhooks and Apprise (supporting 80+ notification services). Notifications keep you informed about engine activity, disk usage alerts, and system events without needing to check the dashboard. System events are also recorded in the **Activity Log** on the dashboard for at-a-glance visibility.
 
 ## Notification Types
 
@@ -61,36 +61,68 @@ After saving the channel, configure which notifications it receives using the su
 
 Use the **Test** button to verify the webhook is working. A test notification will appear in your Discord channel.
 
-## Slack Setup
+## Apprise Setup
 
-### Step 1: Create an Incoming Webhook
+[Apprise](https://github.com/caronc/apprise) is a self-hosted notification aggregator that supports 80+ notification services including Telegram, Matrix, Pushover, ntfy, Gotify, Email, Slack, Microsoft Teams, and many more. By configuring a single Apprise channel in Capacitarr, you can route notifications to any service Apprise supports.
 
-1. Go to [api.slack.com/apps](https://api.slack.com/apps) and click **Create New App**
-2. Choose **From scratch**, give it a name (e.g., "Capacitarr"), and select your workspace
-3. In the app settings, navigate to **Incoming Webhooks** and toggle it **On**
-4. Click **Add New Webhook to Workspace**
-5. Select the channel where notifications should be posted
-6. Click **Allow** — Slack will show you the webhook URL
-7. Copy the webhook URL (starts with `https://hooks.slack.com/services/...`)
+### Step 1: Deploy an Apprise Server
+
+Run Apprise API as a Docker container alongside Capacitarr:
+
+```yaml
+services:
+  apprise:
+    image: caronc/apprise:latest
+    container_name: apprise
+    ports:
+      - "8000:8000"
+    volumes:
+      - apprise-config:/config
+    restart: unless-stopped
+
+volumes:
+  apprise-config:
+```
+
+Once running, configure your notification URLs in the Apprise server. Refer to the [Apprise documentation](https://github.com/caronc/apprise/wiki) for supported services and URL formats.
 
 ### Step 2: Add Channel in Capacitarr
 
 1. Navigate to **Settings** → **Notifications**
 2. Click **Add Channel**
-3. Select **Slack** as the channel type
-4. Paste the webhook URL you copied from Slack
-5. Give the channel a descriptive name (e.g., "Disk Alerts")
-6. Click **Save**
+3. Select **Apprise** as the channel type
+4. Enter the **Apprise Server URL** — this is the base URL of your Apprise API instance (e.g., `http://apprise:8000`)
+5. Optionally enter **Tags** — a comma-separated list of Apprise tags to route the notification to specific destinations (e.g., `telegram,email`). If left empty, all configured notification URLs on the Apprise server receive the message.
+6. Give the channel a descriptive name (e.g., "Telegram via Apprise")
+7. Click **Save**
 
 ### Step 3: Configure Subscriptions
 
 After saving the channel, configure which notifications it receives using the subscription toggles. Each toggle controls a specific category of events — see the [Subscription Toggles](#subscription-toggles) section below.
 
-Use the **Test** button to verify the webhook is working. A test notification will appear in your Slack channel.
+Use the **Test** button to verify the Apprise connection is working.
+
+### Apprise URL Format
+
+The Apprise Server URL should point to the root of your Apprise API instance. Capacitarr sends notifications to the `POST {url}/api/notify/` endpoint.
+
+**Examples:**
+
+| Network Setup | URL |
+|---------------|-----|
+| Same Docker network | `http://apprise:8000` |
+| Different host | `http://192.168.1.100:8000` |
+| Behind reverse proxy | `https://apprise.example.com` |
+
+### Apprise Tags
+
+Tags let you route notifications to specific destinations configured on your Apprise server. For example, if your Apprise server has notification URLs tagged with `urgent` and `info`, you can create two Capacitarr channels — one that sends to `urgent` (for threshold breaches and errors) and one that sends to `info` (for cycle digests).
+
+If no tags are specified, the notification is sent to **all** notification URLs configured on the Apprise server.
 
 ## Subscription Toggles
 
-Each external notification channel (Discord or Slack) has independent subscription toggles. You can enable or disable each event category per channel, allowing you to route different notification types to different channels.
+Each external notification channel (Discord or Apprise) has independent subscription toggles. You can enable or disable each event category per channel, allowing you to route different notification types to different channels.
 
 | Toggle | Events | Description |
 |--------|--------|-------------|
@@ -102,11 +134,9 @@ Each external notification channel (Discord or Slack) has independent subscripti
 | **Update Available** | New version detected | Fires when a newer Capacitarr release exists on GitLab |
 | **Approval Activity** | Items approved or rejected | Fires when approval queue items are approved or rejected |
 
-> **Tip:** In-app notifications receive all event types automatically — these toggles only control external channel delivery.
-
 ## Digest Format
 
-Cycle digest notifications are rendered as rich embeds in Discord and rich message blocks in Slack. Here's what a typical auto-mode digest looks like:
+Cycle digest notifications are rendered as rich embeds in Discord and as Markdown messages for Apprise. Here's what a typical auto-mode digest looks like:
 
 ```
 ⚡ Capacitarr v1.0.0 • auto
@@ -129,4 +159,4 @@ Digest components:
 - **Progress bar:** Visual disk usage indicator (auto mode and all-clear only) showing current percentage and target
 - **Version banner:** Appears when a newer release is available (optional)
 
-Alert notifications use a similar embed format with a title, message, and color-coded severity (green for success, blue for info, amber for attention, red for errors).
+Alert notifications use a similar format with a title, message, and color-coded severity (green for success, blue for info, amber for attention, red for errors).

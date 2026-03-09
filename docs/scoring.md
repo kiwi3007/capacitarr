@@ -171,6 +171,7 @@ Rules match media items by comparing a **field** against a **value** using an **
 | `genre` | Genre name | `==`, `!=`, `contains`, `!contains` |
 | `language` | Language | `==`, `!=`, `contains`, `!contains` |
 | `type` | Media type (movie, show, season, etc.) | `==`, `!=`, `contains`, `!contains` |
+| `collection` | Plex collection name | `==`, `!=`, `contains`, `!contains` |
 
 #### Numeric Fields
 
@@ -191,10 +192,44 @@ Rules match media items by comparing a **field** against a **value** using an **
 |-------|----------------|--------|
 | `monitored` | Monitored status | `true`, `false` |
 | `requested` | Has active request (Overseerr) | `true`, `false` |
+| `incollection` | Item belongs to any Plex collection | `true`, `false` |
+| `watchlist` | On watchlist (Plex on-deck / Jellyfin/Emby favorites) | `true`, `false` |
 
 Rules can optionally be scoped to a specific integration — a rule scoped to one Sonarr instance will not affect items from Radarr or another Sonarr instance.
 
 > **Note:** The rule builder's service dropdown only shows *arr integrations (Sonarr, Radarr, Lidarr, Readarr) because rules operate on *arr library items. Enrichment services like Plex, Jellyfin, Emby, Tautulli, and Overseerr are not shown as selectable services. Instead, when an enrichment service is active, its fields (e.g., "Play Count" from Plex/Tautulli, "Is Requested" from Overseerr) are automatically available in the rule builder for any *arr integration. This means you write a rule scoped to Sonarr using the "Play Count" field, and Capacitarr enriches the Sonarr items with play data from Plex/Tautulli behind the scenes.
+
+### Watchlist Enrichment
+
+The `watchlist` rule field reflects whether a media item is on the user's watchlist or favorites list. The data source depends on which media servers are connected:
+
+| Media Server | Source | What It Means |
+|-------------|--------|---------------|
+| **Plex** | On-deck items | Items the user is actively interested in (partially watched or next in a series) |
+| **Jellyfin** | Favorited items | Items the user has explicitly marked as favorites |
+| **Emby** | Favorited items | Items the user has explicitly marked as favorites |
+
+When multiple media servers are connected, the enrichment follows a priority chain: **Plex > Jellyfin > Emby**. The first source that reports an item as on-watchlist wins. This means if Plex reports an item as on-deck but Jellyfin does not have it favorited, the item is still marked `OnWatchlist = true`.
+
+**Example rule:** To protect all items the user is actively interested in:
+
+- **Field:** `watchlist`
+- **Operator:** `==`
+- **Value:** `true`
+- **Effect:** `always_keep`
+
+### Collection Autocomplete
+
+The `collection` rule field matches against Plex collection names. The rule builder provides autocomplete suggestions populated from all enabled Plex integrations. When you select the `collection` field in the rule builder, a combobox shows all known collection names — you can type to filter or select from the list.
+
+**Example rule:** To protect all items in a "Classics" collection:
+
+- **Field:** `collection`
+- **Operator:** `==`
+- **Value:** `Classics`
+- **Effect:** `always_keep`
+
+Collection values are cached for performance and refreshed periodically from Plex.
 
 ## Tiebreaker Methods
 

@@ -58,25 +58,80 @@ docker logs capacitarr | grep -i "integration"
 
 ### Symptoms
 
-- Discord/Slack channels configured but no messages received
+- Discord/Apprise channels configured but no messages received
 - Test notification works but cycle digests don't arrive
-- In-app notifications appear but external channels are silent
+- Activity feed shows events but external channels are silent
 
 ### Common Causes
 
 - **Channel not enabled:** Ensure the channel's "Enabled" toggle is on in Settings → Notifications
 - **Subscription toggles off:** Each notification type has its own toggle per channel. Verify the relevant subscription is enabled (e.g., "Cycle Digest" for engine run summaries).
-- **Invalid webhook URL:** The webhook URL may have been revoked or changed in Discord/Slack. Use the Test button to verify.
-- **Rate limiting:** Discord and Slack may rate-limit rapid webhook calls. If many notifications fire in a short window, some may be delayed or dropped.
+- **Invalid webhook URL:** The webhook URL may have been revoked or changed in Discord. For Apprise, verify the server URL is correct. Use the Test button to verify.
+- **Rate limiting:** Discord may rate-limit rapid webhook calls. If many notifications fire in a short window, some may be delayed or dropped.
 
 ### Diagnosis
 
-1. Use the **Test** button on the channel configuration to verify the webhook works
+1. Use the **Test** button on the channel configuration to verify the webhook/server works
 2. Check the Activity Feed for `notification_sent` or `notification_delivery_failed` events
 3. Verify subscription toggles match the events you expect to receive
-4. Check that in-app notifications are appearing (they are always-on) — if in-app shows the notification but the external channel doesn't, the issue is with the channel configuration or webhook
 
 See [notifications.md](notifications.md) for the full notification setup guide.
+
+## Apprise Connection Issues
+
+### Symptoms
+
+- Apprise channel test fails with a connection error
+- Notifications are not delivered to any Apprise-configured service
+
+### Common Causes
+
+- **Apprise server not running:** Verify the Apprise container is running and healthy: `docker ps | grep apprise`
+- **Wrong server URL:** The URL should point to the Apprise API root (e.g., `http://apprise:8000`), not to a specific endpoint
+- **Network isolation:** If Capacitarr and Apprise are in different Docker networks, they cannot communicate. Ensure both containers are on the same Docker network.
+- **Tags misconfigured:** If you specified Apprise tags but no notification URLs on the Apprise server match those tags, notifications will be silently dropped. Leave tags empty to send to all configured URLs.
+
+### Diagnosis
+
+1. Verify the Apprise server is reachable from the Capacitarr container:
+
+```bash
+docker exec capacitarr wget -qO- http://apprise:8000/api/status
+```
+
+2. Check Apprise server logs for errors:
+
+```bash
+docker logs apprise
+```
+
+3. Test the Apprise API directly:
+
+```bash
+docker exec capacitarr wget -qO- --post-data='{"title":"Test","body":"Hello","type":"info"}' \
+  --header='Content-Type: application/json' http://apprise:8000/api/notify/
+```
+
+## Settings Import Failures
+
+### Symptoms
+
+- Settings import returns an error
+- Imported settings are incomplete or missing sections
+
+### Common Causes
+
+- **Version mismatch:** The export file may have been created by a different version of Capacitarr with an incompatible schema. Check the `version` field in the export JSON.
+- **Malformed JSON:** The export file may have been corrupted or manually edited incorrectly. Try re-exporting from the source instance.
+- **Section not in export:** If the export was created with specific sections only (e.g., rules only), other sections will not be available for import.
+- **Missing credentials:** After importing integrations or notification channels, API keys and webhook URLs must be re-entered manually — they are stripped from exports for security.
+
+### Resolution
+
+1. Verify the export file is valid JSON: `cat capacitarr-settings.json | jq .`
+2. Check the `version` and `appVersion` fields match your Capacitarr version
+3. After import, navigate to Settings → Integrations and re-enter API keys for each imported integration
+4. Navigate to Settings → Notifications and re-enter webhook URLs for each imported channel
 
 ## Engine Not Running
 
