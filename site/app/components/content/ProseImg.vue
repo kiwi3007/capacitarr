@@ -37,5 +37,6 @@ const isBadge = computed(() =>
   max-width: none;
   vertical-align: middle;
   border-radius: 3px;
+  margin: 2px 4px 2px 0;
 }
 </style>
