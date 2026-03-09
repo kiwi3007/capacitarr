@@ -71,4 +71,7 @@ func RegisterAPIRoutes(g *echo.Group, reg *services.Registry, appVersion, appCom
 
 	// Version check routes (update check with cache)
 	RegisterVersionRoutes(protected, reg)
+
+	// Settings backup (export/import)
+	RegisterBackupRoutes(protected, reg, appVersion)
 }

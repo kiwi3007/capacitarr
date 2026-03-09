@@ -106,6 +106,33 @@ func (e ThresholdChangedEvent) EventMessage() string {
 		e.MountPath, e.ThresholdPct, e.TargetPct)
 }
 
+// SettingsExportedEvent is published when settings are exported.
+type SettingsExportedEvent struct {
+	Sections []string `json:"sections"`
+}
+
+// EventType implements Event.
+func (e SettingsExportedEvent) EventType() string { return "settings_exported" }
+
+// EventMessage implements Event.
+func (e SettingsExportedEvent) EventMessage() string {
+	return fmt.Sprintf("Settings exported: %v", e.Sections)
+}
+
+// SettingsImportedEvent is published when settings are imported.
+type SettingsImportedEvent struct {
+	Sections []string       `json:"sections"`
+	Result   map[string]any `json:"result"`
+}
+
+// EventType implements Event.
+func (e SettingsImportedEvent) EventType() string { return "settings_imported" }
+
+// EventMessage implements Event.
+func (e SettingsImportedEvent) EventMessage() string {
+	return fmt.Sprintf("Settings imported: %v", e.Sections)
+}
+
 // =============================================================================
 // Auth Events
 // =============================================================================
@@ -534,32 +561,6 @@ func (e RuleDeletedEvent) EventType() string { return "rule_deleted" }
 // EventMessage implements Event.
 func (e RuleDeletedEvent) EventMessage() string {
 	return fmt.Sprintf("Custom rule deleted: %s (ID %d)", e.Field, e.RuleID)
-}
-
-// RulesExportedEvent is published when custom rules are exported.
-type RulesExportedEvent struct {
-	Count int `json:"count"`
-}
-
-// EventType implements Event.
-func (e RulesExportedEvent) EventType() string { return "rules_exported" }
-
-// EventMessage implements Event.
-func (e RulesExportedEvent) EventMessage() string {
-	return fmt.Sprintf("Exported %d custom rules", e.Count)
-}
-
-// RulesImportedEvent is published when custom rules are imported.
-type RulesImportedEvent struct {
-	Count int `json:"count"`
-}
-
-// EventType implements Event.
-func (e RulesImportedEvent) EventType() string { return "rules_imported" }
-
-// EventMessage implements Event.
-func (e RulesImportedEvent) EventMessage() string {
-	return fmt.Sprintf("Imported %d custom rules", e.Count)
 }
 
 // =============================================================================

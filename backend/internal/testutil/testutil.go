@@ -149,6 +149,7 @@ func SetupTestServerWithRegistry(t *testing.T, database *gorm.DB) (*echo.Echo, *
 	routes.RegisterDataRoutes(protected, reg)
 	routes.RegisterNotificationRoutes(protected, reg)
 	routes.RegisterVersionRoutes(protected, reg)
+	routes.RegisterBackupRoutes(protected, reg, "v0.0.0-test")
 
 	return e, reg
 }

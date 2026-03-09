@@ -21,6 +21,7 @@ type Registry struct {
 	Cfg *config.Config
 
 	Approval             *ApprovalService
+	Backup               *BackupService
 	Deletion             *DeletionService
 	AuditLog             *AuditLogService
 	Engine               *EngineService
@@ -56,6 +57,7 @@ func NewRegistry(database *gorm.DB, bus *events.EventBus, cfg *config.Config) *R
 		Bus:                  bus,
 		Cfg:                  cfg,
 		Approval:             NewApprovalService(database, bus),
+		Backup:               NewBackupService(database, bus),
 		Deletion:             deletionSvc,
 		AuditLog:             auditLog,
 		Engine:               engineSvc,
