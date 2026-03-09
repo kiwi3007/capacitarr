@@ -100,6 +100,7 @@ func TestMatchesRule_AllFieldTypes(t *testing.T) {
 		Type:           integrations.MediaTypeShow,
 		Year:           1999,
 		Tags:           []string{"anime", "classic"},
+		Collections:    []string{"Sci-Fi Classics", "Serenity Saga"},
 		IntegrationID:  1,
 	}
 
@@ -171,6 +172,14 @@ func TestMatchesRule_AllFieldTypes(t *testing.T) {
 		// Language
 		{"language == match", db.CustomRule{Enabled: true, Field: "language", Operator: "==", Value: "english"}, true},
 		{"language != match", db.CustomRule{Enabled: true, Field: "language", Operator: "!=", Value: "japanese"}, true},
+
+		// Collection (string field matching against Collections slice)
+		{"collection == match", db.CustomRule{Enabled: true, Field: "collection", Operator: "==", Value: "serenity saga"}, true},
+		{"collection == no match", db.CustomRule{Enabled: true, Field: "collection", Operator: "==", Value: "marvel"}, false},
+		{"collection contains match", db.CustomRule{Enabled: true, Field: "collection", Operator: "contains", Value: "sci-fi"}, true},
+		{"collection contains no match", db.CustomRule{Enabled: true, Field: "collection", Operator: "contains", Value: "marvel"}, false},
+		{"collection != match", db.CustomRule{Enabled: true, Field: "collection", Operator: "!=", Value: "marvel"}, true},
+		{"collection !contains match", db.CustomRule{Enabled: true, Field: "collection", Operator: "!contains", Value: "marvel"}, true},
 
 		// Type
 		{"type == match", db.CustomRule{Enabled: true, Field: "type", Operator: "==", Value: "show"}, true},
@@ -685,6 +694,85 @@ func TestMatchesRule_TimeInLibrary_DateOperators(t *testing.T) {
 				t.Errorf("timeinlibrary %s %s = %v, want %v", tc.operator, tc.value, result, tc.matched)
 			}
 		})
+	}
+}
+
+func TestMatchesRule_Collection(t *testing.T) {
+	tests := []struct {
+		name        string
+		collections []string
+		operator    string
+		value       string
+		matched     bool
+	}{
+		// Exact match (==)
+		{"== match exact", []string{"Favorites", "MCU"}, "==", "favorites", true},
+		{"== no match", []string{"Favorites", "MCU"}, "==", "dceu", false},
+		{"== match second", []string{"Sci-Fi", "Firefly Collection"}, "==", "firefly collection", true},
+
+		// Not equal (!=) — all collections must differ
+		{"!= match (none equal)", []string{"Favorites", "MCU"}, "!=", "dceu", true},
+		{"!= no match (one equal)", []string{"Favorites", "MCU"}, "!=", "favorites", false},
+
+		// Contains
+		{"contains match", []string{"Firefly Collection", "Serenity Saga"}, "contains", "firefly", true},
+		{"contains no match", []string{"Firefly Collection"}, "contains", "serenity", false},
+		{"contains match partial", []string{"MCU Phase 1"}, "contains", "phase", true},
+
+		// Not contains — all collections must not contain the value
+		{"!contains match (none contain)", []string{"Favorites", "MCU"}, "!contains", "firefly", true},
+		{"!contains no match (one contains)", []string{"Firefly Collection", "MCU"}, "!contains", "firefly", false},
+
+		// Edge cases
+		{"== empty collections", nil, "==", "anything", false},
+		{"!= empty collections (vacuous truth)", nil, "!=", "anything", true},
+		{"contains empty collections", []string{}, "contains", "anything", false},
+		{"!contains empty collections (vacuous truth)", []string{}, "!contains", "anything", true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			item := integrations.MediaItem{Collections: tc.collections}
+			rule := db.CustomRule{Enabled: true, Field: "collection", Operator: tc.operator, Value: tc.value}
+			result, _ := matchesRuleWithValue(item, rule)
+			if result != tc.matched {
+				t.Errorf("collection %s %q with %v = %v, want %v",
+					tc.operator, tc.value, tc.collections, result, tc.matched)
+			}
+		})
+	}
+}
+
+func TestMatchesRule_CollectionMatchedValue(t *testing.T) {
+	// Verify matched value returns the specific collection that matched
+	item := integrations.MediaItem{Collections: []string{"Sci-Fi Classics", "Firefly Collection"}}
+
+	// Positive match: should return the matching collection
+	rule := db.CustomRule{Enabled: true, Field: "collection", Operator: "contains", Value: "firefly"}
+	_, matchedValue := matchesRuleWithValue(item, rule)
+	if matchedValue != "Firefly Collection" {
+		t.Errorf("Expected matchedValue 'Firefly Collection', got %q", matchedValue)
+	}
+
+	// Negation match: should return all collections joined
+	rule = db.CustomRule{Enabled: true, Field: "collection", Operator: "!contains", Value: "marvel"}
+	matched, matchedValue := matchesRuleWithValue(item, rule)
+	if !matched {
+		t.Error("Expected !contains 'marvel' to match")
+	}
+	if matchedValue != "Sci-Fi Classics, Firefly Collection" {
+		t.Errorf("Expected matchedValue 'Sci-Fi Classics, Firefly Collection', got %q", matchedValue)
+	}
+
+	// No collections: negation should return "(no collections)"
+	item2 := integrations.MediaItem{Collections: nil}
+	rule = db.CustomRule{Enabled: true, Field: "collection", Operator: "!=", Value: "anything"}
+	matched, matchedValue = matchesRuleWithValue(item2, rule)
+	if !matched {
+		t.Error("Expected != with nil collections to match (vacuous truth)")
+	}
+	if matchedValue != "(no collections)" {
+		t.Errorf("Expected matchedValue '(no collections)', got %q", matchedValue)
 	}
 }
 

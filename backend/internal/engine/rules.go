@@ -286,6 +286,27 @@ func matchesRuleWithValue(item integrations.MediaItem, rule db.CustomRule) (bool
 			return !strings.Contains(strings.ToLower(actual), strings.ToLower(val)), actual
 		}
 		return false, actual
+	case "collection":
+		// String field matching against item.Collections []string.
+		// Follows the same array-matching pattern as "tag".
+		if cond == "==" || cond == "contains" {
+			for _, col := range item.Collections {
+				if stringMatch(strings.ToLower(col), cond, val) {
+					return true, col
+				}
+			}
+			return false, strings.Join(item.Collections, ", ")
+		}
+		// Negation operators (!=, !contains): all collections must pass
+		for _, col := range item.Collections {
+			if !stringMatchNegated(strings.ToLower(col), cond, val) {
+				return false, col
+			}
+		}
+		if len(item.Collections) == 0 {
+			return true, "(no collections)"
+		}
+		return true, strings.Join(item.Collections, ", ")
 	case "incollection":
 		inCollection := len(item.Collections) > 0
 		ruleBool := val == boolTrue

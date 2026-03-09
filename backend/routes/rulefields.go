@@ -57,6 +57,7 @@ func appendEnrichmentFields(fields []map[string]any, p enrichmentPresence) []map
 		fields = append(fields,
 			map[string]any{"field": "incollection", "label": "In Collection", "type": "boolean", "operators": []string{"=="}},
 			map[string]any{"field": "watchlist", "label": "On Watchlist", "type": "boolean", "operators": []string{"=="}},
+			map[string]any{"field": "collection", "label": "Collection Name", "type": "string", "operators": []string{"==", "!=", "contains", "!contains"}},
 		)
 	}
 	if p.hasOverseerr && (p.hasTautulli || p.hasMedia) {

@@ -426,50 +426,47 @@ Tests were written inline with each step above. All tests pass.
 
 ## Phase 5: Collection Autocomplete in Rule Builder
 
+**Status:** ✅ Complete
+
 ### Context
 
 Plex collections are already fetched and stored on `MediaItem.Collections []string`. The `incollection` rule field already works for boolean checks. This phase adds a `collection` rule field with autocomplete populated from actual collection data, allowing rules like "collection contains Favorites → always_keep".
 
 ### Steps
 
-#### Step 5.1: Add collection value caching to `IntegrationService`
+#### Step 5.1: Add collection value caching to `IntegrationService` ✅
 
-The `IntegrationService` already has a TTL cache for rule values (quality profiles, tags, languages). Add a method to cache and return collection names:
+Added `FetchCollectionValues()` to `IntegrationService` with TTL caching using the `"global:collections"` cache key. The method iterates over all enabled Plex integrations, calls `GetMediaItems()`, collects unique collection names, sorts them alphabetically, and caches the result.
 
-```go
-func (s *IntegrationService) FetchCollectionValues() ([]integrations.NameValue, error)
-```
+Also added `ruleActionCollection = "collection"` constant and a `collection` case in `FetchRuleValues()` that delegates to `FetchCollectionValues()` and returns a combobox-type result with suggestions.
 
-This aggregates unique collection names from Plex libraries. The data source is the Plex client's library data — collections are already parsed in `plexMetadataToMediaItem()`.
+#### Step 5.2: Add `collection` rule field with string operators ✅
 
-**Approach:** During the fetch, call the Plex API to get all items with their collections, extract unique collection names, and cache them in the existing TTL cache pattern used by `FetchRuleValues()`.
+Added `collection` field to `appendEnrichmentFields()` in `routes/rulefields.go` under the `hasMedia` condition, with operators `==`, `!=`, `contains`, `!contains`.
 
-#### Step 5.2: Add `collection` rule field with string operators
+#### Step 5.3: Add API endpoint for collection values ✅
 
-In `routes/rulefields.go`, add a `collection` field (distinct from the existing boolean `incollection`) that supports string operators:
+The existing `/rule-values` endpoint now handles `action=collection` via the `FetchRuleValues()` method, returning a combobox with suggestions from all enabled Plex integrations.
 
-```go
-map[string]any{"field": "collection", "label": "Collection Name", "type": "string", "operators": []string{"==", "!=", "contains", "!contains"}}
-```
+#### Step 5.4: Add rule evaluation for collection field ✅
 
-In `engine/rules.go`, add evaluation logic that checks `item.Collections` against the rule value using the specified operator.
+Added `"collection"` case to `matchesRuleWithValue()` in `engine/rules.go`. Uses the same array-matching pattern as the `tag` field: positive operators (`==`, `contains`) find any matching collection, negation operators (`!=`, `!contains`) require all collections to pass. Empty collections result in vacuous truth for negation operators.
 
-#### Step 5.3: Add API endpoint for collection values
+#### Step 5.5: Update frontend rule builder ✅
 
-In `routes/rulefields.go`, extend the existing rule values endpoint to return collection names when the field is `collection`. This populates the autocomplete dropdown in the rule builder.
+Added `collection: 'Collection Name'` to `fieldLabelMap` in `frontend/app/utils/ruleFieldMaps.ts`. The frontend rule builder already handles `combobox` type from the rule values API, so no additional frontend component changes were needed.
 
-#### Step 5.4: Update frontend rule builder autocomplete
+#### Step 5.6: Write tests ✅
 
-When the rule field is `collection`, fetch collection values from the API and populate the value input as an autocomplete/dropdown instead of a free-text field.
+- Added `TestMatchesRule_Collection` with 14 test cases covering all operators and edge cases (empty collections, vacuous truth)
+- Added `TestMatchesRule_CollectionMatchedValue` verifying matched value returns the specific collection
+- Added collection test cases to `TestMatchesRule_AllFieldTypes` (baseItem now includes Collections)
+- Added `TestIntegrationService_FetchCollectionValues_NoPlex` and `_SkipsNonPlex`
+- Added `TestIntegrationService_FetchRuleValues_Collection`
 
-#### Step 5.5: Write tests
+#### Step 5.7: Run `make ci` and fix any issues ✅
 
-- Test collection value fetching and caching in `services/integration_test.go`
-- Test the API endpoint returns correct collection names
-- Test `collection` field evaluation in `engine/rules_test.go` with various operators
-- Follow existing patterns
-
-#### Step 5.6: Run `make ci` and fix any issues
+Full CI pipeline passed: lint (golangci-lint + ESLint + Prettier), tests (Go + Vitest), security (govulncheck + pnpm audit).
 
 ---
 

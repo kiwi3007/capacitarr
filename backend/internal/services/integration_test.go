@@ -342,6 +342,57 @@ func TestIntegrationService_SyncAll_NoEnabled(t *testing.T) {
 	}
 }
 
+func TestIntegrationService_FetchCollectionValues_NoPlex(t *testing.T) {
+	database := setupTestDB(t)
+	bus := newTestBus(t)
+	svc := NewIntegrationService(database, bus)
+
+	// No Plex integrations → empty result
+	result, err := svc.FetchCollectionValues()
+	if err != nil {
+		t.Fatalf("FetchCollectionValues returned error: %v", err)
+	}
+	if len(result) != 0 {
+		t.Errorf("expected 0 collection values with no Plex, got %d", len(result))
+	}
+}
+
+func TestIntegrationService_FetchCollectionValues_SkipsNonPlex(t *testing.T) {
+	database := setupTestDB(t)
+	bus := newTestBus(t)
+	svc := NewIntegrationService(database, bus)
+
+	// Create a non-Plex integration — should be ignored
+	database.Create(&db.IntegrationConfig{Type: "sonarr", Name: "Firefly Sonarr", URL: "http://localhost:8989", APIKey: "key1", Enabled: true})
+
+	result, err := svc.FetchCollectionValues()
+	if err != nil {
+		t.Fatalf("FetchCollectionValues returned error: %v", err)
+	}
+	if len(result) != 0 {
+		t.Errorf("expected 0 collection values with only Sonarr, got %d", len(result))
+	}
+}
+
+func TestIntegrationService_FetchRuleValues_Collection(t *testing.T) {
+	database := setupTestDB(t)
+	bus := newTestBus(t)
+	svc := NewIntegrationService(database, bus)
+
+	// With no Plex integrations, collection action should still work (empty suggestions)
+	result, err := svc.FetchRuleValues(0, "collection")
+	if err != nil {
+		t.Fatalf("FetchRuleValues(collection) returned error: %v", err)
+	}
+	m, ok := result.(map[string]any)
+	if !ok {
+		t.Fatal("expected map[string]any result")
+	}
+	if m["type"] != "combobox" {
+		t.Errorf("expected type 'combobox', got %v", m["type"])
+	}
+}
+
 func TestIntegrationService_SyncAll_TestsEnrichmentTypes(t *testing.T) {
 	database := setupTestDB(t)
 	bus := newTestBus(t)

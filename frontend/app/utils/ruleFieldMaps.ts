@@ -66,6 +66,7 @@ export const fieldLabelMap: Record<string, string> = {
   requestedby: 'Requested By',
   incollection: 'In Collection',
   watchlist: 'On Watchlist',
+  collection: 'Collection Name',
   watchedbyreq: 'Watched by Requestor',
   type: 'Media Type',
 };

@@ -3,7 +3,10 @@ package services
 import (
 	"errors"
 	"fmt"
+	"log/slog"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -24,10 +27,11 @@ var (
 
 // Rule value action identifiers used in FetchRuleValues switch.
 const (
-	ruleActionQuality  = "quality"
-	ruleActionTag      = "tag"
-	ruleActionGenre    = "genre"
-	ruleActionLanguage = "language"
+	ruleActionQuality    = "quality"
+	ruleActionTag        = "tag"
+	ruleActionGenre      = "genre"
+	ruleActionLanguage   = "language"
+	ruleActionCollection = "collection"
 )
 
 // DiskGroupUpserter provides write access to disk groups.
@@ -64,6 +68,58 @@ func NewIntegrationService(database *gorm.DB, bus *events.EventBus) *Integration
 // CloseCache stops the background cache janitor. Call during graceful shutdown.
 func (s *IntegrationService) CloseCache() {
 	s.ruleValueCache.Close()
+}
+
+// FetchCollectionValues returns collection names from all enabled Plex integrations.
+// Results are cached with the standard TTL. The returned slice is sorted alphabetically.
+func (s *IntegrationService) FetchCollectionValues() ([]integrations.NameValue, error) {
+	const cacheKey = "global:collections"
+
+	if cached, ok := s.ruleValueCache.Get(cacheKey); ok {
+		if nv, ok := cached.([]integrations.NameValue); ok {
+			return nv, nil
+		}
+	}
+
+	configs, err := s.ListEnabled()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list enabled integrations: %w", err)
+	}
+
+	seen := make(map[string]bool)
+	for _, cfg := range configs {
+		if cfg.Type != string(integrations.IntegrationTypePlex) {
+			continue
+		}
+
+		client := integrations.NewPlexClient(cfg.URL, cfg.APIKey)
+		items, fetchErr := client.GetMediaItems()
+		if fetchErr != nil {
+			slog.Warn("Failed to fetch Plex items for collection values",
+				"component", "integration_service", "integrationId", cfg.ID, "error", fetchErr)
+			continue
+		}
+
+		for _, item := range items {
+			for _, col := range item.Collections {
+				name := strings.TrimSpace(col)
+				if name != "" {
+					seen[name] = true
+				}
+			}
+		}
+	}
+
+	result := make([]integrations.NameValue, 0, len(seen))
+	for name := range seen {
+		result = append(result, integrations.NameValue{Value: name, Label: name})
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Label < result[j].Label
+	})
+
+	s.ruleValueCache.Set(cacheKey, result)
+	return result, nil
 }
 
 // InvalidateRuleValueCache removes all cached entries for a specific integration.
@@ -185,6 +241,16 @@ func (s *IntegrationService) FetchRuleValues(integrationID uint, action string) 
 				{Value: "book", Label: "Book"},
 			},
 		}
+		s.ruleValueCache.Set(cacheKey, result)
+		return result, nil
+
+	// Collection field — aggregates from all enabled Plex integrations (not per-integration)
+	case ruleActionCollection:
+		collections, collectErr := s.FetchCollectionValues()
+		if collectErr != nil {
+			return nil, fmt.Errorf("failed to fetch collection values: %w", collectErr)
+		}
+		result := map[string]any{"type": "combobox", "suggestions": collections}
 		s.ruleValueCache.Set(cacheKey, result)
 		return result, nil
 
