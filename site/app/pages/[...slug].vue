@@ -49,7 +49,6 @@ const links = computed(() => {
     <UPageHeader
       v-if="!page.hideTitle"
       :title="page.title"
-      :description="page.description"
       :headline="headline"
     />
 

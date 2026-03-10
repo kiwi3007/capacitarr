@@ -170,8 +170,9 @@ if (isMermaid.value) {
 }
 
 .mermaid-diagram :deep(svg) {
-  max-width: 100%;
+  width: 100%;
   height: auto;
+  min-height: 200px;
 }
 
 .mermaid-loading {
