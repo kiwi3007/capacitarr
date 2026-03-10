@@ -192,7 +192,7 @@ flowchart LR
 
 **Instant alerts** fire immediately when their trigger event occurs — they are not batched. Alert types include engine errors, mode changes, server started, threshold breaches, update available, and approval activity.
 
-See [notifications.md](notifications.md) for the full user-facing guide, and [plans/20260307T1403Z-notification-overhaul.md](plans/20260307T1403Z-notification-overhaul.md) for the design details.
+See [notifications.md](notifications.md) for the full user-facing guide.
 
 ### Event Types (40 total)
 
@@ -352,8 +352,7 @@ capacitarr/
 │   └── nuxt.config.ts              # Nuxt configuration
 ├── site/                           # Project marketing site (Nuxt UI Pro)
 ├── docs/                           # Documentation
-│   ├── api/                        # OpenAPI spec, examples, workflows
-│   └── plans/                      # Internal plan documents
+│   └── api/                        # OpenAPI spec, examples, workflows
 ├── docker-compose.yml              # Development/deployment compose file
 ├── Dockerfile                      # Multi-stage build (Node → Go → Alpine)
 └── Makefile                        # CI/CD targets (lint, test, security, build)
