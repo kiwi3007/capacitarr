@@ -1,3 +1,12 @@
+## [1.5.1] - 2026-03-10
+
+### 🐛 Bug Fixes
+
+- *(site)* Rename ProseCode to ProsePre for Nuxt UI v4 and strip duplicate headings ([64a352e](https://gitlab.com/starshadow/software/capacitarr/-/commit/64a352ef64ccdfc39e5fbbfe8f3488299ce77b57))
+- *(site)* Scale mermaid diagrams to full width and remove duplicate descriptions ([16aab9e](https://gitlab.com/starshadow/software/capacitarr/-/commit/16aab9e25caf1e30213014725b08cdd10bc138aa))
+- *(site)* Strip inline SVG dimensions for responsive mermaid diagrams ([3af3462](https://gitlab.com/starshadow/software/capacitarr/-/commit/3af3462fe5119a817b86c8d37e39b84fc19ca5eb))
+- *(security)* Add nonce-based CSP for inline scripts ([7769920](https://gitlab.com/starshadow/software/capacitarr/-/commit/776992013638c76a94a85fb751d4629ae4023be8))
+- *(site)* Restore code block styling and add mermaid breakout layout ([c0eed01](https://gitlab.com/starshadow/software/capacitarr/-/commit/c0eed01d04a44eaeaa800ed2608957a8aa3cc43a))
 ## [1.5.0] - 2026-03-10
 
 ### 🚀 Features
