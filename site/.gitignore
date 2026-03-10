@@ -24,8 +24,10 @@ logs
 
 # Synced docs (generated at build time by scripts/sync-docs.mjs)
 # Auto-discovery syncs all .md files from docs/ plus root project files.
+# _dir.yml files control sidebar navigation ordering for directory sections.
 content/docs/*.md
 content/docs/**/*.md
+content/docs/**/_dir.yml
 !content/docs/.gitkeep
 
 # Generated screenshot artifacts (PNGs synced from ../screenshots/ are ignored;
