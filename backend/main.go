@@ -45,19 +45,17 @@ func getSubFS() fs.FS {
 }
 
 // serveEmbeddedFile reads a file from the embedded FS and writes it to the response
-// with the correct Content-Type based on the file extension. If an htmlCache is
-// provided and the file is an HTML entry point, the cached (rewritten) version is
-// served instead of the embedded original.
-func serveEmbeddedFile(c echo.Context, fsys fs.FS, filePath string, cache *htmlCache) error {
-	// Check if we have a cached (rewritten) version for HTML entry points
-	if cache != nil {
-		if filePath == "index.html" && cache.index != nil {
-			c.Response().Header().Set("Cache-Control", "no-cache")
-			return c.Blob(http.StatusOK, "text/html; charset=utf-8", cache.index)
+// with the correct Content-Type based on the file extension. If htmlTemplates is
+// provided and the file is an HTML entry point, the template is rendered with a
+// fresh CSP nonce (read from the echo context) before serving.
+func serveEmbeddedFile(c echo.Context, fsys fs.FS, filePath string, tmpl *htmlTemplates) error {
+	// Check if we have a template for HTML entry points
+	if tmpl != nil {
+		if filePath == "index.html" && tmpl.index != nil {
+			return serveHTMLTemplate(c, tmpl.index)
 		}
-		if filePath == "200.html" && cache.spa != nil {
-			c.Response().Header().Set("Cache-Control", "no-cache")
-			return c.Blob(http.StatusOK, "text/html; charset=utf-8", cache.spa)
+		if filePath == "200.html" && tmpl.spa != nil {
+			return serveHTMLTemplate(c, tmpl.spa)
 		}
 	}
 
@@ -89,12 +87,21 @@ func serveEmbeddedFile(c echo.Context, fsys fs.FS, filePath string, cache *htmlC
 	return c.Blob(http.StatusOK, contentType, data)
 }
 
+// serveHTMLTemplate applies the per-request CSP nonce to an HTML template and
+// serves it. The nonce is read from the echo context (set by security middleware).
+func serveHTMLTemplate(c echo.Context, template []byte) error {
+	nonce, _ := c.Get("cspNonce").(string)
+	html := applyNonce(template, nonce)
+	c.Response().Header().Set("Cache-Control", "no-cache")
+	return c.Blob(http.StatusOK, "text/html; charset=utf-8", html)
+}
+
 // spaHandler serves static files from the embedded filesystem and falls back
 // to 200.html (Nuxt's SPA catch-all) for any path that doesn't match a real
 // file. This allows the client-side Vue Router to handle navigation.
-// The cache parameter is optional — when non-nil, HTML entry points are served
-// from the pre-rewritten cache instead of the embedded FS.
-func spaHandler(fsys fs.FS, stripPrefix string, cache *htmlCache) echo.HandlerFunc {
+// The tmpl parameter is optional — when non-nil, HTML entry points are served
+// from the pre-processed templates with per-request CSP nonce injection.
+func spaHandler(fsys fs.FS, stripPrefix string, tmpl *htmlTemplates) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		// Get the requested path and strip the prefix if configured
 		reqPath := c.Request().URL.Path
@@ -121,12 +128,12 @@ func spaHandler(fsys fs.FS, stripPrefix string, cache *htmlCache) echo.HandlerFu
 				indexPath := path.Join(reqPath, "index.html")
 				if idxFile, idxErr := fsys.Open(indexPath); idxErr == nil {
 					_ = idxFile.Close()
-					return serveEmbeddedFile(c, fsys, indexPath, cache)
+					return serveEmbeddedFile(c, fsys, indexPath, tmpl)
 				}
 				// Directory exists but no index.html — fall through to SPA fallback
 			} else if statErr == nil {
 				// It's a real file, serve it from the embedded FS
-				return serveEmbeddedFile(c, fsys, reqPath, cache)
+				return serveEmbeddedFile(c, fsys, reqPath, tmpl)
 			}
 		}
 
@@ -143,9 +150,9 @@ func spaHandler(fsys fs.FS, stripPrefix string, cache *htmlCache) echo.HandlerFu
 		// SPA catch-all hosting (client-side Vue Router handles the route).
 		if fallback, fbErr := fsys.Open("200.html"); fbErr == nil {
 			_ = fallback.Close()
-			return serveEmbeddedFile(c, fsys, "200.html", cache)
+			return serveEmbeddedFile(c, fsys, "200.html", tmpl)
 		}
-		return serveEmbeddedFile(c, fsys, "index.html", cache)
+		return serveEmbeddedFile(c, fsys, "index.html", tmpl)
 	}
 }
 
@@ -308,13 +315,17 @@ func main() {
 			h.Set("Cross-Origin-Resource-Policy", "same-origin")
 
 			// Content-Security-Policy — restrict resource loading to same-origin.
-			// 'unsafe-inline' for style-src is required by Vue/Nuxt runtime styles.
-			// img-src allows data: URIs (inline SVGs, base64 favicons) and https:
-			// (poster images from TMDB/TVDB). connect-src 'self' covers API calls
-			// and the SSE event stream.
+			// A per-request cryptographic nonce allows the server's own inline
+			// scripts (theme/splash loader, Nuxt runtime config) while blocking
+			// any injected inline scripts. 'unsafe-inline' for style-src is
+			// required by Vue/Nuxt runtime styles. img-src allows data: URIs
+			// (inline SVGs, base64 favicons) and https: (poster images from
+			// TMDB/TVDB). connect-src 'self' covers API calls and SSE.
+			nonce := generateCSPNonce()
+			c.Set("cspNonce", nonce)
 			h.Set("Content-Security-Policy",
 				"default-src 'self'; "+
-					"script-src 'self'; "+
+					"script-src 'self' 'nonce-"+nonce+"'; "+
 					"style-src 'self' 'unsafe-inline'; "+
 					"img-src 'self' data: https:; "+
 					"font-src 'self'; "+
@@ -354,14 +365,15 @@ func main() {
 	// Serve the embedded Nuxt static frontend with SPA fallback
 	fsys := getSubFS()
 
-	// Build HTML cache for subdirectory deployments — rewrites asset paths,
-	// Vue Router base, and API base URL in the HTML entry points at startup.
-	cache := buildHTMLCache(fsys, cfg.BaseURL)
+	// Build HTML templates — applies base URL rewriting for subdirectory
+	// deployments and injects CSP nonce placeholders. Templates are built
+	// once at startup; the nonce placeholder is replaced per-request.
+	tmpl := buildHTMLTemplates(fsys, cfg.BaseURL)
 
 	if cfg.BaseURL != "" && cfg.BaseURL != "/" {
 		baseURL := strings.TrimRight(cfg.BaseURL, "/")
 		uiGroup := e.Group(baseURL)
-		uiGroup.GET("/*", spaHandler(fsys, baseURL, cache))
+		uiGroup.GET("/*", spaHandler(fsys, baseURL, tmpl))
 
 		// Handle the exact path without trailing slash (e.g. /capacitarr → /capacitarr/)
 		e.GET(baseURL, func(c echo.Context) error {
@@ -373,7 +385,7 @@ func main() {
 			return c.Redirect(http.StatusMovedPermanently, cfg.BaseURL)
 		})
 	} else {
-		e.GET("/*", spaHandler(fsys, "", cache))
+		e.GET("/*", spaHandler(fsys, "", tmpl))
 	}
 
 	// Publish server start event to the event bus

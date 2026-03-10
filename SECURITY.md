@@ -64,7 +64,7 @@ Capacitarr is designed as a **self-hosted, single-instance** application for hom
 - **Rate limiting:** Login endpoint is rate-limited to prevent brute-force attacks
 - **Response body limits:** Upstream API responses are capped at 64 MiB via `io.LimitReader` to prevent denial-of-service from oversized responses
 - **Security headers:** All responses include:
-  - `Content-Security-Policy` — restricts resource loading to same-origin (script-src, connect-src, font-src, frame-ancestors, base-uri, form-action)
+  - `Content-Security-Policy` — restricts resource loading to same-origin with per-request cryptographic nonces for inline scripts (script-src uses nonce-based allowlisting; connect-src, font-src, frame-ancestors, base-uri, form-action are same-origin)
   - `Strict-Transport-Security` — HSTS with 2-year max-age (only when `SECURE_COOKIES=true`)
   - `X-Content-Type-Options: nosniff`
   - `X-Frame-Options: DENY`

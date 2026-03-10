@@ -21,6 +21,8 @@ import (
 
 // TestSecurityHeaders_CSP verifies that Content-Security-Policy is set on all
 // responses with restrictive directives that prevent XSS and resource injection.
+// The script-src directive uses a per-request nonce to allow only the server's
+// own inline scripts while blocking any injected inline scripts.
 func TestSecurityHeaders_CSP(t *testing.T) {
 	e := testutil.SetupTestServer(t, testutil.SetupTestDB(t))
 
@@ -36,7 +38,6 @@ func TestSecurityHeaders_CSP(t *testing.T) {
 	// Verify critical CSP directives are present
 	requiredDirectives := []string{
 		"default-src 'self'",
-		"script-src 'self'",
 		"frame-ancestors 'none'",
 		"base-uri 'self'",
 		"form-action 'self'",
@@ -45,6 +46,32 @@ func TestSecurityHeaders_CSP(t *testing.T) {
 		if !strings.Contains(csp, directive) {
 			t.Errorf("CSP missing directive %q, got: %s", directive, csp)
 		}
+	}
+
+	// script-src must contain 'self' and a nonce
+	if !strings.Contains(csp, "script-src 'self' 'nonce-") {
+		t.Errorf("CSP script-src missing nonce, got: %s", csp)
+	}
+}
+
+// TestSecurityHeaders_CSP_NonceChangesPerRequest verifies that two requests
+// produce different CSP nonces, ensuring the nonce is cryptographically random.
+func TestSecurityHeaders_CSP_NonceChangesPerRequest(t *testing.T) {
+	e := testutil.SetupTestServer(t, testutil.SetupTestDB(t))
+
+	req1 := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/health", nil)
+	rec1 := httptest.NewRecorder()
+	e.ServeHTTP(rec1, req1)
+
+	req2 := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/health", nil)
+	rec2 := httptest.NewRecorder()
+	e.ServeHTTP(rec2, req2)
+
+	csp1 := rec1.Header().Get("Content-Security-Policy")
+	csp2 := rec2.Header().Get("Content-Security-Policy")
+
+	if csp1 == csp2 {
+		t.Error("CSP nonce must be different between requests, but both are identical")
 	}
 }
 

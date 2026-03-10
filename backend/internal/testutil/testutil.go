@@ -6,6 +6,8 @@ package testutil
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"io"
 	"log"
 	"log/slog"
@@ -26,6 +28,16 @@ import (
 	"capacitarr/internal/services"
 	"capacitarr/routes"
 )
+
+// GenerateTestCSPNonce produces a cryptographically random, base64url-encoded
+// nonce for Content-Security-Policy headers. This mirrors the production
+// generateCSPNonce function in main.go (which is in package main and cannot
+// be imported directly).
+func GenerateTestCSPNonce() string {
+	b := make([]byte, 16)
+	_, _ = rand.Read(b)
+	return base64.RawURLEncoding.EncodeToString(b)
+}
 
 // SilenceLogs suppresses all slog and standard log output for the duration
 // of the current test. This prevents config.Load(), db.Init(), and Goose
@@ -158,9 +170,13 @@ func SetupTestServerWithRegistry(t *testing.T, database *gorm.DB) (*echo.Echo, *
 			h.Set("X-Permitted-Cross-Domain-Policies", "none")
 			h.Set("Cross-Origin-Opener-Policy", "same-origin")
 			h.Set("Cross-Origin-Resource-Policy", "same-origin")
+
+			// Generate a per-request CSP nonce, mirroring main.go behavior.
+			nonce := GenerateTestCSPNonce()
+			c.Set("cspNonce", nonce)
 			h.Set("Content-Security-Policy",
 				"default-src 'self'; "+
-					"script-src 'self'; "+
+					"script-src 'self' 'nonce-"+nonce+"'; "+
 					"style-src 'self' 'unsafe-inline'; "+
 					"img-src 'self' data: https:; "+
 					"font-src 'self'; "+

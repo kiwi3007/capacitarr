@@ -10,13 +10,13 @@ import (
 	"strings"
 )
 
-// htmlCache holds pre-rewritten HTML entry points for subdirectory deployments.
-// When BASE_URL is "/", this is nil and files are served directly from the
-// embedded FS. When BASE_URL is e.g. "/capacitarr/", the HTML is rewritten
-// once at startup and served from this cache on every request.
-type htmlCache struct {
-	index []byte // rewritten index.html
-	spa   []byte // rewritten 200.html (SPA fallback), may be nil
+// htmlTemplates holds pre-processed HTML entry points. The templates contain
+// CSP nonce placeholders (__CSP_NONCE__) that are replaced with a fresh
+// cryptographic nonce on every request. When BASE_URL is not "/", asset paths
+// and Nuxt runtime config are also rewritten for subdirectory deployment.
+type htmlTemplates struct {
+	index []byte // template for index.html
+	spa   []byte // template for 200.html (SPA fallback), may be nil
 }
 
 // apiBaseURLPattern matches the Nuxt runtime config apiBaseUrl value.
@@ -24,38 +24,50 @@ type htmlCache struct {
 // unquoted key forms: apiBaseUrl:"..." or "apiBaseUrl":"..."
 var apiBaseURLPattern = regexp.MustCompile(`"?apiBaseUrl"?:"[^"]*"`)
 
-// buildHTMLCache reads the HTML entry points from the embedded FS, rewrites
-// them for the given baseURL, and returns a cache. Returns nil if baseURL is "/".
-func buildHTMLCache(fsys fs.FS, baseURL string) *htmlCache {
-	if baseURL == "/" {
-		return nil
-	}
+// buildHTMLTemplates reads the HTML entry points from the embedded FS,
+// optionally rewrites them for subdirectory deployment, and injects CSP
+// nonce placeholders. The returned templates are used on every request to
+// inject a per-request nonce before serving.
+func buildHTMLTemplates(fsys fs.FS, baseURL string) *htmlTemplates {
+	tmpl := &htmlTemplates{}
 
-	cache := &htmlCache{}
-
-	// Read and rewrite index.html
+	// Read index.html
 	indexData, err := readFSFile(fsys, "index.html")
 	if err != nil {
-		slog.Error("Failed to read index.html for base URL rewriting",
+		slog.Error("Failed to read index.html for template processing",
 			"component", "baseurl", "error", err)
 		return nil
 	}
-	cache.index = rewriteHTML(indexData, baseURL)
 
-	// Read and rewrite 200.html (SPA fallback) if it exists
-	spaData, err := readFSFile(fsys, "200.html")
-	if err == nil {
-		cache.spa = rewriteHTML(spaData, baseURL)
+	// Apply base URL rewriting if serving from a subdirectory
+	if baseURL != "/" {
+		indexData = rewriteHTML(indexData, baseURL)
 	}
 
-	slog.Info("HTML entry points rewritten for subdirectory deployment",
+	// Inject CSP nonce placeholders into inline scripts
+	tmpl.index = injectNoncePlaceholders(indexData)
+
+	// Read and process 200.html (SPA fallback) if it exists
+	spaData, err := readFSFile(fsys, "200.html")
+	if err == nil {
+		if baseURL != "/" {
+			spaData = rewriteHTML(spaData, baseURL)
+		}
+		tmpl.spa = injectNoncePlaceholders(spaData)
+	}
+
+	logMsg := "HTML templates prepared with CSP nonce placeholders"
+	if baseURL != "/" {
+		logMsg = "HTML templates rewritten for subdirectory deployment with CSP nonce placeholders"
+	}
+	slog.Info(logMsg,
 		"component", "baseurl",
 		"baseURL", baseURL,
-		"indexSize", len(cache.index),
-		"spaSize", len(cache.spa),
+		"indexSize", len(tmpl.index),
+		"spaSize", len(tmpl.spa),
 	)
 
-	return cache
+	return tmpl
 }
 
 // readFSFile reads a file from an fs.FS and returns its contents.

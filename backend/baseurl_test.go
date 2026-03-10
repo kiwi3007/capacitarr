@@ -2,19 +2,23 @@ package main
 
 import (
 	"io/fs"
+	"strings"
 	"testing"
 	"testing/fstest"
 )
 
 // sampleHTML mirrors the structure of a real Nuxt-generated index.html.
-// It contains all the patterns that rewriteHTML must handle.
+// It contains all the patterns that rewriteHTML must handle, including
+// inline scripts that require CSP nonce injection.
 const sampleHTML = `<!DOCTYPE html><html><head>` +
+	`<script type="text/javascript">(function(){var t=localStorage.getItem('capacitarr-theme')})()</script>` +
 	`<link rel="stylesheet" href="/_assets/entry.DeJAGcQG.css" crossorigin>` +
 	`<link rel="modulepreload" as="script" crossorigin href="/_assets/BZLeI64h.js">` +
 	`<script type="module" src="/_assets/BZLeI64h.js" crossorigin></script>` +
 	`</head><body>` +
 	`<div id="__nuxt"></div>` +
 	`<script>window.__NUXT__={};window.__NUXT__.config={public:{apiBaseUrl:""},app:{baseURL:"/",buildId:"test-build",buildAssetsDir:"/_assets/",cdnURL:""}}</script>` +
+	`<script type="application/json" data-nuxt-data="nuxt-app" id="__NUXT_DATA__">[{}]</script>` +
 	`</body></html>`
 
 func TestRewriteHTML_SubdirectoryPath(t *testing.T) {
@@ -89,66 +93,97 @@ func TestRewriteHTML_WithExistingApiBaseUrl(t *testing.T) {
 	assertNotContains(t, result, `apiBaseUrl:"http://localhost:8080"`)
 }
 
-func TestBuildHTMLCache_RootPath_ReturnsNil(t *testing.T) {
+func TestBuildHTMLTemplates_RootPath(t *testing.T) {
 	fsys := fstest.MapFS{
 		"index.html": &fstest.MapFile{Data: []byte(sampleHTML)},
 	}
 
-	cache := buildHTMLCache(fsys, "/")
-	if cache != nil {
-		t.Error("expected nil cache for root baseURL, got non-nil")
+	tmpl := buildHTMLTemplates(fsys, "/")
+	if tmpl == nil {
+		t.Fatal("expected non-nil templates even for root baseURL (nonce placeholders)")
 	}
+
+	// Template should have nonce placeholders but no base URL rewriting
+	assertContains(t, string(tmpl.index), `href="/_assets/entry.DeJAGcQG.css"`)
+	assertContains(t, string(tmpl.index), cspNoncePlaceholder)
 }
 
-func TestBuildHTMLCache_SubdirectoryPath(t *testing.T) {
+func TestBuildHTMLTemplates_SubdirectoryPath(t *testing.T) {
 	fsys := fstest.MapFS{
 		"index.html": &fstest.MapFile{Data: []byte(sampleHTML)},
 	}
 
-	cache := buildHTMLCache(fsys, "/capacitarr/")
-	if cache == nil {
-		t.Fatal("expected non-nil cache for subdirectory baseURL")
+	tmpl := buildHTMLTemplates(fsys, "/capacitarr/")
+	if tmpl == nil {
+		t.Fatal("expected non-nil templates for subdirectory baseURL")
 	}
-	if cache.index == nil {
-		t.Error("expected non-nil index in cache")
+	if tmpl.index == nil {
+		t.Error("expected non-nil index in templates")
 	}
-	if cache.spa != nil {
-		t.Error("expected nil spa in cache (no 200.html in test FS)")
+	if tmpl.spa != nil {
+		t.Error("expected nil spa in templates (no 200.html in test FS)")
 	}
 
-	// Verify the cached HTML is rewritten
-	assertContains(t, string(cache.index), `baseURL:"/capacitarr/"`)
+	// Verify the template HTML is rewritten AND has nonce placeholders
+	assertContains(t, string(tmpl.index), `baseURL:"/capacitarr/"`)
+	assertContains(t, string(tmpl.index), cspNoncePlaceholder)
 }
 
-func TestBuildHTMLCache_WithSPAFallback(t *testing.T) {
+func TestBuildHTMLTemplates_WithSPAFallback(t *testing.T) {
 	fsys := fstest.MapFS{
 		"index.html": &fstest.MapFile{Data: []byte(sampleHTML)},
 		"200.html":   &fstest.MapFile{Data: []byte(sampleHTML)},
 	}
 
-	cache := buildHTMLCache(fsys, "/capacitarr/")
-	if cache == nil {
-		t.Fatal("expected non-nil cache")
+	tmpl := buildHTMLTemplates(fsys, "/capacitarr/")
+	if tmpl == nil {
+		t.Fatal("expected non-nil templates")
 	}
-	if cache.index == nil {
-		t.Error("expected non-nil index in cache")
+	if tmpl.index == nil {
+		t.Error("expected non-nil index in templates")
 	}
-	if cache.spa == nil {
-		t.Error("expected non-nil spa in cache")
+	if tmpl.spa == nil {
+		t.Error("expected non-nil spa in templates")
 	}
 
-	// Both should be rewritten
-	assertContains(t, string(cache.index), `baseURL:"/capacitarr/"`)
-	assertContains(t, string(cache.spa), `baseURL:"/capacitarr/"`)
+	// Both should be rewritten and have nonce placeholders
+	assertContains(t, string(tmpl.index), `baseURL:"/capacitarr/"`)
+	assertContains(t, string(tmpl.index), cspNoncePlaceholder)
+	assertContains(t, string(tmpl.spa), `baseURL:"/capacitarr/"`)
+	assertContains(t, string(tmpl.spa), cspNoncePlaceholder)
 }
 
-func TestBuildHTMLCache_MissingIndexHTML(t *testing.T) {
+func TestBuildHTMLTemplates_MissingIndexHTML(t *testing.T) {
 	fsys := fstest.MapFS{} // empty filesystem
 
-	cache := buildHTMLCache(fsys, "/capacitarr/")
-	if cache != nil {
-		t.Error("expected nil cache when index.html is missing")
+	tmpl := buildHTMLTemplates(fsys, "/capacitarr/")
+	if tmpl != nil {
+		t.Error("expected nil templates when index.html is missing")
 	}
+}
+
+func TestBuildHTMLTemplates_NoncePlaceholdersSurviveRewrite(t *testing.T) {
+	fsys := fstest.MapFS{
+		"index.html": &fstest.MapFile{Data: []byte(sampleHTML)},
+	}
+
+	tmpl := buildHTMLTemplates(fsys, "/capacitarr/")
+	if tmpl == nil {
+		t.Fatal("expected non-nil templates")
+	}
+
+	// Verify nonce placeholders are present (injected after rewrite)
+	result := string(tmpl.index)
+	count := strings.Count(result, cspNoncePlaceholder)
+	if count != 2 {
+		t.Errorf("expected 2 nonce placeholders (theme + __NUXT__), got %d", count)
+	}
+
+	// Verify the theme/splash script has a nonce placeholder
+	assertContains(t, result, `<script type="text/javascript" nonce="__CSP_NONCE__">`)
+
+	// Verify the __NUXT__ config script has a nonce placeholder
+	assertContains(t, result, `<script nonce="__CSP_NONCE__">window.__NUXT__`)
 }
 
 func TestReadFSFile(t *testing.T) {
