@@ -119,6 +119,21 @@ security:trivy:
     - trivy fs --exit-code 1 --severity HIGH,CRITICAL --scanners vuln backend/
     - trivy fs --exit-code 1 --severity HIGH,CRITICAL --scanners vuln frontend/
 
+security:trivy-image:
+  stage: security
+  image: docker:latest
+  interruptible: true
+  services:
+    - docker:dind
+  script:
+    # Build image for current platform only (not multi-arch) and scan it.
+    # Checks Alpine OS packages + Go binary for known CVEs.
+    - docker build -t capacitarr:ci-scan .
+    - |
+      apk add --no-cache curl
+      curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+      trivy image --exit-code 1 --severity HIGH,CRITICAL --scanners vuln capacitarr:ci-scan
+
 security:gitleaks:
   stage: security
   image:

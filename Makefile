@@ -109,6 +109,15 @@ security\:ci:
 		semgrep scan --config=auto --error /src
 	@echo "✓ CI security stage passed"
 
+## Scan the built Docker image for OS-level and binary CVEs (requires prior `make build`)
+security\:image:
+	@echo "═══ Container Image Scan ═══"
+	@echo "→ [security:trivy-image] Scanning Docker image (Docker: aquasec/trivy)..."
+	docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+		aquasec/trivy:latest image --exit-code 1 --severity HIGH,CRITICAL --scanners vuln \
+		capacitarr-capacitarr:latest
+	@echo "✓ Container image scan passed"
+
 ## Run the full CI pipeline locally (lint + test + security)
 ci: lint\:ci test\:ci security\:ci
 	@echo ""
@@ -176,6 +185,7 @@ help:
 	@echo "  make lint:ci        - Lint all code (golangci-lint + ESLint + Prettier + typecheck)"
 	@echo "  make test:ci        - Run all tests (go test + vitest)"
 	@echo "  make security:ci    - Run security scans (govulncheck + pnpm audit + trivy + gitleaks + semgrep)"
+	@echo "  make security:image - Scan Docker image for CVEs (requires prior make build)"
 	@echo ""
 	@echo "Code Quality (local, auto-fix mode):"
 	@echo "  make lint           - Auto-fix lint issues (ESLint --fix + golangci-lint)"

@@ -145,6 +145,36 @@ func SetupTestServerWithRegistry(t *testing.T, database *gorm.DB) (*echo.Echo, *
 	e.HidePort = true
 
 	cfg := TestConfig()
+
+	// Apply the same security headers middleware as main.go.
+	// This ensures security regression tests verify production behavior.
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			h := c.Response().Header()
+			h.Set("X-Content-Type-Options", "nosniff")
+			h.Set("X-Frame-Options", "DENY")
+			h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+			h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+			h.Set("X-Permitted-Cross-Domain-Policies", "none")
+			h.Set("Cross-Origin-Opener-Policy", "same-origin")
+			h.Set("Cross-Origin-Resource-Policy", "same-origin")
+			h.Set("Content-Security-Policy",
+				"default-src 'self'; "+
+					"script-src 'self'; "+
+					"style-src 'self' 'unsafe-inline'; "+
+					"img-src 'self' data: https:; "+
+					"font-src 'self'; "+
+					"connect-src 'self'; "+
+					"frame-ancestors 'none'; "+
+					"base-uri 'self'; "+
+					"form-action 'self'")
+			if cfg.SecureCookies {
+				h.Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
+			}
+			return next(c)
+		}
+	})
+
 	api := e.Group("/api")
 
 	// Create a test event bus (no subscribers needed for most tests)
