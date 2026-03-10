@@ -4,27 +4,39 @@ Capacitarr is a single-container application that bundles a Go backend, a Nuxt 4
 
 ## High-Level Overview
 
+### Container Internals
+
+The Docker container runs a Go backend that serves the embedded Nuxt frontend. Communication flows through REST API calls and real-time Server-Sent Events.
+
 ```mermaid
 %%{init: {"flowchart": {"defaultRenderer": "elk"}} }%%
 flowchart TD
-    subgraph CONTAINER["Docker Container"]
-        direction LR
-        FRONTEND["Nuxt 4 Frontend<br/>Vue 3 + Tailwind CSS 4 + shadcn-vue"]
-        BACKEND["Go Backend<br/>Echo + GORM + Service Layer"]
-        DB["SQLite Database<br/>/config/capacitarr.db"]
-        ENGINE["Scoring Engine<br/>Weighted factors + protection rules"]
-        POLLER["Engine Orchestrator<br/>Scheduled disk monitoring"]
-        EVENT_BUS["Event Bus<br/>Typed pub/sub fan-out"]
-        SSE["SSE Broadcaster<br/>Real-time event stream"]
+    FRONTEND["Nuxt 4 Frontend<br/>Vue 3 + Tailwind CSS 4 + shadcn-vue"]
+    BACKEND["Go Backend<br/>Echo + GORM + Service Layer"]
+    DB["SQLite Database<br/>/config/capacitarr.db"]
+    ENGINE["Scoring Engine<br/>Weighted factors + protection rules"]
+    POLLER["Engine Orchestrator<br/>Scheduled disk monitoring"]
+    EVENT_BUS["Event Bus<br/>Typed pub/sub fan-out"]
+    SSE["SSE Broadcaster<br/>Real-time event stream"]
 
-        FRONTEND -->|"REST API"| BACKEND
-        BACKEND --> DB
-        BACKEND --> ENGINE
-        BACKEND --> POLLER
-        BACKEND -.->|"publish"| EVENT_BUS
-        EVENT_BUS -.-> SSE
-        SSE -.->|"Server-Sent Events"| FRONTEND
-    end
+    FRONTEND -->|"REST API"| BACKEND
+    BACKEND --> DB
+    BACKEND --> ENGINE
+    BACKEND --> POLLER
+    BACKEND -.->|"publish"| EVENT_BUS
+    EVENT_BUS -.-> SSE
+    SSE -.->|"Server-Sent Events"| FRONTEND
+```
+
+### External Integrations
+
+The engine orchestrator fetches data from external services, and the scoring engine sends deletion requests back to the *arr apps.
+
+```mermaid
+%%{init: {"flowchart": {"defaultRenderer": "elk"}} }%%
+flowchart LR
+    POLLER["Engine Orchestrator"]
+    ENGINE["Scoring Engine"]
 
     subgraph ARR_APPS["*arr Apps"]
         SONARR["Sonarr"]
@@ -48,12 +60,6 @@ flowchart TD
     POLLER -->|"Fetch watch data"| MEDIA_SERVERS
     POLLER -->|"Fetch requests + history"| ENRICHMENT
     ENGINE -->|"Delete lowest-scored items"| ARR_APPS
-
-    subgraph LEGEND["Edge Legend"]
-        L_SOLID["Solid = data flow"]
-        L_DASHED["Dashed = event / async"]
-        L_THICK["Thick = critical path"]
-    end
 ```
 
 ## Technology Stack
@@ -76,56 +82,42 @@ All business logic lives in the service layer (`backend/internal/services/`). Ro
 ```mermaid
 %%{init: {"flowchart": {"defaultRenderer": "elk"}} }%%
 flowchart TD
-    subgraph HTTP_LAYER["HTTP Layer — thin handlers"]
-        ROUTES["Route Handlers<br/>Parse request, call service, return response"]
-    end
+    ROUTES["Route Handlers<br/>Parse request, call service, return response"]
+    SERVICES["Service Layer<br/>Business logic + validation"]
+    DB["*gorm.DB<br/>Injected, not global"]
+    BUS["Event Bus<br/>Typed pub/sub"]
+    ACTIVITY["ActivityPersister<br/>activity_events table"]
+    NOTIF["NotificationDispatcher<br/>Discord / Apprise"]
+    SSE["SSE Broadcaster<br/>Browser tabs"]
 
-    subgraph SERVICE_LAYER["Service Layer"]
-        subgraph CORE["Core"]
-            direction LR
-            APPROVAL_SVC["ApprovalService<br/>Approve / Reject / Unsnooze"]
-            DELETION_SVC["DeletionService<br/>Execute / DryRun / HandleFailure"]
-            ENGINE_SVC["EngineService<br/>TriggerRun / GetStats"]
-            SETTINGS_SVC["SettingsService<br/>UpdatePreferences / UpdateThresholds"]
-        end
-
-        subgraph DATA_SVCS["Data"]
-            direction LR
-            AUDIT_SVC["AuditLogService<br/>Create / Upsert / Dedup"]
-            DATA_SVC["DataService<br/>Data reset operations"]
-            METRICS_SVC["MetricsService<br/>History / rollup / lifetime stats"]
-            RULES_SVC["RulesService<br/>Custom rule CRUD + validation"]
-        end
-
-        subgraph EXTERNAL["External"]
-            direction LR
-            INTEGRATION_SVC["IntegrationService<br/>CRUD / Test / Sync"]
-            AUTH_SVC["AuthService<br/>Login / ChangePassword / GenerateAPIKey"]
-            NOTIF_CHANNEL_SVC["NotificationChannelService<br/>CRUD for notification channels"]
-            NOTIF_DISPATCH_SVC["NotificationDispatchService<br/>Two-gate flush / digest + alerts"]
-            VERSION_SVC["VersionService<br/>Update check via GitLab releases"]
-        end
-    end
-
-    subgraph EVENT_SYSTEM["Event System"]
-        BUS["EventBus<br/>Typed pub/sub"]
-        ACTIVITY_SUB["ActivityPersister<br/>subscriber, activity_events table"]
-        NOTIF_SUB["NotificationDispatcher<br/>subscriber, Discord / Apprise"]
-        SSE_SUB["SSEBroadcaster<br/>subscriber, browser tabs"]
-    end
-
-    subgraph DATA_LAYER["Data Layer"]
-        DB["*gorm.DB<br/>injected, not global"]
-    end
-
-    ROUTES --> SERVICE_LAYER
-    SERVICE_LAYER -.->|"publish"| BUS
-    SERVICE_LAYER --> DB
-    BUS -.-> ACTIVITY_SUB
-    BUS -.-> NOTIF_SUB
-    BUS -.-> SSE_SUB
-    ACTIVITY_SUB --> DB
+    ROUTES --> SERVICES
+    SERVICES --> DB
+    SERVICES -.->|"publish"| BUS
+    BUS -.-> ACTIVITY
+    BUS -.-> NOTIF
+    BUS -.-> SSE
+    ACTIVITY --> DB
 ```
+
+#### Service Registry
+
+All services accept `*gorm.DB` and `*events.EventBus` in their constructor and are registered on `services.Registry`.
+
+| Category | Service | Responsibilities |
+|----------|---------|-----------------|
+| **Core** | ApprovalService | Approve, reject, unsnooze queue items |
+| | DeletionService | Execute deletions, dry run, handle failures |
+| | EngineService | Trigger runs, get stats |
+| | SettingsService | Update preferences and thresholds |
+| **Data** | AuditLogService | Create, upsert, dedup audit entries |
+| | DataService | Data reset operations |
+| | MetricsService | History, rollup, lifetime stats |
+| | RulesService | Custom rule CRUD and validation |
+| **External** | IntegrationService | CRUD, test connections, sync data |
+| | AuthService | Login, change password, generate API keys |
+| | NotificationChannelService | CRUD for notification channels |
+| | NotificationDispatchService | Two-gate flush, digest, and alerts |
+| | VersionService | Update check via GitLab releases |
 
 ### Service Registry
 

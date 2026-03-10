@@ -4,8 +4,6 @@
  *
  * - For `language === 'mermaid'`: renders diagrams client-side via mermaid.render()
  *   with violet-branded dark/light themes and the ELK layout engine.
- *   Diagrams use a breakout layout to extend beyond the content column
- *   for improved readability of complex diagrams.
  * - For all other languages: delegates to Nuxt UI's built-in ProsePre
  *   component for proper themed styling, copy button, and syntax highlighting.
  */
@@ -97,12 +95,10 @@ async function renderDiagram() {
         .node rect, .node polygon, .node circle, .node ellipse { rx: 8; ry: 8; }
         .cluster rect { rx: 12; ry: 12; }
         .edgeLabel { font-size: 12px; }
-        .edgeLabel rect {
-          rx: 10;
-          ry: 10;
-          stroke: ${isDark ? darkTheme.lineColor : lightTheme.lineColor};
-          stroke-width: 1px;
-          fill-opacity: 0.95;
+        .edgeLabel span {
+          padding: 2px 8px;
+          border-radius: 10px;
+          border: 1px solid ${isDark ? darkTheme.lineColor : lightTheme.lineColor};
         }
       `,
     })
@@ -179,30 +175,19 @@ if (isMermaid.value) {
 </template>
 
 <style scoped>
-/* ─── Mermaid breakout layout ─────────────────────────────────────
-   The diagram breaks out of the content column to use more horizontal
-   space. On large screens it extends ~8rem beyond each side of the
-   content area. On small screens it stays within the viewport. */
+/* ─── Mermaid diagram layout ──────────────────────────────────────
+   Diagrams render within the content column at full width. Per project
+   conventions, complex diagrams should be split into smaller focused
+   diagrams (~15 nodes max) that render clearly at content column width. */
 .mermaid-wrapper {
   display: flex;
   justify-content: center;
-  margin: 2rem -8rem;
-  padding: 1.5rem 1rem;
-  overflow-x: auto;
-}
-
-/* On screens narrower than 1280px (lg breakpoint), don't break out —
-   stay within the content column to avoid horizontal overflow. */
-@media (max-width: 1279px) {
-  .mermaid-wrapper {
-    margin-left: 0;
-    margin-right: 0;
-  }
+  margin: 2rem 0;
+  padding: 1rem 0;
 }
 
 .mermaid-diagram {
   width: 100%;
-  max-width: 1100px;
 }
 
 .mermaid-diagram :deep(svg) {
