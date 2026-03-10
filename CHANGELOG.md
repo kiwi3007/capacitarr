@@ -1,3 +1,36 @@
+## [1.5.0] - 2026-03-10
+
+### 🚀 Features
+
+- *(deletion)* Add SSE deletion progress events ([15e9741](https://gitlab.com/starshadow/software/capacitarr/-/commit/15e97412627fa295e37276b315139ec594d4d101))
+- *(ui)* Add real-time deletion progress indicator and sparkline updates ([ec52ce1](https://gitlab.com/starshadow/software/capacitarr/-/commit/ec52ce142c62aa509e7560a0acb82c7eea80ddd2))
+- *(notifications)* [**breaking**] Add Apprise support and remove Slack ([fd255df](https://gitlab.com/starshadow/software/capacitarr/-/commit/fd255df5ac366116c881d1dc9c502dfb28220dc7))
+- *(ui)* Add Apprise notification channel support and remove Slack ([5100fd1](https://gitlab.com/starshadow/software/capacitarr/-/commit/5100fd155dd52ba97380443d6f67b6d0439b8d10))
+- *(backup)* Add settings export/import and remove rules portability ([ddd1c04](https://gitlab.com/starshadow/software/capacitarr/-/commit/ddd1c04546e27a0abfdc7e20e529fb582e9ce1a9))
+- *(ui)* Add settings backup/restore and remove rules import/export ([39bcf31](https://gitlab.com/starshadow/software/capacitarr/-/commit/39bcf3105184bd513ef7f7940771f503497d913e))
+- *(enrichment)* Add watchlist/favorites enrichment from Plex, Jellyfin, and Emby ([2ecb823](https://gitlab.com/starshadow/software/capacitarr/-/commit/2ecb8236a4e16863bddb74e36242ae93eb19ca80))
+- *(rules)* Add collection name rule field with autocomplete ([81a35ef](https://gitlab.com/starshadow/software/capacitarr/-/commit/81a35ef79541cd18a0e84c886dd3f14b688fc08d))
+- *(pwa)* Add Progressive Web App support for mobile home screen install ([02ca05a](https://gitlab.com/starshadow/software/capacitarr/-/commit/02ca05a553d578d49df6b43e7a35e68c0723a39e))
+- *(ui)* Add per-integration scoring weight override mockup ([b245527](https://gitlab.com/starshadow/software/capacitarr/-/commit/b2455278c10006d2a40d2ff562e3ebf4e13053f1))
+- *(site)* Add sidebar navigation ordering and fix security/ naming conflict ([77da624](https://gitlab.com/starshadow/software/capacitarr/-/commit/77da624ae625ca14be046a0fffa19307b532f85b))
+
+### 🐛 Bug Fixes
+
+- *(ci)* Increase Node.js heap for pages job ([6dd994e](https://gitlab.com/starshadow/software/capacitarr/-/commit/6dd994ebc374c1723242e64a5d75f4ba56942619))
+- *(site)* Badge spacing, grouping, and duplicate heading on docs page ([1f3afb4](https://gitlab.com/starshadow/software/capacitarr/-/commit/1f3afb4a640a58870778f2341fc9a45337ba669b))
+- *(site)* Center badges, add donation hearts, add custom favicon ([933ebbe](https://gitlab.com/starshadow/software/capacitarr/-/commit/933ebbe8d53936d49c23c7ee276937484facf341))
+- *(site)* Badge centering, duplicate header, favicon 404 ([fa0dac3](https://gitlab.com/starshadow/software/capacitarr/-/commit/fa0dac3f6890f7ed2cb02fb3c85b009c88dd6f40))
+- *(engine)* Attribute approval-mode deletions to engine run stats ([98a81c9](https://gitlab.com/starshadow/software/capacitarr/-/commit/98a81c952019b725b6dea8586b0d9bd6272bde13))
+- *(ci)* Harden lint config, add typecheck, make security scans blocking ([b67d388](https://gitlab.com/starshadow/software/capacitarr/-/commit/b67d3882995c0b160218e28d1f3bd469a1be1151))
+
+### 🛡️ Security
+
+- *(docker)* Harden Alpine runtime image ([25dc821](https://gitlab.com/starshadow/software/capacitarr/-/commit/25dc8213e44db9ef3f63bc87d14ee4229741fed6))
+- *(security)* Add security headers, scanning tools, response limits, clean tests ([df9b6e8](https://gitlab.com/starshadow/software/capacitarr/-/commit/df9b6e84ef11a67f2d78b0f46f742d94035a18ed))
+- *(security)* Add Trivy image scan, security regression tests, test server hardening ([922bbdf](https://gitlab.com/starshadow/software/capacitarr/-/commit/922bbdf5d042902e08e87dfb99f4763e57d88f24))
+- *(security)* Add OWASP ZAP DAST scanning ([51c268b](https://gitlab.com/starshadow/software/capacitarr/-/commit/51c268b86afb4ae4c63f20c1118ea0e218c515bd))
+- *(security)* Add ZAP baseline report, DAST section, security badge ([d2877d1](https://gitlab.com/starshadow/software/capacitarr/-/commit/d2877d1846befd811caa9137dc176fbfa71e480c))
+- *(site)* Auto-discover docs and sync root project files ([0fa9474](https://gitlab.com/starshadow/software/capacitarr/-/commit/0fa9474131ce63b3d8272496ee7257aa35fe3ff7))
 ## [1.4.0] - 2026-03-09
 
 ### 🚀 Features
