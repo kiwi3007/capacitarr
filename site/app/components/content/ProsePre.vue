@@ -4,9 +4,13 @@
  *
  * - For `language === 'mermaid'`: renders diagrams client-side via mermaid.render()
  *   with violet-branded dark/light themes and the ELK layout engine.
- * - For all other languages: passes through to the default slot (shiki-highlighted HTML).
+ *   Diagrams use a breakout layout to extend beyond the content column
+ *   for improved readability of complex diagrams.
+ * - For all other languages: delegates to Nuxt UI's built-in ProsePre
+ *   component for proper themed styling, copy button, and syntax highlighting.
  */
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import NuxtUIPre from '@nuxt/ui/components/prose/Pre.vue'
 
 const props = defineProps<{
   code?: string
@@ -130,7 +134,7 @@ if (isMermaid.value) {
 </script>
 
 <template>
-  <!-- Mermaid diagram: client-only rendering -->
+  <!-- Mermaid diagram: client-only rendering with breakout layout -->
   <ClientOnly v-if="isMermaid">
     <div class="mermaid-wrapper">
       <div
@@ -154,29 +158,44 @@ if (isMermaid.value) {
     </template>
   </ClientOnly>
 
-  <!-- Non-mermaid code: pass through to default slot (shiki-highlighted HTML) -->
-  <slot v-else />
+  <!-- Non-mermaid code: delegate to Nuxt UI's themed ProsePre component -->
+  <NuxtUIPre
+    v-else
+    :code="code"
+    :language="language"
+    :filename="filename"
+    :highlights="highlights"
+    :meta="meta"
+  >
+    <slot />
+  </NuxtUIPre>
 </template>
 
 <style scoped>
+/* ─── Mermaid breakout layout ─────────────────────────────────────
+   The diagram breaks out of the content column to use more horizontal
+   space. On large screens it extends ~8rem beyond each side of the
+   content area. On small screens it stays within the viewport. */
 .mermaid-wrapper {
   display: flex;
   justify-content: center;
+  margin: 2rem -8rem;
   padding: 1.5rem 1rem;
-  border-radius: 0.75rem;
-  margin: 1.5rem 0;
   overflow-x: auto;
-  background: var(--color-neutral-50);
-  border: 1px solid var(--color-neutral-200);
 }
 
-:root.dark .mermaid-wrapper {
-  background: var(--color-neutral-950);
-  border-color: var(--color-neutral-800);
+/* On screens narrower than 1280px (lg breakpoint), don't break out —
+   stay within the content column to avoid horizontal overflow. */
+@media (max-width: 1279px) {
+  .mermaid-wrapper {
+    margin-left: 0;
+    margin-right: 0;
+  }
 }
 
 .mermaid-diagram {
   width: 100%;
+  max-width: 1100px;
 }
 
 .mermaid-diagram :deep(svg) {
