@@ -22,9 +22,10 @@ logs
 .vscode
 *.sw?
 
-# Synced docs (generated at build time)
+# Synced docs (generated at build time by scripts/sync-docs.mjs)
+# Auto-discovery syncs all .md files from docs/ plus root project files.
 content/docs/*.md
-content/docs/api/*.md
+content/docs/**/*.md
 !content/docs/.gitkeep
 
 # Generated screenshot artifacts (PNGs synced from ../screenshots/ are ignored;
