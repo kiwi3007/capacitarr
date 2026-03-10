@@ -196,11 +196,43 @@ function injectNavigation(content, navMeta) {
   return `---\n${navYaml}\n---\n\n${content}`
 }
 
+// ── Heading extraction ──────────────────────────────────────────────
+
+/**
+ * Extract the leading `# Heading` from markdown content and return it
+ * separately as a title. This prevents duplicate headings when Nuxt
+ * Content renders both UPageHeader (from frontmatter title) and the
+ * markdown `# Heading`.
+ *
+ * Only extracts if the file has no existing frontmatter (files with
+ * frontmatter already control their title via YAML).
+ *
+ * @param {string} content - Raw markdown content
+ * @returns {{ title: string|null, content: string }}
+ */
+function extractLeadingHeading(content) {
+  // Skip files that already have frontmatter
+  if (content.startsWith('---\n')) {
+    return { title: null, content }
+  }
+
+  // Match a leading `# Title` (with optional blank lines before it)
+  const match = content.match(/^\s*#\s+(.+)\n+/)
+  if (match) {
+    return {
+      title: match[1].trim(),
+      content: content.slice(match[0].length),
+    }
+  }
+
+  return { title: null, content }
+}
+
 // ── File sync ──────────────────────────────────────────────────────
 
 /**
- * Sync a single file: read, rewrite links, optionally add frontmatter
- * and navigation ordering, write.
+ * Sync a single file: read, rewrite links, extract heading, optionally
+ * add frontmatter and navigation ordering, write.
  */
 function syncFile(src, dest, { rewriter = rewriteDocsLinks, rewriterArg = '', frontmatter = null, navMeta = null } = {}) {
   mkdirSync(dirname(dest), { recursive: true })
@@ -208,9 +240,18 @@ function syncFile(src, dest, { rewriter = rewriteDocsLinks, rewriterArg = '', fr
   let content = readFileSync(src, 'utf-8')
   content = rewriter(content, rewriterArg)
 
-  // Prepend frontmatter if provided (for root files that need title)
+  // Extract leading # heading before adding frontmatter (prevents duplicate headings).
+  // If frontmatter is explicitly provided (root files), still strip the heading
+  // since the title is already in the provided frontmatter.
+  const { title: extractedTitle, content: bodyContent } = extractLeadingHeading(content)
+  content = bodyContent
+
   if (frontmatter) {
+    // Root files: use provided frontmatter (title already included)
     content = `---\n${frontmatter}\n---\n\n${content}`
+  } else if (extractedTitle) {
+    // Docs files without frontmatter: use extracted heading as title
+    content = `---\ntitle: "${extractedTitle}"\n---\n\n${content}`
   }
 
   // Inject navigation ordering into frontmatter
