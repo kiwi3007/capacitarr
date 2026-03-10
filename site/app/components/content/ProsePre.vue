@@ -99,7 +99,13 @@ async function renderDiagram() {
     // Use a unique ID per render pass to avoid mermaid ID collisions
     renderCount++
     const { svg } = await mermaid.render(`mermaid-${renderCount}-${Date.now()}`, props.code)
+
+    // Strip inline width/height attributes so the SVG scales responsively
+    // via its viewBox. Mermaid sets explicit pixel dimensions that prevent
+    // CSS-based responsive sizing.
     mermaidSvg.value = svg
+      .replace(/(<svg[^>]*?)\swidth="[^"]*"/, '$1')
+      .replace(/(<svg[^>]*?)\sheight="[^"]*"/, '$1')
     renderError.value = ''
   }
   catch (err) {
@@ -169,10 +175,13 @@ if (isMermaid.value) {
   border-color: var(--color-neutral-800);
 }
 
+.mermaid-diagram {
+  width: 100%;
+}
+
 .mermaid-diagram :deep(svg) {
   width: 100%;
   height: auto;
-  min-height: 200px;
 }
 
 .mermaid-loading {
