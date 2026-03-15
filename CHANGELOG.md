@@ -1,3 +1,10 @@
+## [1.5.3] - 2026-03-15
+
+### 🐛 Bug Fixes
+
+- *(site)* Resolve mermaid diagram overlap on pages with multiple diagrams ([34a8cca](https://gitlab.com/starshadow/software/capacitarr/-/commit/34a8cca68d17ea003255fa562a0e394129000601))
+- *(site)* Replace ELK layout engine with dagre to fix diagram overlap ([67af9fd](https://gitlab.com/starshadow/software/capacitarr/-/commit/67af9fdda18fff59faac28d970c05d414ae1ae2f))
+- *(poller)* Normalize Windows backslash paths from *arr APIs ([75839c2](https://gitlab.com/starshadow/software/capacitarr/-/commit/75839c2b5ef1c95dc6312216cf1176fbef57a80e))
 ## [1.5.2] - 2026-03-10
 
 ### 🐛 Bug Fixes
