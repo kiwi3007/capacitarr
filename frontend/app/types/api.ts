@@ -31,6 +31,7 @@ export interface DiskGroup {
   mountPath: string;
   totalBytes: number;
   usedBytes: number;
+  totalBytesOverride?: number | null;
   thresholdPct: number;
   targetPct: number;
   createdAt: string;
@@ -357,6 +358,7 @@ export interface DiskGroupExport {
   mountPath: string;
   thresholdPct: number;
   targetPct: number;
+  totalBytesOverride?: number | null;
 }
 
 export interface NotificationExport {

@@ -60,17 +60,18 @@ func (s *SettingsService) UpdatePreferences(payload db.PreferenceSet) (db.Prefer
 	return payload, nil
 }
 
-// UpdateThresholds updates the threshold and target percentages for a disk group
-// and returns the updated group.
-func (s *SettingsService) UpdateThresholds(groupID uint, threshold, target float64) (*db.DiskGroup, error) {
+// UpdateThresholds updates the threshold and target percentages for a disk group,
+// along with an optional total-bytes override, and returns the updated group.
+func (s *SettingsService) UpdateThresholds(groupID uint, threshold, target float64, totalOverride *int64) (*db.DiskGroup, error) {
 	var group db.DiskGroup
 	if err := s.db.First(&group, groupID).Error; err != nil {
 		return nil, fmt.Errorf("disk group not found: %w", err)
 	}
 
 	if err := s.db.Model(&group).Updates(map[string]any{
-		"threshold_pct": threshold,
-		"target_pct":    target,
+		"threshold_pct":        threshold,
+		"target_pct":           target,
+		"total_bytes_override": totalOverride, // nil clears the override
 	}).Error; err != nil {
 		return nil, fmt.Errorf("failed to update thresholds: %w", err)
 	}

@@ -55,14 +55,23 @@ type IntegrationConfig struct {
 
 // DiskGroup represents a physical disk/mount point shared by multiple services
 type DiskGroup struct {
-	ID           uint      `gorm:"primarykey" json:"id"`
-	MountPath    string    `gorm:"uniqueIndex;not null" json:"mountPath"`
-	TotalBytes   int64     `gorm:"not null" json:"totalBytes"`
-	UsedBytes    int64     `gorm:"not null" json:"usedBytes"`
-	ThresholdPct float64   `gorm:"default:85" json:"thresholdPct"` // Clean up at this %
-	TargetPct    float64   `gorm:"default:75" json:"targetPct"`    // Free down to this %
-	CreatedAt    time.Time `json:"createdAt"`
-	UpdatedAt    time.Time `json:"updatedAt"`
+	ID                 uint      `gorm:"primarykey" json:"id"`
+	MountPath          string    `gorm:"uniqueIndex;not null" json:"mountPath"`
+	TotalBytes         int64     `gorm:"not null" json:"totalBytes"`
+	UsedBytes          int64     `gorm:"not null" json:"usedBytes"`
+	TotalBytesOverride *int64    `json:"totalBytesOverride,omitempty"`   // User-defined total; nil = use detected
+	ThresholdPct       float64   `gorm:"default:85" json:"thresholdPct"` // Clean up at this %
+	TargetPct          float64   `gorm:"default:75" json:"targetPct"`    // Free down to this %
+	CreatedAt          time.Time `json:"createdAt"`
+	UpdatedAt          time.Time `json:"updatedAt"`
+}
+
+// EffectiveTotalBytes returns the user override if set, otherwise the API-detected total.
+func (g DiskGroup) EffectiveTotalBytes() int64 {
+	if g.TotalBytesOverride != nil && *g.TotalBytesOverride > 0 {
+		return *g.TotalBytesOverride
+	}
+	return g.TotalBytes
 }
 
 // PreferenceSet stores the global weights for the scoring engine (0-10 scale)

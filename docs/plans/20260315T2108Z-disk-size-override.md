@@ -1,10 +1,10 @@
 # User-Defined Disk Size Override
 
 **Date:** 2026-03-15
-**Status:** 📋 Planned
+**Status:** ✅ Complete
 **Scope:** `capacitarr` (single repo)
 **Branch:** `feature/disk-size-override`
-**Depends on:** `fix/windows-path-normalization` (must ship first)
+**Depends on:** `fix/windows-path-normalization` (must ship first) — ✅ Shipped in v1.5.3 (commit 75839c2b)
 
 ## Motivation
 
@@ -116,7 +116,11 @@ func (g DiskGroup) EffectiveTotalBytes() int64 {
 
 **File:** `backend/internal/poller/evaluate.go`
 
-Replace `group.TotalBytes` with `group.EffectiveTotalBytes()` in the percentage calculation:
+Replace **all three** references to `group.TotalBytes` with `group.EffectiveTotalBytes()`:
+
+1. **Line 29** — zero-check guard: `group.TotalBytes == 0` → `effectiveTotal == 0`
+2. **Line 32** — currentPct calculation: `float64(group.TotalBytes)` → `float64(effectiveTotal)`
+3. **Line 95** — targetBytesToFree calculation: `float64(group.TotalBytes)` → `float64(effectiveTotal)`
 
 ```go
 effectiveTotal := group.EffectiveTotalBytes()
@@ -124,6 +128,12 @@ if effectiveTotal == 0 {
     return 0
 }
 currentPct := float64(group.UsedBytes) / float64(effectiveTotal) * 100
+```
+
+And later:
+
+```go
+targetBytesToFree := int64((currentPct - group.TargetPct) / 100.0 * float64(effectiveTotal))
 ```
 
 ### Step 5: Update Settings Service
@@ -193,7 +203,14 @@ When `totalBytesOverride` is set:
 
 **File:** `backend/internal/services/backup.go`
 
-The existing backup export/import already serializes the full `DiskGroup` struct as JSON. The new field will be included automatically via the `json:"totalBytesOverride,omitempty"` tag. Verify this works by checking the export/import round-trip in tests.
+**⚠ Plan correction:** The backup system uses a separate `DiskGroupExport` struct, NOT the `DiskGroup` model directly. The new field will NOT be included automatically. We must:
+
+1. Add `TotalBytesOverride *int64 `json:"totalBytesOverride,omitempty"`` to the `DiskGroupExport` struct
+2. Update the export mapping in `Export()` (line ~237) to populate the new field
+3. Update `importDiskGroups()` to restore the override on both create and update paths
+4. Update the frontend `DiskGroupExport` type in `frontend/app/types/api.ts`
+
+Verify round-trip in tests.
 
 ### Step 11: Write Backend Tests
 
@@ -226,6 +243,8 @@ Verify all lint, tests, and security checks pass.
 | `frontend/app/types/api.ts` | Add `totalBytesOverride` to `DiskGroup` |
 | `frontend/app/components/rules/RuleDiskThresholds.vue` | Add override input |
 | `frontend/app/components/DiskGroupSection.vue` | Show override indicator |
+| `backend/internal/services/backup.go` | Add override to `DiskGroupExport`, update export/import |
+| `frontend/app/types/api.ts` | Add `totalBytesOverride` to `DiskGroupExport` |
 | `backend/internal/poller/evaluate_test.go` | New test cases |
 | `backend/internal/services/settings_test.go` | New test cases |
 | `backend/routes/disk_groups_test.go` | New test cases (may need to create this file) |

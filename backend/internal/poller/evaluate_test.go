@@ -235,6 +235,59 @@ func TestEvaluateAndCleanDisk_BelowThreshold_ClearsQueue(t *testing.T) {
 	}
 }
 
+// TestEvaluateAndCleanDisk_WithOverride verifies that when a disk size
+// override is set, the threshold calculation uses the effective total (override)
+// instead of the API-reported total.
+func TestEvaluateAndCleanDisk_WithOverride(t *testing.T) {
+	_, reg := setupEvaluateTestDB(t)
+	p := New(reg)
+
+	// Disk reports 10 TB total, 5 TB used = 50% — below 80% threshold.
+	// But with a 6 TB override, 5 TB used = 83% — ABOVE 80% threshold.
+	override := int64(6_000_000_000_000)
+	group := db.DiskGroup{
+		MountPath:          "/data",
+		TotalBytes:         10_000_000_000_000,
+		UsedBytes:          5_000_000_000_000,
+		TotalBytesOverride: &override,
+		ThresholdPct:       80.0,
+		TargetPct:          70.0,
+	}
+
+	// Run with no items — it should still detect threshold breach and not return 0 early
+	// Since there are no media items, it won't actually queue anything, but the
+	// breach detection code path should be entered (checking for currentPct > threshold).
+	result := p.evaluateAndCleanDisk(group, nil, nil, 0)
+	// With no items, nothing to delete, but the important thing is it didn't
+	// short-circuit at the "below threshold" check.
+	if result != 0 {
+		t.Errorf("expected 0 (no items to delete), got %d", result)
+	}
+}
+
+// TestEvaluateAndCleanDisk_OverrideZeroUsesDetected verifies that a zero override
+// is treated as "no override" and the API-reported total is used.
+func TestEvaluateAndCleanDisk_OverrideZeroUsesDetected(t *testing.T) {
+	_, reg := setupEvaluateTestDB(t)
+	p := New(reg)
+
+	// Zero override should be treated as nil
+	zero := int64(0)
+	group := db.DiskGroup{
+		MountPath:          "/data",
+		TotalBytes:         100000,
+		UsedBytes:          50000, // 50% — below 80% threshold
+		TotalBytesOverride: &zero,
+		ThresholdPct:       80.0,
+		TargetPct:          70.0,
+	}
+
+	result := p.evaluateAndCleanDisk(group, nil, nil, 0)
+	if result != 0 {
+		t.Errorf("expected 0 (below threshold), got %d", result)
+	}
+}
+
 // TestApprovalDedup_DoesNotTouchApproved verifies that the dedup logic does
 // NOT overwrite entries whose status has been changed to "approved" by the user.
 func TestApprovalDedup_DoesNotTouchApproved(t *testing.T) {

@@ -97,9 +97,10 @@ type IntegrationExport struct {
 
 // DiskGroupExport contains configuration-only disk group fields.
 type DiskGroupExport struct {
-	MountPath    string  `json:"mountPath"`
-	ThresholdPct float64 `json:"thresholdPct"`
-	TargetPct    float64 `json:"targetPct"`
+	MountPath          string  `json:"mountPath"`
+	ThresholdPct       float64 `json:"thresholdPct"`
+	TargetPct          float64 `json:"targetPct"`
+	TotalBytesOverride *int64  `json:"totalBytesOverride,omitempty"`
 }
 
 // NotificationExport contains non-sensitive notification channel fields.
@@ -234,9 +235,10 @@ func (s *BackupService) Export(sections ExportSections, appVersion string) (*Set
 		exported := make([]DiskGroupExport, 0, len(groups))
 		for _, dg := range groups {
 			exported = append(exported, DiskGroupExport{
-				MountPath:    dg.MountPath,
-				ThresholdPct: dg.ThresholdPct,
-				TargetPct:    dg.TargetPct,
+				MountPath:          dg.MountPath,
+				ThresholdPct:       dg.ThresholdPct,
+				TargetPct:          dg.TargetPct,
+				TotalBytesOverride: dg.TotalBytesOverride,
 			})
 		}
 		envelope.DiskGroups = exported
@@ -492,17 +494,19 @@ func (s *BackupService) importDiskGroups(groups []DiskGroupExport) (int, error) 
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// Create new
 			dg := db.DiskGroup{
-				MountPath:    dge.MountPath,
-				ThresholdPct: dge.ThresholdPct,
-				TargetPct:    dge.TargetPct,
+				MountPath:          dge.MountPath,
+				ThresholdPct:       dge.ThresholdPct,
+				TargetPct:          dge.TargetPct,
+				TotalBytesOverride: dge.TotalBytesOverride,
 			}
 			if err := s.db.Create(&dg).Error; err != nil {
 				return count, fmt.Errorf("failed to create disk group %q: %w", dge.MountPath, err)
 			}
 		} else {
-			// Update existing thresholds
+			// Update existing thresholds and override
 			existing.ThresholdPct = dge.ThresholdPct
 			existing.TargetPct = dge.TargetPct
+			existing.TotalBytesOverride = dge.TotalBytesOverride
 			if err := s.db.Save(&existing).Error; err != nil {
 				return count, fmt.Errorf("failed to update disk group %q: %w", dge.MountPath, err)
 			}

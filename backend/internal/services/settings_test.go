@@ -114,7 +114,7 @@ func TestSettingsService_UpdateThresholds(t *testing.T) {
 	ch := bus.Subscribe()
 	defer bus.Unsubscribe(ch)
 
-	updated, err := svc.UpdateThresholds(group.ID, 90.0, 80.0)
+	updated, err := svc.UpdateThresholds(group.ID, 90.0, 80.0, nil)
 	if err != nil {
 		t.Fatalf("UpdateThresholds returned error: %v", err)
 	}
@@ -144,12 +144,54 @@ func TestSettingsService_UpdateThresholds(t *testing.T) {
 	}
 }
 
+func TestSettingsService_UpdateThresholds_WithOverride(t *testing.T) {
+	database := setupTestDB(t)
+	bus := newTestBus(t)
+	svc := NewSettingsService(database, bus)
+
+	group := db.DiskGroup{
+		MountPath:    "/mnt/media",
+		TotalBytes:   1000000000000, // 1 TB
+		UsedBytes:    800000000000,
+		ThresholdPct: 85.0,
+		TargetPct:    75.0,
+	}
+	if err := database.Create(&group).Error; err != nil {
+		t.Fatalf("Failed to create disk group: %v", err)
+	}
+
+	// Set override
+	override := int64(500000000000) // 500 GB
+	updated, err := svc.UpdateThresholds(group.ID, 85.0, 75.0, &override)
+	if err != nil {
+		t.Fatalf("UpdateThresholds with override returned error: %v", err)
+	}
+	if updated.TotalBytesOverride == nil || *updated.TotalBytesOverride != 500000000000 {
+		t.Errorf("expected override 500000000000, got %v", updated.TotalBytesOverride)
+	}
+	if updated.EffectiveTotalBytes() != 500000000000 {
+		t.Errorf("expected effective total 500000000000, got %d", updated.EffectiveTotalBytes())
+	}
+
+	// Clear override by passing nil
+	cleared, err := svc.UpdateThresholds(group.ID, 85.0, 75.0, nil)
+	if err != nil {
+		t.Fatalf("UpdateThresholds clear override returned error: %v", err)
+	}
+	if cleared.TotalBytesOverride != nil {
+		t.Errorf("expected override nil after clear, got %v", cleared.TotalBytesOverride)
+	}
+	if cleared.EffectiveTotalBytes() != 1000000000000 {
+		t.Errorf("expected effective total to revert to detected, got %d", cleared.EffectiveTotalBytes())
+	}
+}
+
 func TestSettingsService_UpdateThresholds_NotFound(t *testing.T) {
 	database := setupTestDB(t)
 	bus := newTestBus(t)
 	svc := NewSettingsService(database, bus)
 
-	_, err := svc.UpdateThresholds(99999, 90.0, 80.0)
+	_, err := svc.UpdateThresholds(99999, 90.0, 80.0, nil)
 	if err == nil {
 		t.Fatal("expected error for non-existent disk group")
 	}

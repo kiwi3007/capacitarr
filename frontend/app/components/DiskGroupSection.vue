@@ -20,7 +20,15 @@
               {{ group.mountPath }}
             </h3>
             <span class="text-xs text-muted-foreground">
-              {{ formatBytes(group.usedBytes) }} / {{ formatBytes(group.totalBytes) }}
+              {{ formatBytes(group.usedBytes) }} / {{ formatBytes(effectiveTotalBytes) }}
+              <UiBadge
+                v-if="hasOverride"
+                variant="outline"
+                class="ml-1 text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-600"
+                :title="`Detected: ${formatBytes(group.totalBytes)}, Custom: ${formatBytes(effectiveTotalBytes)}`"
+              >
+                📌 Custom
+              </UiBadge>
             </span>
           </div>
         </div>
@@ -100,7 +108,10 @@
 
       <!-- Free space info -->
       <div class="text-xs text-muted-foreground pb-4">
-        <span>{{ formatBytes(group.totalBytes - group.usedBytes) }} free</span>
+        <span>{{ formatBytes(effectiveTotalBytes - group.usedBytes) }} free</span>
+        <span v-if="hasOverride" class="ml-1 text-muted-foreground/50">
+          (detected: {{ formatBytes(group.totalBytes) }})
+        </span>
       </div>
     </UiCardContent>
 
@@ -140,10 +151,22 @@ const props = defineProps<{
   refreshKey?: number;
 }>();
 
+/** Effective total bytes — override if set, otherwise API-detected. */
+const effectiveTotalBytes = computed(() => {
+  const override = props.group.totalBytesOverride;
+  if (override && override > 0) return override;
+  return props.group.totalBytes;
+});
+
+/** Whether this disk group has an active user-defined size override. */
+const hasOverride = computed(() => {
+  return !!(props.group.totalBytesOverride && props.group.totalBytesOverride > 0);
+});
+
 /** Raw (unrounded) usage percentage — used for color zone comparisons. */
 const rawUsagePct = computed(() => {
-  if (props.group.totalBytes === 0) return 0;
-  return (props.group.usedBytes / props.group.totalBytes) * 100;
+  if (effectiveTotalBytes.value === 0) return 0;
+  return (props.group.usedBytes / effectiveTotalBytes.value) * 100;
 });
 
 /** Rounded display percentage. */

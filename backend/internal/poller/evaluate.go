@@ -26,10 +26,11 @@ func (p *Poller) evaluateAndCleanDisk(group db.DiskGroup, allItems []integration
 		return 0
 	}
 
-	if group.TotalBytes == 0 {
+	effectiveTotal := group.EffectiveTotalBytes()
+	if effectiveTotal == 0 {
 		return 0
 	}
-	currentPct := float64(group.UsedBytes) / float64(group.TotalBytes) * 100
+	currentPct := float64(group.UsedBytes) / float64(effectiveTotal) * 100
 	if currentPct < group.ThresholdPct {
 		slog.Debug("Disk within threshold, no action needed", "component", "poller",
 			"mount", group.MountPath, "usedPct", fmt.Sprintf("%.1f", currentPct),
@@ -92,7 +93,7 @@ func (p *Poller) evaluateAndCleanDisk(group db.DiskGroup, allItems []integration
 		return evaluated[i].Score > evaluated[j].Score // highest score first
 	})
 
-	targetBytesToFree := int64((currentPct - group.TargetPct) / 100.0 * float64(group.TotalBytes))
+	targetBytesToFree := int64((currentPct - group.TargetPct) / 100.0 * float64(effectiveTotal))
 	if targetBytesToFree <= 0 {
 		return 0
 	}

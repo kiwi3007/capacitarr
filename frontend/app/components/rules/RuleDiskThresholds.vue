@@ -32,7 +32,15 @@
                 {{ dg.mountPath }}
               </div>
               <span class="text-xs text-muted-foreground">
-                {{ formatBytes(dg.usedBytes) }} / {{ formatBytes(dg.totalBytes) }}
+                {{ formatBytes(dg.usedBytes) }} / {{ formatBytes(effectiveTotal(dg)) }}
+                <UiBadge
+                  v-if="hasActiveOverride(dg)"
+                  variant="outline"
+                  class="ml-1 text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-600"
+                  :title="`Detected: ${formatBytes(dg.totalBytes)}, Custom: ${formatBytes(effectiveTotal(dg))}`"
+                >
+                  📌 Custom
+                </UiBadge>
               </span>
             </div>
           </div>
@@ -121,7 +129,10 @@
 
         <!-- Free space info -->
         <div class="text-xs text-muted-foreground/70">
-          <span>{{ formatBytes(dg.totalBytes - dg.usedBytes) }} free</span>
+          <span>{{ formatBytes(effectiveTotal(dg) - dg.usedBytes) }} free</span>
+          <span v-if="hasActiveOverride(dg)" class="ml-1 text-muted-foreground/50">
+            (detected: {{ formatBytes(dg.totalBytes) }})
+          </span>
         </div>
 
         <!-- Dual-thumb range slider -->
@@ -177,6 +188,47 @@
           </div>
         </div>
 
+        <!-- Custom disk size override -->
+        <div class="space-y-1.5">
+          <UiLabel class="text-xs text-muted-foreground"> Custom disk size </UiLabel>
+          <div class="flex items-center gap-2">
+            <UiInput
+              type="number"
+              :model-value="editOverrideDisplay(dg)"
+              :placeholder="`Use detected: ${formatBytes(dg.totalBytes)}`"
+              class="flex-1"
+              min="0"
+              step="any"
+              @update:model-value="(v: string | number) => onOverrideInput(dg, v)"
+            />
+            <UiSelect
+              :model-value="editOverrideUnit(dg)"
+              @update:model-value="(v) => onOverrideUnitChange(dg, String(v))"
+            >
+              <UiSelectTrigger class="w-20">
+                <UiSelectValue />
+              </UiSelectTrigger>
+              <UiSelectContent>
+                <UiSelectItem value="GB">GB</UiSelectItem>
+                <UiSelectItem value="TB">TB</UiSelectItem>
+              </UiSelectContent>
+            </UiSelect>
+            <UiButton
+              v-if="hasActiveOverride(dg) || editOverrideDisplay(dg)"
+              variant="ghost"
+              size="sm"
+              class="text-muted-foreground px-2"
+              title="Clear override"
+              @click="clearOverride(dg)"
+            >
+              <component :is="XIcon" class="w-4 h-4" />
+            </UiButton>
+          </div>
+          <p v-if="hasActiveOverride(dg)" class="text-[11px] text-amber-600 dark:text-amber-400">
+            📌 Using custom size instead of detected {{ formatBytes(dg.totalBytes) }}
+          </p>
+        </div>
+
         <!-- Validation error + Save button row -->
         <div class="flex items-center justify-between">
           <p v-if="thresholdValidation(dg.id, dg)" class="text-xs text-red-500">
@@ -202,7 +254,7 @@
 </template>
 
 <script setup lang="ts">
-import { HardDriveIcon, LoaderCircleIcon, SaveIcon } from 'lucide-vue-next';
+import { HardDriveIcon, LoaderCircleIcon, SaveIcon, XIcon } from 'lucide-vue-next';
 import {
   formatBytes,
   diskUsageStatus,
@@ -211,6 +263,9 @@ import {
   diskStatusFillColor,
 } from '~/utils/format';
 import type { DiskGroup, ApiError } from '~/types/api';
+
+const GB = 1_073_741_824;
+const TB = 1_099_511_627_776;
 
 const props = defineProps<{
   diskGroups: DiskGroup[];
@@ -230,14 +285,31 @@ const thresholdEdits = reactive<
     {
       threshold: number;
       target: number;
+      overrideDisplay: string;
+      overrideUnit: string;
+      overrideBytes: number | null;
       saving: boolean;
     }
   >
 >({});
 
+/** Returns the effective total bytes (override if set, otherwise detected). */
+function effectiveTotal(dg: DiskGroup): number {
+  const edit = thresholdEdits[dg.id];
+  if (edit && edit.overrideBytes != null && edit.overrideBytes > 0) return edit.overrideBytes;
+  if (dg.totalBytesOverride && dg.totalBytesOverride > 0) return dg.totalBytesOverride;
+  return dg.totalBytes;
+}
+
+/** Check if the disk group has an active override (saved or in-progress edit). */
+function hasActiveOverride(dg: DiskGroup): boolean {
+  return !!(dg.totalBytesOverride && dg.totalBytesOverride > 0);
+}
+
 function diskUsagePct(dg: DiskGroup): number {
-  if (!dg.totalBytes || dg.totalBytes === 0) return 0;
-  return (dg.usedBytes / dg.totalBytes) * 100;
+  const total = effectiveTotal(dg);
+  if (!total || total === 0) return 0;
+  return (dg.usedBytes / total) * 100;
 }
 
 /** Get the current edit target value or fall back to saved value. */
@@ -254,7 +326,10 @@ function editThreshold(dg: DiskGroup): number {
 function hasChanges(dg: DiskGroup): boolean {
   const edit = thresholdEdits[dg.id];
   if (!edit) return false;
-  return edit.target !== dg.targetPct || edit.threshold !== dg.thresholdPct;
+  const savedOverrideBytes = dg.totalBytesOverride ?? null;
+  const editOverrideBytes = edit.overrideBytes;
+  const overrideChanged = editOverrideBytes !== savedOverrideBytes;
+  return edit.target !== dg.targetPct || edit.threshold !== dg.thresholdPct || overrideChanged;
 }
 
 /** Whether this disk group is currently saving. */
@@ -262,14 +337,79 @@ function isSaving(dgId: number): boolean {
   return thresholdEdits[dgId]?.saving ?? false;
 }
 
+/** Convert bytes to a display value and unit pair. */
+function bytesToDisplayUnit(bytes: number | null | undefined): { value: string; unit: string } {
+  if (!bytes || bytes <= 0) return { value: '', unit: 'GB' };
+  if (bytes >= TB && bytes % TB === 0) return { value: String(bytes / TB), unit: 'TB' };
+  if (bytes >= TB) return { value: String(+(bytes / TB).toFixed(2)), unit: 'TB' };
+  return { value: String(+(bytes / GB).toFixed(2)), unit: 'GB' };
+}
+
 function ensureThresholdEdit(dgId: number, dg: DiskGroup) {
   if (!thresholdEdits[dgId]) {
+    const { value, unit } = bytesToDisplayUnit(dg.totalBytesOverride);
     thresholdEdits[dgId] = {
       threshold: dg.thresholdPct,
       target: dg.targetPct,
+      overrideDisplay: value,
+      overrideUnit: unit,
+      overrideBytes: dg.totalBytesOverride ?? null,
       saving: false,
     };
   }
+}
+
+/** Get the current display value for the override input. */
+function editOverrideDisplay(dg: DiskGroup): string {
+  ensureThresholdEdit(dg.id, dg);
+  return thresholdEdits[dg.id]!.overrideDisplay;
+}
+
+/** Get the current unit for the override input. */
+function editOverrideUnit(dg: DiskGroup): string {
+  ensureThresholdEdit(dg.id, dg);
+  return thresholdEdits[dg.id]!.overrideUnit;
+}
+
+/** Handle override value input. */
+function onOverrideInput(dg: DiskGroup, value: string | number) {
+  ensureThresholdEdit(dg.id, dg);
+  const edit = thresholdEdits[dg.id]!;
+  const strVal = String(value).trim();
+  edit.overrideDisplay = strVal;
+  if (!strVal || strVal === '0') {
+    edit.overrideBytes = null;
+  } else {
+    const num = parseFloat(strVal);
+    if (!isNaN(num) && num > 0) {
+      const multiplier = edit.overrideUnit === 'TB' ? TB : GB;
+      edit.overrideBytes = Math.round(num * multiplier);
+    }
+  }
+}
+
+/** Handle override unit change. */
+function onOverrideUnitChange(dg: DiskGroup, unit: string) {
+  ensureThresholdEdit(dg.id, dg);
+  const edit = thresholdEdits[dg.id]!;
+  edit.overrideUnit = unit;
+  // Recalculate bytes from the display value with new unit
+  if (edit.overrideDisplay && edit.overrideDisplay !== '0') {
+    const num = parseFloat(edit.overrideDisplay);
+    if (!isNaN(num) && num > 0) {
+      const multiplier = unit === 'TB' ? TB : GB;
+      edit.overrideBytes = Math.round(num * multiplier);
+    }
+  }
+}
+
+/** Clear the override. */
+function clearOverride(dg: DiskGroup) {
+  ensureThresholdEdit(dg.id, dg);
+  const edit = thresholdEdits[dg.id]!;
+  edit.overrideDisplay = '';
+  edit.overrideUnit = 'GB';
+  edit.overrideBytes = null;
 }
 
 /** Handle slider value changes — array is [target, threshold]. */
@@ -304,6 +444,7 @@ async function saveThresholds(dg: DiskGroup) {
       body: {
         thresholdPct: edit.threshold,
         targetPct: edit.target,
+        totalBytesOverride: edit.overrideBytes,
       },
     })) as DiskGroup;
 

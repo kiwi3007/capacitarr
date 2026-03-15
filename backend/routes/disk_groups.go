@@ -32,8 +32,9 @@ func RegisterDiskGroupRoutes(g *echo.Group, reg *services.Registry) {
 		}
 
 		var req struct {
-			ThresholdPct float64 `json:"thresholdPct"`
-			TargetPct    float64 `json:"targetPct"`
+			ThresholdPct       float64 `json:"thresholdPct"`
+			TargetPct          float64 `json:"targetPct"`
+			TotalBytesOverride *int64  `json:"totalBytesOverride"`
 		}
 		if err := c.Bind(&req); err != nil {
 			return apiError(c, http.StatusBadRequest, "Invalid request body")
@@ -47,7 +48,12 @@ func RegisterDiskGroupRoutes(g *echo.Group, reg *services.Registry) {
 			return apiError(c, http.StatusBadRequest, "Threshold must be greater than target")
 		}
 
-		updated, err := reg.Settings.UpdateThresholds(group.ID, req.ThresholdPct, req.TargetPct)
+		// Validate override: negative values are not allowed
+		if req.TotalBytesOverride != nil && *req.TotalBytesOverride < 0 {
+			return apiError(c, http.StatusBadRequest, "Total bytes override must not be negative")
+		}
+
+		updated, err := reg.Settings.UpdateThresholds(group.ID, req.ThresholdPct, req.TargetPct, req.TotalBytesOverride)
 		if err != nil {
 			return apiError(c, http.StatusInternalServerError, "Failed to update disk group")
 		}
