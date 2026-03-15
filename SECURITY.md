@@ -164,6 +164,28 @@ Run locally: `make build && make security:zap`
 
 The full test-by-test breakdown with rule IDs is in [`docs/security/zap-baseline-20260310.md`](docs/security/zap-baseline-20260310.md).
 
+### Dependency Override Policy (`pnpm.overrides`)
+
+When transitive npm dependencies have known vulnerabilities but the upstream parent package (e.g., Nuxt, ESLint) has not yet released an update with a patched version, we use `pnpm.overrides` in `frontend/package.json` to force the patched version. This ensures:
+
+- The `security:pnpm-audit` CI job continues to enforce **zero known vulnerabilities** as a blocking gate
+- Shipped Docker images contain patched dependency versions, not just silenced findings
+- The security posture is not weakened by `allow_failure` or audit `--ignore` flags
+
+**Current overrides** (as of 2026-03-15):
+
+| Package | Override | Advisory | Severity | Upstream Dep |
+|---------|----------|----------|----------|--------------|
+| `simple-git` | `>=3.32.3` | [GHSA-r275-fr43-pm7q](https://github.com/advisories/GHSA-r275-fr43-pm7q) | Critical | `nuxt > @nuxt/devtools` |
+| `tar` | `>=7.5.11` | [GHSA-9ppj-qmqm-q256](https://github.com/advisories/GHSA-9ppj-qmqm-q256) | High | `nuxt > nitropack > @vercel/nft > @mapbox/node-pre-gyp` |
+| `flatted` | `>=3.4.0` | [GHSA-25h7-pfq9-p65f](https://github.com/advisories/GHSA-25h7-pfq9-p65f) | High | `eslint > file-entry-cache > flat-cache` |
+| `devalue` | `>=5.6.4` | [GHSA-cfw5-2vxh-hr84](https://github.com/advisories/GHSA-cfw5-2vxh-hr84) | Moderate | `nuxt` |
+| `unhead` | `>=2.1.11` | [GHSA-g5xx-pwrp-g3fv](https://github.com/advisories/GHSA-g5xx-pwrp-g3fv) | Moderate | `nuxt > @unhead/vue` |
+
+**When to remove overrides:** After upstream packages release versions that natively depend on the patched versions, `pnpm audit` will pass without overrides. At that point, remove the override entries and verify. Overrides that remain after upstream updates are harmless (they match or are lower than the naturally resolved version) but should be cleaned up for hygiene.
+
+**When adding new overrides:** Add the override to `frontend/package.json`, update this table, and include the advisory URL in the commit message. Run `pnpm install` to regenerate the lockfile and `pnpm audit` to verify.
+
 ### Gosec G117 — JSON Secret Field Policy
 
 Gosec rule [G117](https://securego.io/docs/rules/g117.html) flags exported struct fields whose JSON key names match secret patterns (`password`, `apiKey`, `token`, `secret`). The rule aims to prevent accidental serialization of sensitive data — for example, a secret leaking into logs when a struct is formatted with `%+v` or marshaled to JSON in an error response.
