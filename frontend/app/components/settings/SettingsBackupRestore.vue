@@ -217,6 +217,44 @@
             </div>
           </div>
 
+          <!-- Import mode selector -->
+          <div class="space-y-2">
+            <UiLabel class="text-sm font-medium">{{ $t('settings.importModeLabel') }}</UiLabel>
+            <UiRadioGroup v-model="importMode" class="space-y-2">
+              <div class="flex items-start gap-3">
+                <UiRadioGroupItem id="mode-append" value="append" />
+                <div class="grid gap-0.5 leading-none">
+                  <UiLabel for="mode-append" class="cursor-pointer">
+                    {{ $t('settings.importModeAppend') }}
+                  </UiLabel>
+                  <p class="text-xs text-muted-foreground">
+                    {{ $t('settings.importModeAppendDesc') }}
+                  </p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3">
+                <UiRadioGroupItem id="mode-replace" value="replace" />
+                <div class="grid gap-0.5 leading-none">
+                  <UiLabel for="mode-replace" class="cursor-pointer text-destructive">
+                    {{ $t('settings.importModeReplace') }}
+                  </UiLabel>
+                  <p class="text-xs text-muted-foreground">
+                    {{ $t('settings.importModeReplaceDesc') }}
+                  </p>
+                </div>
+              </div>
+            </UiRadioGroup>
+          </div>
+
+          <!-- Replace mode warning -->
+          <UiAlert v-if="importMode === 'replace'" variant="destructive">
+            <component :is="AlertTriangleIcon" class="w-4 h-4" />
+            <UiAlertTitle>{{ $t('common.warning') }}</UiAlertTitle>
+            <UiAlertDescription>
+              {{ $t('settings.importModeReplaceConfirm') }}
+            </UiAlertDescription>
+          </UiAlert>
+
           <!-- Credential warning -->
           <UiAlert variant="default">
             <component :is="AlertTriangleIcon" class="w-4 h-4" />
@@ -288,8 +326,29 @@
             </p>
           </UiAlertDescription>
         </UiAlert>
+
+        <!-- Unmatched rules warning -->
+        <UiAlert v-if="importResult && importResult.rulesUnmatched > 0" variant="destructive">
+          <component :is="AlertTriangleIcon" class="w-4 h-4" />
+          <UiAlertDescription>
+            {{
+              $t(
+                'settings.importResultRulesUnmatched',
+                { count: importResult.rulesUnmatched },
+                importResult.rulesUnmatched,
+              )
+            }}
+          </UiAlertDescription>
+        </UiAlert>
       </UiCardContent>
     </UiCard>
+
+    <!-- Resolution Dialog -->
+    <SettingsImportResolution
+      v-model:open="showResolutionDialog"
+      :resolutions="previewResolutions"
+      @confirm="onResolutionConfirmed"
+    />
   </div>
 </template>
 
@@ -300,6 +359,9 @@ import type {
   ExportSections,
   ImportSections,
   ImportResult,
+  ImportPreview,
+  RuleResolution,
+  RuleOverride,
 } from '~/types/api';
 
 const api = useApi();
@@ -368,6 +430,7 @@ const parsedPayload = ref<SettingsExportEnvelope | null>(null);
 const importing = ref(false);
 const isDragOver = ref(false);
 const importResult = ref<ImportResult | null>(null);
+const importMode = ref<'append' | 'replace'>('append');
 
 const importSections = reactive<ImportSections>({
   preferences: false,
@@ -385,6 +448,12 @@ const anyImportSelected = computed(
     importSections.diskGroups ||
     importSections.notificationChannels,
 );
+
+// ─── Resolution Dialog State ─────────────────────────────────────────────────
+
+const showResolutionDialog = ref(false);
+const previewResolutions = ref<RuleResolution[]>([]);
+const pendingPayload = ref<SettingsExportEnvelope | null>(null);
 
 function onFileSelected(event: Event) {
   const input = event.target as HTMLInputElement;
@@ -436,18 +505,65 @@ function parseFile(file: File) {
 function clearImport() {
   parsedPayload.value = null;
   importResult.value = null;
+  importMode.value = 'append';
 }
 
 async function doImport() {
   if (!parsedPayload.value) return;
+
+  // If rules are being imported, run preview first to check for unmatched rules
+  if (importSections.rules && (parsedPayload.value.rules?.length ?? 0) > 0) {
+    importing.value = true;
+    try {
+      const preview = (await api('/api/v1/settings/import/preview', {
+        method: 'POST',
+        body: {
+          payload: parsedPayload.value,
+          sections: { ...importSections, mode: importMode.value },
+        },
+      })) as ImportPreview;
+
+      const hasUnresolved = preview.rules.some(
+        (r) => r.resolution === 'unmatched' || r.resolution === 'type_fallback',
+      );
+
+      if (hasUnresolved) {
+        // Show resolution dialog
+        previewResolutions.value = preview.rules;
+        pendingPayload.value = parsedPayload.value;
+        showResolutionDialog.value = true;
+        importing.value = false;
+        return;
+      }
+
+      // All rules matched — proceed with direct import (no overrides needed)
+    } catch {
+      addToast(t('settings.importError'), 'error');
+      importing.value = false;
+      return;
+    }
+  }
+
+  // Direct import (no resolution needed)
+  await executeImport();
+}
+
+async function executeImport(overrides?: RuleOverride[]) {
+  if (!parsedPayload.value) return;
   importing.value = true;
   try {
-    const result = (await api('/api/v1/settings/import', {
+    const endpoint = overrides ? '/api/v1/settings/import/commit' : '/api/v1/settings/import';
+    const body: Record<string, unknown> = {
+      payload: parsedPayload.value,
+      sections: { ...importSections, mode: importMode.value },
+    };
+    if (overrides) {
+      body.overrides = overrides;
+    }
+
+    const result = (await api(endpoint, {
       method: 'POST',
-      body: {
-        payload: parsedPayload.value,
-        sections: { ...importSections },
-      },
+      body,
     })) as ImportResult;
 
     importResult.value = result;
@@ -458,5 +574,12 @@ async function doImport() {
   } finally {
     importing.value = false;
   }
+}
+
+function onResolutionConfirmed(overrides: RuleOverride[]) {
+  if (pendingPayload.value) {
+    parsedPayload.value = pendingPayload.value;
+  }
+  executeImport(overrides);
 }
 </script>

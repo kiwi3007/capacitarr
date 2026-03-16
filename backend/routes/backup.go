@@ -17,6 +17,13 @@ type importSettingsRequest struct {
 	Sections services.ImportSections         `json:"sections"`
 }
 
+// commitImportRequest is the request body for POST /settings/import/commit.
+type commitImportRequest struct {
+	Payload   services.SettingsExportEnvelope `json:"payload"`
+	Sections  services.ImportSections         `json:"sections"`
+	Overrides []services.RuleOverride         `json:"overrides"`
+}
+
 // RegisterBackupRoutes sets up the settings export/import endpoints.
 func RegisterBackupRoutes(protected *echo.Group, reg *services.Registry, appVersion string) {
 	protected.GET("/settings/export", func(c echo.Context) error {
@@ -47,6 +54,46 @@ func RegisterBackupRoutes(protected *echo.Group, reg *services.Registry, appVers
 		result, err := reg.Backup.Import(req.Payload, req.Sections)
 		if err != nil {
 			return apiError(c, http.StatusInternalServerError, "Failed to import settings")
+		}
+
+		return c.JSON(http.StatusOK, result)
+	})
+
+	// Preview analyzes the export file against the current database and reports
+	// how each rule would be resolved, without committing any changes.
+	protected.POST("/settings/import/preview", func(c echo.Context) error {
+		var req importSettingsRequest
+		if err := c.Bind(&req); err != nil {
+			return apiError(c, http.StatusBadRequest, "Invalid request body")
+		}
+
+		if req.Payload.Version != 1 {
+			return apiError(c, http.StatusBadRequest, "Unsupported export version")
+		}
+
+		preview, err := reg.Backup.PreviewImport(req.Payload)
+		if err != nil {
+			return apiError(c, http.StatusInternalServerError, "Failed to preview import")
+		}
+
+		return c.JSON(http.StatusOK, preview)
+	})
+
+	// Commit executes the import using user-provided overrides for rule
+	// integration assignments from the preview step.
+	protected.POST("/settings/import/commit", func(c echo.Context) error {
+		var req commitImportRequest
+		if err := c.Bind(&req); err != nil {
+			return apiError(c, http.StatusBadRequest, "Invalid request body")
+		}
+
+		if req.Payload.Version != 1 {
+			return apiError(c, http.StatusBadRequest, "Unsupported export version")
+		}
+
+		result, err := reg.Backup.CommitImport(req.Payload, req.Sections, req.Overrides)
+		if err != nil {
+			return apiError(c, http.StatusInternalServerError, "Failed to commit import")
 		}
 
 		return c.JSON(http.StatusOK, result)

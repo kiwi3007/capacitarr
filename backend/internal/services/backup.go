@@ -40,19 +40,29 @@ type ExportSections struct {
 	NotificationChannels bool `json:"notificationChannels"`
 }
 
+// Import mode constants.
+const (
+	// ImportModeAppend adds imported items alongside existing data (default).
+	ImportModeAppend = "append"
+	// ImportModeReplace deletes existing items before importing.
+	ImportModeReplace = "replace"
+)
+
 // ImportSections controls which sections to import from an envelope.
 type ImportSections struct {
-	Preferences          bool `json:"preferences"`
-	Rules                bool `json:"rules"`
-	Integrations         bool `json:"integrations"`
-	DiskGroups           bool `json:"diskGroups"`
-	NotificationChannels bool `json:"notificationChannels"`
+	Preferences          bool   `json:"preferences"`
+	Rules                bool   `json:"rules"`
+	Integrations         bool   `json:"integrations"`
+	DiskGroups           bool   `json:"diskGroups"`
+	NotificationChannels bool   `json:"notificationChannels"`
+	Mode                 string `json:"mode"` // "append" (default) or "replace"
 }
 
 // ImportResult reports what was imported.
 type ImportResult struct {
 	PreferencesImported          bool `json:"preferencesImported"`
 	RulesImported                int  `json:"rulesImported"`
+	RulesUnmatched               int  `json:"rulesUnmatched"`
 	IntegrationsImported         int  `json:"integrationsImported"`
 	DiskGroupsImported           int  `json:"diskGroupsImported"`
 	NotificationChannelsImported int  `json:"notificationChannelsImported"`
@@ -285,50 +295,85 @@ func (s *BackupService) Export(sections ExportSections, appVersion string) (*Set
 }
 
 // Import restores settings from a SettingsExportEnvelope for the requested sections.
+// All sections are imported within a single database transaction — if any section
+// fails, all changes are rolled back.
 func (s *BackupService) Import(envelope SettingsExportEnvelope, sections ImportSections) (*ImportResult, error) {
 	if envelope.Version != 1 {
 		return nil, fmt.Errorf("%w: got %d, expected 1", ErrUnsupportedVersion, envelope.Version)
 	}
 
+	// Default to append mode if not specified
+	replaceMode := sections.Mode == ImportModeReplace
+
+	// Begin wrapping transaction for the entire import
+	tx := s.db.Begin()
+	if tx.Error != nil {
+		return nil, fmt.Errorf("failed to begin import transaction: %w", tx.Error)
+	}
+
 	result := &ImportResult{}
 
+	// In replace mode, delete existing data for selected sections BEFORE importing.
+	// Order matters: delete rules before integrations to avoid FK issues.
+	if replaceMode {
+		if err := s.deleteForReplace(tx, sections); err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to clear existing data for replace: %w", err)
+		}
+	}
+
 	if sections.Preferences && envelope.Preferences != nil {
-		if err := s.importPreferences(envelope.Preferences); err != nil {
+		if err := s.importPreferences(tx, envelope.Preferences); err != nil {
+			tx.Rollback()
 			return nil, fmt.Errorf("failed to import preferences: %w", err)
 		}
 		result.PreferencesImported = true
 	}
 
-	if sections.Rules && len(envelope.Rules) > 0 {
-		count, err := s.importRules(envelope.Rules)
-		if err != nil {
-			return nil, fmt.Errorf("failed to import rules: %w", err)
-		}
-		result.RulesImported = count
-	}
-
+	// Import integrations BEFORE rules so that rule auto-match can find
+	// freshly-imported integrations by type+name.
 	if sections.Integrations && len(envelope.Integrations) > 0 {
-		count, err := s.importIntegrations(envelope.Integrations)
+		count, err := s.importIntegrations(tx, envelope.Integrations)
 		if err != nil {
+			tx.Rollback()
 			return nil, fmt.Errorf("failed to import integrations: %w", err)
 		}
 		result.IntegrationsImported = count
 	}
 
+	if sections.Rules && len(envelope.Rules) > 0 {
+		count, unmatched, err := s.importRules(tx, envelope.Rules)
+		if err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to import rules: %w", err)
+		}
+		result.RulesImported = count
+		result.RulesUnmatched = unmatched
+	}
+
+	if sections.NotificationChannels && len(envelope.NotificationChannels) > 0 {
+		count, err := s.importNotificationChannels(tx, envelope.NotificationChannels)
+		if err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to import notification channels: %w", err)
+		}
+		result.NotificationChannelsImported = count
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit import transaction: %w", err)
+	}
+
+	// Disk groups are imported outside the main transaction because the
+	// DiskGroupService uses its own *gorm.DB handle, which would deadlock
+	// with SQLite's single-writer constraint if called inside a transaction.
+	// Disk groups use upsert-by-mount-path semantics so they're idempotent.
 	if sections.DiskGroups && len(envelope.DiskGroups) > 0 {
 		count, err := s.importDiskGroups(envelope.DiskGroups)
 		if err != nil {
 			return nil, fmt.Errorf("failed to import disk groups: %w", err)
 		}
 		result.DiskGroupsImported = count
-	}
-
-	if sections.NotificationChannels && len(envelope.NotificationChannels) > 0 {
-		count, err := s.importNotificationChannels(envelope.NotificationChannels)
-		if err != nil {
-			return nil, fmt.Errorf("failed to import notification channels: %w", err)
-		}
-		result.NotificationChannelsImported = count
 	}
 
 	// Build list of imported section names for the event
@@ -338,21 +383,50 @@ func (s *BackupService) Import(envelope SettingsExportEnvelope, sections ImportS
 		Result: map[string]any{
 			"preferencesImported":          result.PreferencesImported,
 			"rulesImported":                result.RulesImported,
+			"rulesUnmatched":               result.RulesUnmatched,
 			"integrationsImported":         result.IntegrationsImported,
 			"diskGroupsImported":           result.DiskGroupsImported,
 			"notificationChannelsImported": result.NotificationChannelsImported,
 		},
 	})
 
-	slog.Info("Settings imported", "component", "services", "sections", sectionNames)
+	slog.Info("Settings imported", "component", "services", "sections", sectionNames, "mode", sections.Mode)
 
 	return result, nil
 }
 
+// deleteForReplace removes existing data for selected sections before import.
+func (s *BackupService) deleteForReplace(tx *gorm.DB, sections ImportSections) error {
+	// Delete rules before integrations to avoid FK constraint issues
+	if sections.Rules {
+		if err := tx.Where("1 = 1").Delete(&db.CustomRule{}).Error; err != nil {
+			return fmt.Errorf("failed to delete existing rules: %w", err)
+		}
+	}
+	if sections.Integrations {
+		// Also clear rules that reference integrations to avoid orphans
+		if !sections.Rules {
+			if err := tx.Where("integration_id IS NOT NULL").Delete(&db.CustomRule{}).Error; err != nil {
+				return fmt.Errorf("failed to delete integration-scoped rules: %w", err)
+			}
+		}
+		if err := tx.Where("1 = 1").Delete(&db.IntegrationConfig{}).Error; err != nil {
+			return fmt.Errorf("failed to delete existing integrations: %w", err)
+		}
+	}
+	if sections.NotificationChannels {
+		if err := tx.Where("1 = 1").Delete(&db.NotificationConfig{}).Error; err != nil {
+			return fmt.Errorf("failed to delete existing notification channels: %w", err)
+		}
+	}
+	// DiskGroups and Preferences use upsert semantics, no delete needed
+	return nil
+}
+
 // importPreferences updates the singleton PreferenceSet row.
-func (s *BackupService) importPreferences(p *PreferencesExport) error {
+func (s *BackupService) importPreferences(tx *gorm.DB, p *PreferencesExport) error {
 	var pref db.PreferenceSet
-	if err := s.db.FirstOrCreate(&pref, db.PreferenceSet{ID: 1}).Error; err != nil {
+	if err := tx.FirstOrCreate(&pref, db.PreferenceSet{ID: 1}).Error; err != nil {
 		return err
 	}
 
@@ -371,12 +445,30 @@ func (s *BackupService) importPreferences(p *PreferencesExport) error {
 	pref.SnoozeDurationHours = p.SnoozeDurationHours
 	pref.CheckForUpdates = p.CheckForUpdates
 
-	return s.db.Save(&pref).Error
+	return tx.Save(&pref).Error
 }
 
 // importRules creates rules from the export payload, resolving integration
-// names to IDs via auto-match by type and name.
-func (s *BackupService) importRules(rules []RuleExport) (int, error) {
+// names to IDs via auto-match. Returns (imported count, unmatched count, error).
+//
+// Match strategy (in order):
+//  1. Exact match: type + name
+//  2. Type-only fallback: type alone, only if exactly one integration of that type exists
+//  3. No match: import as global rule (integrationID = nil)
+func (s *BackupService) importRules(tx *gorm.DB, rules []RuleExport) (int, int, error) {
+	// Validate all rules before importing any
+	for i, r := range rules {
+		if r.Field == "" || r.Operator == "" || r.Value == "" {
+			return 0, 0, fmt.Errorf("rule %d: field, operator, and value are required", i)
+		}
+		if r.Effect == "" {
+			return 0, 0, fmt.Errorf("rule %d: effect is required", i)
+		}
+		if !db.ValidEffects[r.Effect] {
+			return 0, 0, fmt.Errorf("rule %d: invalid effect %q", i, r.Effect)
+		}
+	}
+
 	// Build auto-match cache for integration lookups
 	autoMatchCache := make(map[string]*uint)
 
@@ -385,6 +477,7 @@ func (s *BackupService) importRules(rules []RuleExport) (int, error) {
 		integrationID *uint
 	}
 	resolved := make([]resolvedRule, 0, len(rules))
+	unmatched := 0
 
 	for _, r := range rules {
 		// Rule has no integration reference
@@ -406,36 +499,69 @@ func (s *BackupService) importRules(rules []RuleExport) (int, error) {
 
 		// Check auto-match cache
 		if cachedID, ok := autoMatchCache[lookupKey]; ok {
+			if cachedID == nil {
+				unmatched++
+			}
 			resolved = append(resolved, resolvedRule{rule: r, integrationID: cachedID})
 			continue
 		}
 
-		// Auto-match by type and name
+		// Strategy 1: Exact match by type and name
 		var ic db.IntegrationConfig
-		err := s.db.Where("type = ? AND name = ?", intType, intName).First(&ic).Error
-		if err != nil {
-			// No match found — import rule without integration binding
-			autoMatchCache[lookupKey] = nil
-			resolved = append(resolved, resolvedRule{rule: r, integrationID: nil})
+		err := tx.Where("type = ? AND name = ?", intType, intName).First(&ic).Error
+		if err == nil {
+			id := ic.ID
+			autoMatchCache[lookupKey] = &id
+			resolved = append(resolved, resolvedRule{rule: r, integrationID: &id})
 			continue
 		}
-		id := ic.ID
-		autoMatchCache[lookupKey] = &id
-		resolved = append(resolved, resolvedRule{rule: r, integrationID: &id})
-	}
 
-	// Transactional insert
-	tx := s.db.Begin()
-	if tx.Error != nil {
-		return 0, fmt.Errorf("failed to begin transaction: %w", tx.Error)
+		// Strategy 2: Type-only fallback — use if exactly one integration of this type exists
+		if intType != "" {
+			typeKey := intType + ":*"
+			if cachedID, ok := autoMatchCache[typeKey]; ok {
+				if cachedID == nil {
+					unmatched++
+				}
+				autoMatchCache[lookupKey] = cachedID
+				resolved = append(resolved, resolvedRule{rule: r, integrationID: cachedID})
+				continue
+			}
+
+			var typeMatches []db.IntegrationConfig
+			if dbErr := tx.Where("type = ?", intType).Find(&typeMatches).Error; dbErr == nil && len(typeMatches) == 1 {
+				id := typeMatches[0].ID
+				autoMatchCache[typeKey] = &id
+				autoMatchCache[lookupKey] = &id
+				slog.Warn("Rule integration matched by type-only fallback",
+					"component", "services",
+					"exportedName", intName,
+					"matchedName", typeMatches[0].Name,
+					"type", intType,
+				)
+				resolved = append(resolved, resolvedRule{rule: r, integrationID: &id})
+				continue
+			}
+			// Ambiguous or empty — cache nil for the type key
+			autoMatchCache[typeKey] = nil
+		}
+
+		// No match found — import rule without integration binding
+		autoMatchCache[lookupKey] = nil
+		unmatched++
+		slog.Warn("Rule integration match failed, importing as global",
+			"component", "services",
+			"integrationName", intName,
+			"integrationType", intType,
+		)
+		resolved = append(resolved, resolvedRule{rule: r, integrationID: nil})
 	}
 
 	// Determine the starting sort_order
 	var maxOrder int
 	row := tx.Model(&db.CustomRule{}).Select("COALESCE(MAX(sort_order), -1)").Row()
 	if err := row.Scan(&maxOrder); err != nil {
-		tx.Rollback()
-		return 0, fmt.Errorf("failed to determine rule ordering: %w", err)
+		return 0, 0, fmt.Errorf("failed to determine rule ordering: %w", err)
 	}
 	nextOrder := maxOrder + 1
 
@@ -450,39 +576,72 @@ func (s *BackupService) importRules(rules []RuleExport) (int, error) {
 			SortOrder:     nextOrder,
 		}
 		if err := tx.Create(&newRule).Error; err != nil {
-			tx.Rollback()
-			return 0, fmt.Errorf("failed to insert imported rule: %w", err)
+			return 0, 0, fmt.Errorf("failed to insert imported rule: %w", err)
 		}
 		// GORM default:true tag ignores false on Create
 		if !rr.rule.Enabled {
 			if err := tx.Model(&newRule).Update("enabled", false).Error; err != nil {
-				tx.Rollback()
-				return 0, fmt.Errorf("failed to disable imported rule: %w", err)
+				return 0, 0, fmt.Errorf("failed to disable imported rule: %w", err)
 			}
 		}
 		nextOrder++
 	}
 
-	if err := tx.Commit().Error; err != nil {
-		return 0, fmt.Errorf("failed to commit imported rules: %w", err)
-	}
-
-	return len(resolved), nil
+	return len(resolved), unmatched, nil
 }
 
-// importIntegrations creates integration configs with placeholder API keys.
-func (s *BackupService) importIntegrations(integrations []IntegrationExport) (int, error) {
+// placeholderAPIKey is the sentinel value used for imported integrations
+// that don't have a real API key yet.
+const placeholderAPIKey = "PLACEHOLDER_REPLACE_ME"
+
+// importIntegrations upserts integration configs by type+name.
+// Existing integrations have their URL and Enabled state updated but API keys
+// are preserved. New integrations are created with a placeholder API key and
+// disabled until the user configures real credentials.
+func (s *BackupService) importIntegrations(tx *gorm.DB, integrations []IntegrationExport) (int, error) {
+	// Validate all integrations before importing any
+	for i, ie := range integrations {
+		if ie.Name == "" {
+			return 0, fmt.Errorf("integration %d: name is required", i)
+		}
+		if ie.URL == "" {
+			return 0, fmt.Errorf("integration %d (%s): url is required", i, ie.Name)
+		}
+		if !db.ValidIntegrationTypes[ie.Type] {
+			return 0, fmt.Errorf("integration %d (%s): invalid type %q", i, ie.Name, ie.Type)
+		}
+	}
+
 	count := 0
 	for _, ie := range integrations {
+		// Upsert: look up existing by type + name
+		var existing db.IntegrationConfig
+		err := tx.Where("type = ? AND name = ?", ie.Type, ie.Name).First(&existing).Error
+		if err == nil {
+			// Found — update URL and Enabled but preserve API key
+			existing.URL = ie.URL
+			existing.Enabled = ie.Enabled
+			if dbErr := tx.Save(&existing).Error; dbErr != nil {
+				return count, fmt.Errorf("failed to update integration %q: %w", ie.Name, dbErr)
+			}
+			count++
+			continue
+		}
+
+		// Not found — create new with placeholder API key, forced disabled
 		ic := db.IntegrationConfig{
 			Name:    ie.Name,
 			Type:    ie.Type,
 			URL:     ie.URL,
-			APIKey:  "PLACEHOLDER_REPLACE_ME",
-			Enabled: ie.Enabled,
+			APIKey:  placeholderAPIKey,
+			Enabled: true, // GORM default:true workaround — disable below
 		}
-		if err := s.db.Create(&ic).Error; err != nil {
-			return count, fmt.Errorf("failed to create integration %q: %w", ie.Name, err)
+		if dbErr := tx.Create(&ic).Error; dbErr != nil {
+			return count, fmt.Errorf("failed to create integration %q: %w", ie.Name, dbErr)
+		}
+		// Force disable new imports with placeholder credentials
+		if dbErr := tx.Model(&ic).Update("enabled", false).Error; dbErr != nil {
+			return count, fmt.Errorf("failed to disable placeholder integration %q: %w", ie.Name, dbErr)
 		}
 		count++
 	}
@@ -504,15 +663,54 @@ func (s *BackupService) importDiskGroups(groups []DiskGroupExport) (int, error) 
 	return count, nil
 }
 
-// importNotificationChannels creates notification channels with placeholder webhook URLs.
-func (s *BackupService) importNotificationChannels(channels []NotificationExport) (int, error) {
+// placeholderWebhookURL is the sentinel value used for imported notification
+// channels that don't have a real webhook URL yet.
+const placeholderWebhookURL = "https://placeholder.example.com/replace-me"
+
+// importNotificationChannels upserts notification channels by type+name.
+// Existing channels have their subscription flags updated but webhook URLs
+// are preserved. New channels are created with a placeholder webhook URL and
+// disabled until the user configures real credentials.
+func (s *BackupService) importNotificationChannels(tx *gorm.DB, channels []NotificationExport) (int, error) {
+	// Validate all channels before importing any
+	for i, ne := range channels {
+		if ne.Name == "" {
+			return 0, fmt.Errorf("notification channel %d: name is required", i)
+		}
+		if !db.ValidNotificationChannelTypes[ne.Type] {
+			return 0, fmt.Errorf("notification channel %d (%s): invalid type %q", i, ne.Name, ne.Type)
+		}
+	}
+
 	count := 0
 	for _, ne := range channels {
+		// Upsert: look up existing by type + name
+		var existing db.NotificationConfig
+		err := tx.Where("type = ? AND name = ?", ne.Type, ne.Name).First(&existing).Error
+		if err == nil {
+			// Found — update subscription flags but preserve webhook URL
+			existing.Enabled = ne.Enabled
+			existing.AppriseTags = ne.AppriseTags
+			existing.OnCycleDigest = ne.OnCycleDigest
+			existing.OnError = ne.OnError
+			existing.OnModeChanged = ne.OnModeChanged
+			existing.OnServerStarted = ne.OnServerStarted
+			existing.OnThresholdBreach = ne.OnThresholdBreach
+			existing.OnUpdateAvailable = ne.OnUpdateAvailable
+			existing.OnApprovalActivity = ne.OnApprovalActivity
+			if dbErr := tx.Save(&existing).Error; dbErr != nil {
+				return count, fmt.Errorf("failed to update notification channel %q: %w", ne.Name, dbErr)
+			}
+			count++
+			continue
+		}
+
+		// Not found — create new with placeholder webhook URL, forced disabled
 		nc := db.NotificationConfig{
 			Name:               ne.Name,
 			Type:               ne.Type,
-			WebhookURL:         "https://placeholder.example.com/replace-me",
-			Enabled:            ne.Enabled,
+			WebhookURL:         placeholderWebhookURL,
+			Enabled:            true, // GORM default:true workaround — disable below
 			AppriseTags:        ne.AppriseTags,
 			OnCycleDigest:      ne.OnCycleDigest,
 			OnError:            ne.OnError,
@@ -522,12 +720,364 @@ func (s *BackupService) importNotificationChannels(channels []NotificationExport
 			OnUpdateAvailable:  ne.OnUpdateAvailable,
 			OnApprovalActivity: ne.OnApprovalActivity,
 		}
-		if err := s.db.Create(&nc).Error; err != nil {
-			return count, fmt.Errorf("failed to create notification channel %q: %w", ne.Name, err)
+		if dbErr := tx.Create(&nc).Error; dbErr != nil {
+			return count, fmt.Errorf("failed to create notification channel %q: %w", ne.Name, dbErr)
+		}
+		// Force disable new imports with placeholder credentials
+		if dbErr := tx.Model(&nc).Update("enabled", false).Error; dbErr != nil {
+			return count, fmt.Errorf("failed to disable placeholder notification channel %q: %w", ne.Name, dbErr)
 		}
 		count++
 	}
 	return count, nil
+}
+
+// =============================================================================
+// Import Preview (Phase 3)
+// =============================================================================
+
+// RuleResolution describes the match result for a single rule during import preview.
+type RuleResolution struct {
+	Index          int            `json:"index"`
+	Rule           RuleExport     `json:"rule"`
+	Resolution     string         `json:"resolution"` // "matched", "type_fallback", "unmatched"
+	MatchedIntID   *uint          `json:"matchedIntegrationId"`
+	MatchedIntName string         `json:"matchedIntegrationName,omitempty"`
+	Candidates     []IntCandidate `json:"candidates"`
+}
+
+// IntCandidate represents an available integration for manual rule assignment.
+type IntCandidate struct {
+	ID   uint   `json:"id"`
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
+// ImportPreview reports what would happen if the import were executed.
+type ImportPreview struct {
+	Rules []RuleResolution `json:"rules"`
+}
+
+// RuleOverride allows the user to manually assign an integration to a specific rule.
+type RuleOverride struct {
+	Index         int   `json:"index"`         // position in the rules array
+	IntegrationID *uint `json:"integrationId"` // user-chosen integration (nil = global)
+	Skip          bool  `json:"skip"`          // true = don't import this rule
+}
+
+// PreviewImport analyzes the export envelope against the current database and
+// reports how each rule would be resolved without committing any changes.
+func (s *BackupService) PreviewImport(envelope SettingsExportEnvelope) (*ImportPreview, error) {
+	preview := &ImportPreview{
+		Rules: make([]RuleResolution, 0, len(envelope.Rules)),
+	}
+
+	// Load all integrations once for candidate lookup
+	var allIntegrations []db.IntegrationConfig
+	if err := s.db.Find(&allIntegrations).Error; err != nil {
+		return nil, fmt.Errorf("failed to load integrations for preview: %w", err)
+	}
+
+	autoMatchCache := make(map[string]*matchResult)
+
+	for i, r := range envelope.Rules {
+		res := RuleResolution{
+			Index: i,
+			Rule:  r,
+		}
+
+		// Rule has no integration reference
+		if (r.IntegrationName == nil || *r.IntegrationName == "") &&
+			(r.IntegrationType == nil || *r.IntegrationType == "") {
+			res.Resolution = "matched" // global rule — always matches
+			preview.Rules = append(preview.Rules, res)
+			continue
+		}
+
+		intName := ""
+		intType := ""
+		if r.IntegrationName != nil {
+			intName = *r.IntegrationName
+		}
+		if r.IntegrationType != nil {
+			intType = *r.IntegrationType
+		}
+		lookupKey := intType + ":" + intName
+
+		// Check cache
+		if cached, ok := autoMatchCache[lookupKey]; ok {
+			res.Resolution = cached.resolution
+			res.MatchedIntID = cached.id
+			res.MatchedIntName = cached.name
+			res.Candidates = candidatesForType(allIntegrations, intType)
+			preview.Rules = append(preview.Rules, res)
+			continue
+		}
+
+		// Strategy 1: Exact match by type and name
+		matched := false
+		for idx := range allIntegrations {
+			ic := &allIntegrations[idx]
+			if ic.Type == intType && ic.Name == intName {
+				id := ic.ID
+				res.Resolution = "matched"
+				res.MatchedIntID = &id
+				res.MatchedIntName = ic.Name
+				autoMatchCache[lookupKey] = &matchResult{resolution: "matched", id: &id, name: ic.Name}
+				matched = true
+				break
+			}
+		}
+		if matched {
+			res.Candidates = candidatesForType(allIntegrations, intType)
+			preview.Rules = append(preview.Rules, res)
+			continue
+		}
+
+		// Strategy 2: Type-only fallback
+		typeMatches := candidatesForType(allIntegrations, intType)
+		if len(typeMatches) == 1 {
+			id := typeMatches[0].ID
+			res.Resolution = "type_fallback"
+			res.MatchedIntID = &id
+			res.MatchedIntName = typeMatches[0].Name
+			autoMatchCache[lookupKey] = &matchResult{resolution: "type_fallback", id: &id, name: typeMatches[0].Name}
+		} else {
+			res.Resolution = "unmatched"
+			autoMatchCache[lookupKey] = &matchResult{resolution: "unmatched"}
+		}
+		res.Candidates = typeMatches
+		preview.Rules = append(preview.Rules, res)
+	}
+
+	return preview, nil
+}
+
+// CommitImport executes the import using user-provided overrides for rule
+// integration assignments. Rules with overrides use the user-chosen integration
+// ID instead of auto-match. Rules marked as Skip are excluded.
+func (s *BackupService) CommitImport(envelope SettingsExportEnvelope, sections ImportSections, overrides []RuleOverride) (*ImportResult, error) {
+	if envelope.Version != 1 {
+		return nil, fmt.Errorf("%w: got %d, expected 1", ErrUnsupportedVersion, envelope.Version)
+	}
+
+	replaceMode := sections.Mode == ImportModeReplace
+
+	tx := s.db.Begin()
+	if tx.Error != nil {
+		return nil, fmt.Errorf("failed to begin import transaction: %w", tx.Error)
+	}
+
+	result := &ImportResult{}
+
+	if replaceMode {
+		if err := s.deleteForReplace(tx, sections); err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to clear existing data for replace: %w", err)
+		}
+	}
+
+	if sections.Preferences && envelope.Preferences != nil {
+		if err := s.importPreferences(tx, envelope.Preferences); err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to import preferences: %w", err)
+		}
+		result.PreferencesImported = true
+	}
+
+	if sections.Integrations && len(envelope.Integrations) > 0 {
+		count, err := s.importIntegrations(tx, envelope.Integrations)
+		if err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to import integrations: %w", err)
+		}
+		result.IntegrationsImported = count
+	}
+
+	if sections.Rules && len(envelope.Rules) > 0 {
+		count, unmatched, err := s.importRulesWithOverrides(tx, envelope.Rules, overrides)
+		if err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to import rules: %w", err)
+		}
+		result.RulesImported = count
+		result.RulesUnmatched = unmatched
+	}
+
+	if sections.NotificationChannels && len(envelope.NotificationChannels) > 0 {
+		count, err := s.importNotificationChannels(tx, envelope.NotificationChannels)
+		if err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to import notification channels: %w", err)
+		}
+		result.NotificationChannelsImported = count
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit import transaction: %w", err)
+	}
+
+	// Disk groups imported outside transaction (see Import() comment)
+	if sections.DiskGroups && len(envelope.DiskGroups) > 0 {
+		count, err := s.importDiskGroups(envelope.DiskGroups)
+		if err != nil {
+			return nil, fmt.Errorf("failed to import disk groups: %w", err)
+		}
+		result.DiskGroupsImported = count
+	}
+
+	sectionNames := importedSectionNames(sections)
+	s.bus.Publish(events.SettingsImportedEvent{
+		Sections: sectionNames,
+		Result: map[string]any{
+			"preferencesImported":          result.PreferencesImported,
+			"rulesImported":                result.RulesImported,
+			"rulesUnmatched":               result.RulesUnmatched,
+			"integrationsImported":         result.IntegrationsImported,
+			"diskGroupsImported":           result.DiskGroupsImported,
+			"notificationChannelsImported": result.NotificationChannelsImported,
+		},
+	})
+
+	return result, nil
+}
+
+// importRulesWithOverrides creates rules using user-provided integration overrides
+// instead of auto-match for overridden rules. Skipped rules are not imported.
+func (s *BackupService) importRulesWithOverrides(tx *gorm.DB, rules []RuleExport, overrides []RuleOverride) (int, int, error) {
+	// Validate all non-skipped rules before importing any
+	overrideMap := make(map[int]RuleOverride, len(overrides))
+	for _, o := range overrides {
+		overrideMap[o.Index] = o
+	}
+
+	for i, r := range rules {
+		if ov, ok := overrideMap[i]; ok && ov.Skip {
+			continue
+		}
+		if r.Field == "" || r.Operator == "" || r.Value == "" {
+			return 0, 0, fmt.Errorf("rule %d: field, operator, and value are required", i)
+		}
+		if r.Effect == "" {
+			return 0, 0, fmt.Errorf("rule %d: effect is required", i)
+		}
+		if !db.ValidEffects[r.Effect] {
+			return 0, 0, fmt.Errorf("rule %d: invalid effect %q", i, r.Effect)
+		}
+	}
+
+	// Determine the starting sort_order
+	var maxOrder int
+	row := tx.Model(&db.CustomRule{}).Select("COALESCE(MAX(sort_order), -1)").Row()
+	if err := row.Scan(&maxOrder); err != nil {
+		return 0, 0, fmt.Errorf("failed to determine rule ordering: %w", err)
+	}
+	nextOrder := maxOrder + 1
+
+	imported := 0
+	unmatched := 0
+
+	for i, r := range rules {
+		// Check if this rule has a user override
+		if ov, ok := overrideMap[i]; ok {
+			if ov.Skip {
+				continue
+			}
+			// Use user-chosen integration ID
+			newRule := db.CustomRule{
+				IntegrationID: ov.IntegrationID,
+				Field:         r.Field,
+				Operator:      r.Operator,
+				Value:         r.Value,
+				Effect:        r.Effect,
+				Enabled:       true,
+				SortOrder:     nextOrder,
+			}
+			if err := tx.Create(&newRule).Error; err != nil {
+				return 0, 0, fmt.Errorf("failed to insert imported rule %d: %w", i, err)
+			}
+			if !r.Enabled {
+				if err := tx.Model(&newRule).Update("enabled", false).Error; err != nil {
+					return 0, 0, fmt.Errorf("failed to disable imported rule %d: %w", i, err)
+				}
+			}
+			nextOrder++
+			imported++
+			continue
+		}
+
+		// No override — use auto-match (same logic as importRules)
+		var integrationID *uint
+		intName := ""
+		intType := ""
+		if r.IntegrationName != nil {
+			intName = *r.IntegrationName
+		}
+		if r.IntegrationType != nil {
+			intType = *r.IntegrationType
+		}
+
+		if intName != "" || intType != "" {
+			// Try exact match
+			var ic db.IntegrationConfig
+			if err := tx.Where("type = ? AND name = ?", intType, intName).First(&ic).Error; err == nil {
+				integrationID = &ic.ID
+			} else if intType != "" {
+				// Type-only fallback
+				var typeMatches []db.IntegrationConfig
+				if dbErr := tx.Where("type = ?", intType).Find(&typeMatches).Error; dbErr == nil && len(typeMatches) == 1 {
+					integrationID = &typeMatches[0].ID
+				}
+			}
+			if integrationID == nil {
+				unmatched++
+			}
+		}
+
+		newRule := db.CustomRule{
+			IntegrationID: integrationID,
+			Field:         r.Field,
+			Operator:      r.Operator,
+			Value:         r.Value,
+			Effect:        r.Effect,
+			Enabled:       true,
+			SortOrder:     nextOrder,
+		}
+		if err := tx.Create(&newRule).Error; err != nil {
+			return 0, 0, fmt.Errorf("failed to insert imported rule %d: %w", i, err)
+		}
+		if !r.Enabled {
+			if err := tx.Model(&newRule).Update("enabled", false).Error; err != nil {
+				return 0, 0, fmt.Errorf("failed to disable imported rule %d: %w", i, err)
+			}
+		}
+		nextOrder++
+		imported++
+	}
+
+	return imported, unmatched, nil
+}
+
+// matchResult caches the result of an integration lookup for preview.
+type matchResult struct {
+	resolution string
+	id         *uint
+	name       string
+}
+
+// candidatesForType returns all integrations matching the given type.
+func candidatesForType(integrations []db.IntegrationConfig, intType string) []IntCandidate {
+	candidates := make([]IntCandidate, 0)
+	for _, ic := range integrations {
+		if ic.Type == intType {
+			candidates = append(candidates, IntCandidate{
+				ID:   ic.ID,
+				Name: ic.Name,
+				Type: ic.Type,
+			})
+		}
+	}
+	return candidates
 }
 
 // exportedSectionNames returns the names of sections included in an export.

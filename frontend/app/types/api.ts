@@ -407,14 +407,45 @@ export interface ImportSections {
   integrations: boolean;
   diskGroups: boolean;
   notificationChannels: boolean;
+  mode?: 'append' | 'replace';
 }
 
 export interface ImportResult {
   preferencesImported: boolean;
   rulesImported: number;
+  rulesUnmatched: number;
   integrationsImported: number;
   diskGroupsImported: number;
   notificationChannelsImported: number;
+}
+
+// ---------------------------------------------------------------------------
+// Import Preview / Resolution
+// ---------------------------------------------------------------------------
+
+export interface IntCandidate {
+  id: number;
+  name: string;
+  type: string;
+}
+
+export interface RuleResolution {
+  index: number;
+  rule: RuleExport;
+  resolution: 'matched' | 'type_fallback' | 'unmatched';
+  matchedIntegrationId: number | null;
+  matchedIntegrationName?: string;
+  candidates: IntCandidate[];
+}
+
+export interface ImportPreview {
+  rules: RuleResolution[];
+}
+
+export interface RuleOverride {
+  index: number;
+  integrationId: number | null;
+  skip: boolean;
 }
 
 // ---------------------------------------------------------------------------
