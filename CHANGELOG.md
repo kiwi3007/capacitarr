@@ -1,3 +1,18 @@
+## [1.7.0] - 2026-03-16
+
+### 🚀 Features
+
+- *(backup)* Overhaul import robustness with upsert, validation, and interactive resolution ([17d2915](https://gitlab.com/starshadow/software/capacitarr/-/commit/17d2915f5223aaab4df66503367f1d9405e515f4))
+
+### 🐛 Bug Fixes
+
+- *(ui)* Use modelValue instead of checked for reka-ui v2 Checkbox ([2eb84e9](https://gitlab.com/starshadow/software/capacitarr/-/commit/2eb84e9814cf0c5a05258311d7e410b6732bde59))
+- *(login)* Remove misleading placeholder text from login form ([5c2cf71](https://gitlab.com/starshadow/software/capacitarr/-/commit/5c2cf71f4781c2b1d3871635b966d269dd2418fe))
+
+### 🛡️ Security
+
+- Comprehensive code audit — service layer, modularization, consistency ([31776b7](https://gitlab.com/starshadow/software/capacitarr/-/commit/31776b7e1d4b1ba710a2cbfeb3e37dc3c0384254))
+- *(security)* Update ZAP DAST baseline to 2026-03-16 ([87b24d0](https://gitlab.com/starshadow/software/capacitarr/-/commit/87b24d058e985664e097f8567b314aa97e7fc63e))
 ## [1.6.0] - 2026-03-16
 
 ### 🚀 Features
