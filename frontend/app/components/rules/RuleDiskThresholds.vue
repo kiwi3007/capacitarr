@@ -68,6 +68,7 @@
                       <UiSelectContent>
                         <UiSelectItem value="GB">GB</UiSelectItem>
                         <UiSelectItem value="TB">TB</UiSelectItem>
+                        <UiSelectItem value="PB">PB</UiSelectItem>
                       </UiSelectContent>
                     </UiSelect>
                     <button
@@ -308,6 +309,7 @@ import type { DiskGroup, ApiError } from '~/types/api';
 
 const GB = 1_073_741_824;
 const TB = 1_099_511_627_776;
+const PB = 1_125_899_906_842_624;
 
 const props = defineProps<{
   diskGroups: DiskGroup[];
@@ -382,9 +384,17 @@ function isSaving(dgId: number): boolean {
 /** Convert bytes to a display value and unit pair. */
 function bytesToDisplayUnit(bytes: number | null | undefined): { value: string; unit: string } {
   if (!bytes || bytes <= 0) return { value: '', unit: 'GB' };
+  if (bytes >= PB && bytes % PB === 0) return { value: String(bytes / PB), unit: 'PB' };
+  if (bytes >= PB) return { value: String(+(bytes / PB).toFixed(2)), unit: 'PB' };
   if (bytes >= TB && bytes % TB === 0) return { value: String(bytes / TB), unit: 'TB' };
   if (bytes >= TB) return { value: String(+(bytes / TB).toFixed(2)), unit: 'TB' };
   return { value: String(+(bytes / GB).toFixed(2)), unit: 'GB' };
+}
+
+function unitMultiplier(unit: string): number {
+  if (unit === 'PB') return PB;
+  if (unit === 'TB') return TB;
+  return GB;
 }
 
 function ensureThresholdEdit(dgId: number, dg: DiskGroup) {
@@ -424,8 +434,7 @@ function onOverrideInput(dg: DiskGroup, value: string | number) {
   } else {
     const num = parseFloat(strVal);
     if (!isNaN(num) && num > 0) {
-      const multiplier = edit.overrideUnit === 'TB' ? TB : GB;
-      edit.overrideBytes = Math.round(num * multiplier);
+      edit.overrideBytes = Math.round(num * unitMultiplier(edit.overrideUnit));
     }
   }
 }
@@ -439,8 +448,7 @@ function onOverrideUnitChange(dg: DiskGroup, unit: string) {
   if (edit.overrideDisplay && edit.overrideDisplay !== '0') {
     const num = parseFloat(edit.overrideDisplay);
     if (!isNaN(num) && num > 0) {
-      const multiplier = unit === 'TB' ? TB : GB;
-      edit.overrideBytes = Math.round(num * multiplier);
+      edit.overrideBytes = Math.round(num * unitMultiplier(unit));
     }
   }
 }
