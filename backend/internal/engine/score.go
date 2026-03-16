@@ -20,6 +20,7 @@ type ScoreFactor struct {
 	Contribution float64 `json:"contribution"`           // normalized contribution to final score
 	Type         string  `json:"type"`                   // "weight" or "rule"
 	MatchedValue string  `json:"matchedValue,omitempty"` // actual item value that triggered a rule match
+	RuleID       *uint   `json:"ruleId,omitempty"`       // database ID of the matched custom rule (rule factors only)
 }
 
 // EvaluatedItem contains the media item, its deletion score, and explanation

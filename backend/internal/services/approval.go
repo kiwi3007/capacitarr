@@ -221,13 +221,14 @@ func (s *ApprovalService) CleanExpiredSnoozes() (int, error) {
 }
 
 // ClearQueue removes all pending and rejected items from the approval queue.
-// Approved items (mid-deletion) are preserved. This is called when disk usage
-// drops below threshold to ensure the queue only contains current, actionable
-// candidates.
+// Approved items (mid-deletion) and force-delete items are preserved. This is
+// called when disk usage drops below threshold to ensure the queue only contains
+// current, actionable candidates.
 func (s *ApprovalService) ClearQueue() (int, error) {
 	result := s.db.Where(
-		"status IN ?",
+		"status IN ? AND force_delete = ?",
 		[]string{string(db.StatusPending), string(db.StatusRejected)},
+		false,
 	).Delete(&db.ApprovalQueueItem{})
 
 	if result.Error != nil {
@@ -330,6 +331,55 @@ type ExecuteApprovalDeps struct {
 	Integration *IntegrationService
 	Deletion    *DeletionService
 	Engine      *EngineService
+}
+
+// CreateForceDelete inserts an item into the approval queue with force_delete=true
+// and status=approved. The item will be processed by the poller on the next engine
+// cycle regardless of disk threshold. The reason is prefixed with "Force delete: "
+// for audit trail clarity.
+func (s *ApprovalService) CreateForceDelete(item db.ApprovalQueueItem) (*db.ApprovalQueueItem, error) {
+	now := time.Now().UTC()
+	item.Status = db.StatusApproved
+	item.ForceDelete = true
+	item.Reason = "Force delete: " + item.Reason
+	item.CreatedAt = now
+	item.UpdatedAt = now
+
+	if err := s.db.Create(&item).Error; err != nil {
+		return nil, fmt.Errorf("failed to create force-delete entry: %w", err)
+	}
+
+	s.bus.Publish(events.ApprovalApprovedEvent{
+		EntryID:   item.ID,
+		MediaName: item.MediaName,
+		MediaType: item.MediaType,
+		SizeBytes: item.SizeBytes,
+	})
+
+	slog.Info("Force-delete item queued", "component", "services",
+		"media", item.MediaName, "type", item.MediaType, "size", item.SizeBytes)
+
+	return &item, nil
+}
+
+// ListForceDeletes returns all approved force-delete items awaiting processing.
+func (s *ApprovalService) ListForceDeletes() ([]db.ApprovalQueueItem, error) {
+	var items []db.ApprovalQueueItem
+	if err := s.db.Where(
+		"force_delete = ? AND status = ?", true, db.StatusApproved,
+	).Find(&items).Error; err != nil {
+		return nil, fmt.Errorf("failed to list force-delete items: %w", err)
+	}
+	return items, nil
+}
+
+// RemoveForceDelete removes a processed force-delete item from the queue.
+func (s *ApprovalService) RemoveForceDelete(id uint) error {
+	result := s.db.Where("id = ? AND force_delete = ?", id, true).Delete(&db.ApprovalQueueItem{})
+	if result.Error != nil {
+		return fmt.Errorf("failed to remove force-delete item: %w", result.Error)
+	}
+	return nil
 }
 
 // RecoverOrphans finds approved items that have no corresponding active deletion

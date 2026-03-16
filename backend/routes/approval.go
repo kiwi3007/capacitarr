@@ -8,6 +8,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 
+	"capacitarr/internal/db"
 	"capacitarr/internal/services"
 )
 
@@ -99,6 +100,63 @@ func RegisterApprovalRoutes(g *echo.Group, reg *services.Registry) {
 		}
 
 		return c.JSON(http.StatusOK, rejected)
+	})
+
+	// Force-delete: queue items for deletion regardless of disk threshold
+	g.POST("/force-delete", func(c echo.Context) error {
+		// Safety check: block when deletions are disabled
+		prefs, err := reg.Settings.GetPreferences()
+		if err != nil {
+			slog.Error("Failed to load preferences for force-delete check", "error", err)
+			return apiError(c, http.StatusInternalServerError, "Failed to load preferences")
+		}
+		if !prefs.DeletionsEnabled {
+			return apiError(c, http.StatusConflict, "Deletions are currently disabled in settings")
+		}
+		if prefs.ExecutionMode == "dry-run" {
+			return apiError(c, http.StatusConflict, "Force delete is not available in dry-run mode. Switch to approval or auto mode.")
+		}
+
+		// Parse request body — array of items to force-delete
+		var items []struct {
+			MediaName     string `json:"mediaName"`
+			MediaType     string `json:"mediaType"`
+			IntegrationID uint   `json:"integrationId"`
+			ExternalID    string `json:"externalId"`
+			SizeBytes     int64  `json:"sizeBytes"`
+			Reason        string `json:"reason"`
+			ScoreDetails  string `json:"scoreDetails"`
+			PosterURL     string `json:"posterUrl"`
+		}
+		if err := c.Bind(&items); err != nil {
+			return apiError(c, http.StatusBadRequest, "Invalid request body")
+		}
+		if len(items) == 0 {
+			return apiError(c, http.StatusBadRequest, "No items provided")
+		}
+
+		var created int
+		for _, item := range items {
+			if _, err := reg.Approval.CreateForceDelete(db.ApprovalQueueItem{
+				MediaName:     item.MediaName,
+				MediaType:     item.MediaType,
+				IntegrationID: item.IntegrationID,
+				ExternalID:    item.ExternalID,
+				SizeBytes:     item.SizeBytes,
+				Reason:        item.Reason,
+				ScoreDetails:  item.ScoreDetails,
+				PosterURL:     item.PosterURL,
+			}); err != nil {
+				slog.Error("Failed to create force-delete entry", "media", item.MediaName, "error", err)
+				continue
+			}
+			created++
+		}
+
+		return c.JSON(http.StatusOK, map[string]any{
+			"queued": created,
+			"total":  len(items),
+		})
 	})
 
 	// Unsnooze a rejected item: clear snooze and reset to pending

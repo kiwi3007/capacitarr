@@ -126,6 +126,7 @@ export interface ApprovalQueueItem {
   integrationId: number;
   externalId: string;
   status: 'pending' | 'approved' | 'rejected';
+  forceDelete?: boolean;
   snoozedUntil?: string;
   createdAt: string;
   updatedAt: string;
@@ -227,6 +228,7 @@ export interface ScoreFactor {
   contribution: number;
   type: string;
   matchedValue?: string;
+  ruleId?: number;
 }
 
 export interface EvaluatedItem {

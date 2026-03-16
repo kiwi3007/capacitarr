@@ -517,6 +517,100 @@ func TestApplyRules_AlwaysKeepReturnsImmediately(t *testing.T) {
 	}
 }
 
+func TestApplyRules_RuleIDPropagation(t *testing.T) {
+	now := time.Now()
+	item := integrations.MediaItem{
+		Title:         "Serenity",
+		Rating:        3.0,
+		AddedAt:       &now,
+		IntegrationID: 1,
+	}
+
+	rules := []db.CustomRule{
+		{ID: 42, Enabled: true, Field: "rating", Operator: "<", Value: "5.0", Effect: "prefer_remove"},
+		{ID: 99, Enabled: true, Field: "title", Operator: "contains", Value: "seren", Effect: "lean_remove"},
+	}
+
+	_, _, _, factors := applyRules(item, rules)
+	if len(factors) != 2 {
+		t.Fatalf("Expected 2 rule factors, got %d", len(factors))
+	}
+
+	// Verify first factor has RuleID 42
+	if factors[0].RuleID == nil {
+		t.Fatal("Expected RuleID to be set on first factor")
+	}
+	if *factors[0].RuleID != 42 {
+		t.Errorf("Expected RuleID 42, got %d", *factors[0].RuleID)
+	}
+
+	// Verify second factor has RuleID 99
+	if factors[1].RuleID == nil {
+		t.Fatal("Expected RuleID to be set on second factor")
+	}
+	if *factors[1].RuleID != 99 {
+		t.Errorf("Expected RuleID 99, got %d", *factors[1].RuleID)
+	}
+}
+
+func TestApplyRules_AlwaysKeepRuleID(t *testing.T) {
+	now := time.Now()
+	item := integrations.MediaItem{
+		Title:         "Serenity",
+		Rating:        8.5,
+		AddedAt:       &now,
+		IntegrationID: 1,
+	}
+
+	rules := []db.CustomRule{
+		{ID: 7, Enabled: true, Field: "title", Operator: "==", Value: "serenity", Effect: "always_keep"},
+	}
+
+	isAbs, _, _, factors := applyRules(item, rules)
+	if !isAbs {
+		t.Fatal("Expected absolute protection")
+	}
+	if len(factors) != 1 {
+		t.Fatalf("Expected 1 factor, got %d", len(factors))
+	}
+	if factors[0].RuleID == nil {
+		t.Fatal("Expected RuleID to be set on always_keep factor")
+	}
+	if *factors[0].RuleID != 7 {
+		t.Errorf("Expected RuleID 7, got %d", *factors[0].RuleID)
+	}
+}
+
+func TestApplyRules_WeightFactorsHaveNilRuleID(t *testing.T) {
+	now := time.Now()
+	item := integrations.MediaItem{
+		Title:         "Serenity",
+		Rating:        5.0,
+		AddedAt:       &now,
+		IntegrationID: 1,
+	}
+
+	prefs := db.PreferenceSet{
+		WatchHistoryWeight:  10,
+		LastWatchedWeight:   8,
+		FileSizeWeight:      6,
+		RatingWeight:        5,
+		TimeInLibraryWeight: 4,
+		SeriesStatusWeight:  3,
+	}
+
+	evaluated := EvaluateMedia([]integrations.MediaItem{item}, prefs, nil)
+	if len(evaluated) != 1 {
+		t.Fatalf("Expected 1 evaluated item, got %d", len(evaluated))
+	}
+
+	for _, f := range evaluated[0].Factors {
+		if f.Type == "weight" && f.RuleID != nil {
+			t.Errorf("Weight factor %q should have nil RuleID, got %d", f.Name, *f.RuleID)
+		}
+	}
+}
+
 // TestLegacyEffect removed — legacyEffect() and the deprecated Type/Intensity
 // fields were removed in the service-layer-event-bus refactor.
 

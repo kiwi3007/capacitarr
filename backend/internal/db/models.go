@@ -125,6 +125,7 @@ const (
 
 // ApprovalQueueItem represents an item in the approval queue (state machine).
 // Items flow through: pending → approved → (deletion) OR pending → rejected (snoozed).
+// Items with ForceDelete=true bypass disk threshold checks and are processed unconditionally.
 type ApprovalQueueItem struct {
 	ID            uint       `gorm:"primarykey" json:"id"`
 	MediaName     string     `gorm:"index;not null" json:"mediaName"`
@@ -136,6 +137,7 @@ type ApprovalQueueItem struct {
 	IntegrationID uint       `gorm:"not null" json:"integrationId"`                      // FK to IntegrationConfig (required)
 	ExternalID    string     `gorm:"not null;default:''" json:"externalId"`              // External ID in the integration
 	Status        string     `gorm:"not null;default:'pending'" json:"status"`           // pending, approved, rejected
+	ForceDelete   bool       `gorm:"not null;default:false" json:"forceDelete"`          // Bypass disk threshold — delete on next engine run
 	SnoozedUntil  *time.Time `gorm:"column:snoozed_until" json:"snoozedUntil,omitempty"` // When snooze expires (rejected items)
 	CreatedAt     time.Time  `json:"createdAt"`
 	UpdatedAt     time.Time  `json:"updatedAt"`

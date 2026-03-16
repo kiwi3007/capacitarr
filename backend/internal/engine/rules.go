@@ -48,6 +48,7 @@ func applyRules(item integrations.MediaItem, rules []db.CustomRule) (bool, float
 			switch effect {
 			case "always_keep":
 				// Immune to deletion — absolute override
+				ruleID := rule.ID
 				factor := ScoreFactor{
 					Name:         fmt.Sprintf("Always keep: %s", ruleName),
 					RawScore:     0.0,
@@ -55,11 +56,13 @@ func applyRules(item integrations.MediaItem, rules []db.CustomRule) (bool, float
 					Contribution: 0.0,
 					Type:         "rule",
 					MatchedValue: matchedValue,
+					RuleID:       &ruleID,
 				}
 				return true, 0.0, fmt.Sprintf("Always keep: %s", ruleName), []ScoreFactor{factor}
 
 			case "prefer_keep":
 				modifier *= 0.2
+				ruleID := rule.ID
 				reasons = append(reasons, fmt.Sprintf("Prefer to keep (%s %s)", rule.Field, rule.Value))
 				ruleFactors = append(ruleFactors, ScoreFactor{
 					Name:         fmt.Sprintf("Prefer keep: %s", ruleName),
@@ -68,10 +71,12 @@ func applyRules(item integrations.MediaItem, rules []db.CustomRule) (bool, float
 					Contribution: 0.0,
 					Type:         "rule",
 					MatchedValue: matchedValue,
+					RuleID:       &ruleID,
 				})
 
 			case "lean_keep":
 				modifier *= 0.5
+				ruleID := rule.ID
 				reasons = append(reasons, fmt.Sprintf("Lean toward keeping (%s %s)", rule.Field, rule.Value))
 				ruleFactors = append(ruleFactors, ScoreFactor{
 					Name:         fmt.Sprintf("Lean keep: %s", ruleName),
@@ -80,10 +85,12 @@ func applyRules(item integrations.MediaItem, rules []db.CustomRule) (bool, float
 					Contribution: 0.0,
 					Type:         "rule",
 					MatchedValue: matchedValue,
+					RuleID:       &ruleID,
 				})
 
 			case "lean_remove":
 				modifier *= 1.5
+				ruleID := rule.ID
 				reasons = append(reasons, fmt.Sprintf("Lean toward removing (%s %s)", rule.Field, rule.Value))
 				ruleFactors = append(ruleFactors, ScoreFactor{
 					Name:         fmt.Sprintf("Lean remove: %s", ruleName),
@@ -92,10 +99,12 @@ func applyRules(item integrations.MediaItem, rules []db.CustomRule) (bool, float
 					Contribution: 0.0,
 					Type:         "rule",
 					MatchedValue: matchedValue,
+					RuleID:       &ruleID,
 				})
 
 			case "prefer_remove":
 				modifier *= 3.0
+				ruleID := rule.ID
 				reasons = append(reasons, fmt.Sprintf("Prefer to remove (%s %s)", rule.Field, rule.Value))
 				ruleFactors = append(ruleFactors, ScoreFactor{
 					Name:         fmt.Sprintf("Prefer remove: %s", ruleName),
@@ -104,10 +113,12 @@ func applyRules(item integrations.MediaItem, rules []db.CustomRule) (bool, float
 					Contribution: 0.0,
 					Type:         "rule",
 					MatchedValue: matchedValue,
+					RuleID:       &ruleID,
 				})
 
 			case "always_remove":
 				modifier *= 100.0 // Ensure it hits the ceiling
+				ruleID := rule.ID
 				reasons = append(reasons, fmt.Sprintf("Always remove (%s %s)", rule.Field, rule.Value))
 				ruleFactors = append(ruleFactors, ScoreFactor{
 					Name:         fmt.Sprintf("Always remove: %s", ruleName),
@@ -116,6 +127,7 @@ func applyRules(item integrations.MediaItem, rules []db.CustomRule) (bool, float
 					Contribution: 0.0,
 					Type:         "rule",
 					MatchedValue: matchedValue,
+					RuleID:       &ruleID,
 				})
 			}
 		}

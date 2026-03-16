@@ -92,12 +92,99 @@
             >
               Unprotected
             </UiButton>
+            <!-- Rule filter -->
+            <template v-if="enabledRules.length > 0">
+              <UiSeparator orientation="vertical" class="h-5 mx-1" />
+              <UiPopover v-model:open="ruleFilterOpen">
+                <UiPopoverTrigger as-child>
+                  <UiButton
+                    :variant="hasRuleFilter ? 'default' : 'outline'"
+                    size="sm"
+                    class="rounded-full h-7 px-3 text-xs"
+                  >
+                    <FilterIcon class="w-3 h-3 mr-1" />
+                    {{ t('rules.filterByRule') }}
+                    <span v-if="hasRuleFilter" class="ml-1 text-[10px] opacity-80"
+                      >({{ selectedRuleIds.length }})</span
+                    >
+                  </UiButton>
+                </UiPopoverTrigger>
+                <UiPopoverContent class="w-72 p-0" side="bottom" align="start">
+                  <div class="px-3 py-2 border-b flex items-center justify-between">
+                    <p class="text-sm font-medium">{{ t('rules.filterByRule') }}</p>
+                    <div class="flex items-center gap-1">
+                      <UiButton
+                        :variant="ruleFilterMode === 'any' ? 'default' : 'outline'"
+                        size="sm"
+                        class="h-5 px-2 text-[10px]"
+                        @click="ruleFilterMode = 'any'"
+                      >
+                        {{ t('rules.filterModeAny') }}
+                      </UiButton>
+                      <UiButton
+                        :variant="ruleFilterMode === 'all' ? 'default' : 'outline'"
+                        size="sm"
+                        class="h-5 px-2 text-[10px]"
+                        @click="ruleFilterMode = 'all'"
+                      >
+                        {{ t('rules.filterModeAll') }}
+                      </UiButton>
+                    </div>
+                  </div>
+                  <div class="max-h-60 overflow-y-auto">
+                    <div
+                      v-for="rule in enabledRules"
+                      :key="rule.id"
+                      class="flex items-center gap-2 px-3 py-1.5 hover:bg-muted/50 transition-colors cursor-pointer"
+                      @click="toggleRuleFilter(rule.id)"
+                    >
+                      <UiCheckbox
+                        :checked="selectedRuleIds.includes(rule.id)"
+                        class="pointer-events-none"
+                      />
+                      <span class="text-xs truncate flex-1">
+                        {{ formatRuleLabel(rule) }}
+                      </span>
+                      <UiBadge variant="secondary" class="text-[10px] shrink-0 capitalize">
+                        {{ rule.effect.replace('_', ' ') }}
+                      </UiBadge>
+                    </div>
+                  </div>
+                  <div v-if="hasRuleFilter" class="px-3 py-2 border-t">
+                    <UiButton
+                      variant="ghost"
+                      size="sm"
+                      class="w-full h-7 text-xs"
+                      @click="clearRuleFilter"
+                    >
+                      <XIcon class="w-3 h-3 mr-1" />
+                      {{ t('rules.clearRuleFilter') }}
+                    </UiButton>
+                  </div>
+                </UiPopoverContent>
+              </UiPopover>
+            </template>
+            <!-- Force-delete selection mode toggle -->
+            <UiSeparator orientation="vertical" class="h-5 mx-1" />
+            <UiButton
+              :variant="selectionMode ? 'default' : 'outline'"
+              size="sm"
+              class="rounded-full h-7 px-3 text-xs"
+              @click="toggleSelectionMode"
+            >
+              <Trash2Icon class="w-3 h-3 mr-1" />
+              {{ selectionMode ? t('rules.cancelSelection') : t('rules.selectMode') }}
+            </UiButton>
           </div>
         </div>
 
         <!-- Results count -->
         <div class="text-xs text-muted-foreground mb-2">
-          <template v-if="previewSearch || previewTypeFilter || previewStatusFilter !== 'all'">
+          <template
+            v-if="
+              previewSearch || previewTypeFilter || previewStatusFilter !== 'all' || hasRuleFilter
+            "
+          >
             {{ filteredGroupedPreview.length }} of {{ groupedPreview.length }} items
           </template>
           <template v-else> {{ groupedPreview.length }} items </template>
@@ -144,6 +231,9 @@
                     :is-protected="group.entry.isProtected"
                     :is-flagged="deletionLineIndex !== null && groupIdx >= deletionLineIndex"
                     :season-count="group.seasons.length"
+                    :selectable="selectionMode && !group.entry.isProtected"
+                    :selected="isItemSelected(group.entry)"
+                    @select="toggleItemSelection(group.entry)"
                   />
                 </UiPopoverTrigger>
                 <UiPopoverContent class="w-72 p-0" side="bottom" align="start">
@@ -194,7 +284,12 @@
                 :size-bytes="group.entry.item.sizeBytes"
                 :is-protected="group.entry.isProtected"
                 :is-flagged="deletionLineIndex !== null && groupIdx >= deletionLineIndex"
-                @click="selectPreviewItem(group.entry)"
+                :selectable="selectionMode && !group.entry.isProtected"
+                :selected="isItemSelected(group.entry)"
+                @click="
+                  selectionMode ? toggleItemSelection(group.entry) : selectPreviewItem(group.entry)
+                "
+                @select="toggleItemSelection(group.entry)"
               />
             </template>
           </div>
@@ -371,6 +466,26 @@
           </div>
         </div>
       </div>
+
+      <!-- Floating action bar for force-delete selection -->
+      <div
+        v-if="selectionMode && selectedItems.size > 0"
+        class="sticky bottom-0 mt-4 rounded-lg border bg-card p-3 flex items-center justify-between gap-3 shadow-lg"
+      >
+        <span class="text-sm text-muted-foreground">
+          {{ t('rules.itemsSelected', { count: selectedItems.size }) }}
+          — {{ formatBytes(selectedTotalBytes) }}
+        </span>
+        <div class="flex items-center gap-2">
+          <UiButton variant="outline" size="sm" @click="toggleSelectionMode">
+            {{ t('rules.cancelSelection') }}
+          </UiButton>
+          <UiButton variant="destructive" size="sm" @click="forceDeleteConfirmOpen = true">
+            <Trash2Icon class="w-3.5 h-3.5 mr-1" />
+            {{ t('rules.forceDelete') }}
+          </UiButton>
+        </div>
+      </div>
     </UiCardContent>
   </UiCard>
 
@@ -386,6 +501,47 @@
     :created-at="selectedPreviewItem.createdAt"
     @close="selectedPreviewItem = null"
   />
+
+  <!-- Force-delete confirmation dialog -->
+  <UiDialog v-model:open="forceDeleteConfirmOpen">
+    <UiDialogContent class="max-w-md">
+      <UiDialogHeader>
+        <UiDialogTitle>{{ t('rules.forceDeleteConfirmTitle') }}</UiDialogTitle>
+      </UiDialogHeader>
+      <div class="space-y-3 py-2">
+        <p class="text-sm text-muted-foreground">
+          {{
+            t('rules.forceDeleteConfirmMessage', {
+              count: selectedItems.size,
+              size: formatBytes(selectedTotalBytes),
+            })
+          }}
+        </p>
+        <div class="max-h-40 overflow-y-auto rounded border p-2 space-y-1">
+          <div
+            v-for="entry in selectedEntries"
+            :key="itemKey(entry)"
+            class="flex items-center justify-between text-xs"
+          >
+            <span class="truncate flex-1">{{ entry.item.title }}</span>
+            <span class="text-muted-foreground tabular-nums shrink-0 ml-2">
+              {{ formatBytes(entry.item.sizeBytes) }}
+            </span>
+          </div>
+        </div>
+      </div>
+      <UiDialogFooter>
+        <UiButton variant="outline" @click="forceDeleteConfirmOpen = false">
+          {{ t('rules.cancelSelection') }}
+        </UiButton>
+        <UiButton variant="destructive" :disabled="forceDeleteLoading" @click="executeForceDelete">
+          <Trash2Icon v-if="!forceDeleteLoading" class="w-3.5 h-3.5 mr-1" />
+          <LoaderCircleIcon v-else class="w-3.5 h-3.5 mr-1 animate-spin" />
+          {{ t('rules.forceDelete') }}
+        </UiButton>
+      </UiDialogFooter>
+    </UiDialogContent>
+  </UiDialog>
 </template>
 
 <script setup lang="ts">
@@ -400,13 +556,17 @@ import {
   ArrowUpIcon,
   ArrowDownIcon,
   ArrowUpDownIcon,
+  FilterIcon,
+  XIcon,
+  Trash2Icon,
 } from 'lucide-vue-next';
 import { formatBytes } from '~/utils/format';
 import { groupEvaluatedItems } from '~/utils/groupPreview';
 import type { PreviewGroup } from '~/utils/groupPreview';
-import type { EvaluatedItem, SelectedDetailItem } from '~/types/api';
+import type { EvaluatedItem, SelectedDetailItem, CustomRule } from '~/types/api';
 
 const { viewMode } = useDisplayPrefs();
+const { t } = useI18n();
 
 const props = defineProps<{
   preview: EvaluatedItem[];
@@ -419,6 +579,7 @@ const props = defineProps<{
     thresholdPct: number;
     bytesToFree: number;
   } | null;
+  rules?: CustomRule[];
 }>();
 
 defineEmits<{
@@ -429,6 +590,127 @@ defineEmits<{
 const previewSearch = ref('');
 const previewTypeFilter = ref<string | null>(null);
 const previewStatusFilter = ref<'all' | 'protected' | 'unprotected'>('all');
+
+// Rule filter state
+const selectedRuleIds = ref<number[]>([]);
+const ruleFilterMode = ref<'any' | 'all'>('any');
+const ruleFilterOpen = ref(false);
+
+/** Enabled rules available for filtering */
+const enabledRules = computed(() => (props.rules ?? []).filter((r) => r.enabled));
+
+/** Whether any rule filters are active */
+const hasRuleFilter = computed(() => selectedRuleIds.value.length > 0);
+
+function toggleRuleFilter(ruleId: number) {
+  const idx = selectedRuleIds.value.indexOf(ruleId);
+  if (idx === -1) {
+    selectedRuleIds.value = [...selectedRuleIds.value, ruleId];
+  } else {
+    selectedRuleIds.value = selectedRuleIds.value.filter((id) => id !== ruleId);
+  }
+}
+
+function clearRuleFilter() {
+  selectedRuleIds.value = [];
+}
+
+/** Format a rule for display in the filter dropdown */
+function formatRuleLabel(rule: CustomRule): string {
+  return `${rule.field} ${rule.operator} ${rule.value}`;
+}
+
+/** Check if an EvaluatedItem matches the active rule filters */
+function itemMatchesRuleFilter(entry: EvaluatedItem): boolean {
+  if (selectedRuleIds.value.length === 0) return true;
+
+  const matchedRuleIds = (entry.factors ?? [])
+    .filter((f) => f.type === 'rule' && f.ruleId != null)
+    .map((f) => f.ruleId!);
+
+  if (ruleFilterMode.value === 'any') {
+    return selectedRuleIds.value.some((id) => matchedRuleIds.includes(id));
+  }
+  return selectedRuleIds.value.every((id) => matchedRuleIds.includes(id));
+}
+
+// Force-delete selection mode
+const api = useApi();
+const { addToast } = useToast();
+const selectionMode = ref(false);
+const selectedItems = ref<Set<string>>(new Set());
+const forceDeleteConfirmOpen = ref(false);
+const forceDeleteLoading = ref(false);
+
+function toggleSelectionMode() {
+  selectionMode.value = !selectionMode.value;
+  if (!selectionMode.value) {
+    selectedItems.value = new Set();
+  }
+}
+
+/** Unique key for an EvaluatedItem (integrationId:externalId) */
+function itemKey(entry: EvaluatedItem): string {
+  return `${entry.item.integrationId}:${entry.item.externalId}`;
+}
+
+function toggleItemSelection(entry: EvaluatedItem) {
+  if (entry.isProtected) return;
+  const key = itemKey(entry);
+  const next = new Set(selectedItems.value);
+  if (next.has(key)) {
+    next.delete(key);
+  } else {
+    next.add(key);
+  }
+  selectedItems.value = next;
+}
+
+function isItemSelected(entry: EvaluatedItem): boolean {
+  return selectedItems.value.has(itemKey(entry));
+}
+
+/** Get the EvaluatedItem objects for all selected items */
+const selectedEntries = computed(() => {
+  return props.preview.filter((e) => selectedItems.value.has(itemKey(e)));
+});
+
+const selectedTotalBytes = computed(() => {
+  return selectedEntries.value.reduce((sum, e) => sum + (e.item?.sizeBytes ?? 0), 0);
+});
+
+async function executeForceDelete() {
+  forceDeleteLoading.value = true;
+  try {
+    const items = selectedEntries.value.map((e) => ({
+      mediaName: e.item.title,
+      mediaType: e.item.type,
+      integrationId: e.item.integrationId,
+      externalId: e.item.externalId,
+      sizeBytes: e.item.sizeBytes,
+      reason: e.reason || 'Manual force delete',
+      scoreDetails: e.factors ? JSON.stringify(e.factors) : '[]',
+      posterUrl: e.item.posterUrl || '',
+    }));
+
+    const result = (await api('/api/v1/force-delete', {
+      method: 'POST',
+      body: items,
+    })) as { queued: number; total: number };
+
+    addToast(t('rules.forceDeleteSuccess', { count: result.queued }), 'success');
+    forceDeleteConfirmOpen.value = false;
+    selectionMode.value = false;
+    selectedItems.value = new Set();
+  } catch (err: unknown) {
+    const apiErr = err as { data?: { error?: string } };
+    const msg = apiErr?.data?.error || t('rules.forceDeleteError');
+    addToast(msg, 'error');
+  } finally {
+    forceDeleteLoading.value = false;
+  }
+}
+
 type PreviewSortColumn = 'rank' | 'score' | 'title' | 'type' | 'size';
 const previewSortBy = ref<PreviewSortColumn>('rank');
 const previewSortDir = ref<'asc' | 'desc'>('asc');
@@ -528,6 +810,19 @@ const filteredGroupedPreview = computed<PreviewGroup[]>(() => {
     }, []);
   }
 
+  // Apply rule filter
+  if (hasRuleFilter.value) {
+    groups = groups.filter((group) => {
+      // Check if the main entry matches
+      if (itemMatchesRuleFilter(group.entry)) return true;
+      // For show groups, check if any season matches
+      if (group.seasons.length > 0) {
+        return group.seasons.some((s) => itemMatchesRuleFilter(s));
+      }
+      return false;
+    });
+  }
+
   // Apply sorting
   const sortBy = previewSortBy.value;
   const sortDir = previewSortDir.value;
@@ -616,6 +911,8 @@ watch(
     previewStatusFilter,
     previewSortBy,
     previewSortDir,
+    selectedRuleIds,
+    ruleFilterMode,
     () => props.preview,
   ],
   () => {

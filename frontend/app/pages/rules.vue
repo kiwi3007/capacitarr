@@ -40,6 +40,7 @@
       :loading="previewLoading"
       :fetched-at="previewFetchedAt"
       :disk-context="diskContext"
+      :rules="rules"
       @refresh="fetchPreview"
     />
   </div>
