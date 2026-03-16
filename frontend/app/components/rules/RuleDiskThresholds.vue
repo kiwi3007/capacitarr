@@ -56,12 +56,78 @@
                 </span>
               </div>
             </div>
-            <span
-              class="text-2xl font-bold tabular-nums"
-              :class="diskStatusTextClass(diskUsagePct(dg), editTarget(dg), editThreshold(dg))"
-            >
-              {{ Math.round(diskUsagePct(dg)) }}%
-            </span>
+            <div class="flex items-center gap-2">
+              <span
+                class="text-2xl font-bold tabular-nums"
+                :class="diskStatusTextClass(diskUsagePct(dg), editTarget(dg), editThreshold(dg))"
+              >
+                {{ Math.round(diskUsagePct(dg)) }}%
+              </span>
+              <!-- Custom disk size popover -->
+              <UiPopover>
+                <UiPopoverTrigger as-child>
+                  <button
+                    class="text-muted-foreground/50 hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted"
+                    title="Custom disk size"
+                    @click="ensureThresholdEdit(dg.id, dg)"
+                  >
+                    <component :is="SettingsIcon" class="w-4 h-4" />
+                  </button>
+                </UiPopoverTrigger>
+                <UiPopoverContent class="w-64" align="end">
+                  <div class="space-y-3">
+                    <div>
+                      <p class="text-sm font-medium">Custom disk size</p>
+                      <p class="text-xs text-muted-foreground">
+                        Override the detected {{ formatBytes(dg.totalBytes) }}
+                      </p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <UiInput
+                        type="text"
+                        inputmode="decimal"
+                        :model-value="editOverrideDisplay(dg)"
+                        placeholder="Leave blank for detected"
+                        class="flex-1 h-8 text-sm"
+                        @update:model-value="(v: string | number) => onOverrideInput(dg, v)"
+                      />
+                      <UiSelect
+                        :model-value="editOverrideUnit(dg)"
+                        @update:model-value="(v) => onOverrideUnitChange(dg, String(v))"
+                      >
+                        <UiSelectTrigger class="w-18 h-8 text-sm">
+                          <UiSelectValue />
+                        </UiSelectTrigger>
+                        <UiSelectContent>
+                          <UiSelectItem value="GB">GB</UiSelectItem>
+                          <UiSelectItem value="TB">TB</UiSelectItem>
+                        </UiSelectContent>
+                      </UiSelect>
+                    </div>
+                    <div class="flex items-center justify-between">
+                      <UiButton
+                        v-if="hasActiveOverride(dg) || editOverrideDisplay(dg)"
+                        variant="ghost"
+                        size="sm"
+                        class="text-muted-foreground text-xs h-7"
+                        @click="clearAndSaveOverride(dg)"
+                      >
+                        Clear
+                      </UiButton>
+                      <span v-else />
+                      <UiButton
+                        size="sm"
+                        class="h-7 text-xs"
+                        :disabled="!overrideHasChanges(dg)"
+                        @click="saveThresholds(dg)"
+                      >
+                        Apply
+                      </UiButton>
+                    </div>
+                  </div>
+                </UiPopoverContent>
+              </UiPopover>
+            </div>
           </div>
 
           <!-- Progress bar with segmented zone background + triangle markers -->
@@ -200,59 +266,7 @@
             </div>
           </div>
 
-          <!-- Custom disk size override (compact collapsible) -->
-          <UiCollapsible v-model:open="overrideExpanded[dg.id]">
-            <div class="flex items-center gap-2 text-xs">
-              <UiCollapsibleTrigger as-child>
-                <button
-                  class="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <component
-                    :is="overrideExpanded[dg.id] ? ChevronUpIcon : PencilIcon"
-                    class="w-3 h-3"
-                  />
-                  <span v-if="hasActiveOverride(dg)" class="text-amber-600 dark:text-amber-400">
-                    Custom size: {{ formatBytes(effectiveTotal(dg)) }}
-                  </span>
-                  <span v-else>Custom disk size</span>
-                </button>
-              </UiCollapsibleTrigger>
-              <UiButton
-                v-if="hasActiveOverride(dg)"
-                variant="ghost"
-                size="sm"
-                class="text-muted-foreground hover:text-destructive h-5 px-1"
-                title="Clear custom size"
-                @click="clearAndSaveOverride(dg)"
-              >
-                <component :is="XIcon" class="w-3 h-3" />
-              </UiButton>
-            </div>
-            <UiCollapsibleContent>
-              <div class="flex items-center gap-2 mt-2">
-                <UiInput
-                  type="text"
-                  inputmode="decimal"
-                  :model-value="editOverrideDisplay(dg)"
-                  :placeholder="`Detected: ${formatBytes(dg.totalBytes)}`"
-                  class="flex-1 h-8 text-sm"
-                  @update:model-value="(v: string | number) => onOverrideInput(dg, v)"
-                />
-                <UiSelect
-                  :model-value="editOverrideUnit(dg)"
-                  @update:model-value="(v) => onOverrideUnitChange(dg, String(v))"
-                >
-                  <UiSelectTrigger class="w-18 h-8 text-sm">
-                    <UiSelectValue />
-                  </UiSelectTrigger>
-                  <UiSelectContent>
-                    <UiSelectItem value="GB">GB</UiSelectItem>
-                    <UiSelectItem value="TB">TB</UiSelectItem>
-                  </UiSelectContent>
-                </UiSelect>
-              </div>
-            </UiCollapsibleContent>
-          </UiCollapsible>
+          <!-- (Override input is in the popover on the mount path row) -->
 
           <!-- Validation error + Save button row -->
           <div class="flex items-center justify-between">
@@ -280,14 +294,7 @@
 </template>
 
 <script setup lang="ts">
-import {
-  HardDriveIcon,
-  LoaderCircleIcon,
-  SaveIcon,
-  XIcon,
-  PencilIcon,
-  ChevronUpIcon,
-} from 'lucide-vue-next';
+import { HardDriveIcon, LoaderCircleIcon, SaveIcon, SettingsIcon } from 'lucide-vue-next';
 import {
   formatBytes,
   diskUsageStatus,
@@ -310,9 +317,6 @@ const emit = defineEmits<{
 
 const api = useApi();
 const { addToast } = useToast();
-
-// Per-disk-group collapsible state for override input
-const overrideExpanded = reactive<Record<number, boolean>>({});
 
 // Per-disk-group threshold editing state
 const thresholdEdits = reactive<
@@ -457,7 +461,14 @@ async function clearAndSaveOverride(dg: DiskGroup) {
   edit.threshold = dg.thresholdPct;
   edit.target = dg.targetPct;
   await saveThresholds(dg);
-  overrideExpanded[dg.id] = false;
+}
+
+/** Whether the override value has unsaved changes (for the Apply button). */
+function overrideHasChanges(dg: DiskGroup): boolean {
+  const edit = thresholdEdits[dg.id];
+  if (!edit) return false;
+  const savedOverrideBytes = dg.totalBytesOverride ?? null;
+  return edit.overrideBytes !== savedOverrideBytes;
 }
 
 /** Handle slider value changes — array is [target, threshold]. */

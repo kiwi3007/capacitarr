@@ -1,4 +1,4 @@
-s
+rs
 <template>
   <div>
     <!-- Pull-to-refresh indicator -->
