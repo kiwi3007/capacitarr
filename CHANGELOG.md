@@ -1,4 +1,22 @@
-## [1.5.3] - 2026-03-15
+## [1.6.0] - 2026-03-16
+
+### 🚀 Features
+
+- *(disk-groups)* Add user-defined disk size override ([31c8f9c](https://gitlab.com/starshadow/software/capacitarr/-/commit/31c8f9c0e4344a120f24114904b335dce91ba13b))
+- *(dashboard)* Add contextual empty states and integration error banner ([07929f8](https://gitlab.com/starshadow/software/capacitarr/-/commit/07929f8495671daf864f85dde03c5b3ce94301a3))
+- *(rules)* Add PB (petabyte) unit option for disk size override ([248a889](https://gitlab.com/starshadow/software/capacitarr/-/commit/248a8898e4075dcfee0c23121bcfef925b596e8b))
+- *(disk-groups)* Extract DiskGroupService, add integration badges, fix orphan cleanup ([fda8c00](https://gitlab.com/starshadow/software/capacitarr/-/commit/fda8c005cd1d96c363e20f0204ba422b529b80b1))
+
+### 🐛 Bug Fixes
+
+- *(dashboard)* Compact override input, auto-save clear, error banner redesign ([12f86cb](https://gitlab.com/starshadow/software/capacitarr/-/commit/12f86cb4b4fe675c3f0acdb6d39c99d939db5ca5))
+- *(dashboard)* Move error banner to app layout, verify hero cards ([650c155](https://gitlab.com/starshadow/software/capacitarr/-/commit/650c155c576f206787e473c0ca5bc5f94c6afcdb))
+- *(settings)* Fix GORM nil handling when clearing disk size override ([2b4bb01](https://gitlab.com/starshadow/software/capacitarr/-/commit/2b4bb010242dbe6ccf6c943d6b8f0d349991f2f4))
+- *(rules)* Fix override clear not updating UI without page refresh ([5ea1aac](https://gitlab.com/starshadow/software/capacitarr/-/commit/5ea1aac3cc76729fcbc80a9319b286654a70e9d4))
+- *(ui)* Move integration error banner below page titles ([a415390](https://gitlab.com/starshadow/software/capacitarr/-/commit/a415390152a1667a5855bf60e5bfa1fa13691cb4))
+- *(poller)* Clean orphan disk groups when all integrations fail ([f4c134b](https://gitlab.com/starshadow/software/capacitarr/-/commit/f4c134b2eebe00c20a845478ae6906a3e27f6069))
+- *(integrations)* Clear stale error on update, refresh banner via SSE ([b746345](https://gitlab.com/starshadow/software/capacitarr/-/commit/b746345afaf5d57afe0618a41747c1cadb94205c))
+## [1.5.3-rc.3] - 2026-03-15
 
 ### 🐛 Bug Fixes
 
