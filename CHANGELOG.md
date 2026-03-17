@@ -1,3 +1,19 @@
+## [1.9.0] - 2026-03-17
+
+### 🚀 Features
+
+- *(rules)* Add rule filter and manual force-delete ([59fa846](https://gitlab.com/starshadow/software/capacitarr/-/commit/59fa846037ae8cb32b37c25d8630d3fdb5a9841d))
+- *(library)* Add Library Management page with force-delete UI ([ba0affd](https://gitlab.com/starshadow/software/capacitarr/-/commit/ba0affd3336fa65435853d5478ad58fb0804c565))
+- *(library)* Replace pagination with virtual scrolling and add sort controls ([d62caf4](https://gitlab.com/starshadow/software/capacitarr/-/commit/d62caf42a2e2fd1652c3e36306456a9ba7b704c8))
+- *(settings)* Expand poll interval options from 1m to 24h ([4a12385](https://gitlab.com/starshadow/software/capacitarr/-/commit/4a123858577303e72081cd0364299985ed428502))
+
+### 🐛 Bug Fixes
+
+- *(rules)* Use model-value for checkbox state in rule filter ([89599c4](https://gitlab.com/starshadow/software/capacitarr/-/commit/89599c44b4537ec44d4d669c93630f73c3b5ba2a))
+- *(rules)* Add selection UI to both grid and table view modes ([6e992da](https://gitlab.com/starshadow/software/capacitarr/-/commit/6e992da7476e1e9971da52f7b725d118ff69148e))
+- *(integrations)* Map tmdbId, originalLanguage, and releaseDate from *arr APIs ([fcba26a](https://gitlab.com/starshadow/software/capacitarr/-/commit/fcba26aded8c6f2c2f1bb7c0522b48afce71e9e1)) — reported by @avikingr ([#2](https://gitlab.com/starshadow/software/capacitarr/-/issues/2))
+- *(scoring)* Normalize all ratings to 0–10 scale ([11cf6de](https://gitlab.com/starshadow/software/capacitarr/-/commit/11cf6de38e26fe5abfc82ee377ee594a51051f1d))
+- *(library)* Use UiDialog instead of missing UiAlertDialog for force-delete confirmation ([03e914d](https://gitlab.com/starshadow/software/capacitarr/-/commit/03e914d895a02fb9cab0c67724e1841180578aa8))
 ## [1.8.0] - 2026-03-16
 
 ### 🚀 Features
