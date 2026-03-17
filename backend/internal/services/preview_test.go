@@ -1,0 +1,315 @@
+package services
+
+import (
+	"sync"
+	"testing"
+	"time"
+
+	"capacitarr/internal/db"
+	"capacitarr/internal/events"
+	"capacitarr/internal/integrations"
+)
+
+func TestPreviewService_GetPreview_NoIntegrations(t *testing.T) {
+	database := setupTestDB(t)
+	bus := newTestBus(t)
+	svc := NewPreviewService(bus)
+
+	// Wire real services as dependencies
+	integrationSvc := NewIntegrationService(database, bus)
+	settingsSvc := NewSettingsService(database, bus)
+	rulesSvc := NewRulesService(database, bus)
+	diskGroupSvc := NewDiskGroupService(database, bus)
+	svc.SetDependencies(integrationSvc, settingsSvc, rulesSvc, diskGroupSvc)
+
+	result, err := svc.GetPreview(false)
+	if err != nil {
+		t.Fatalf("GetPreview error: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if len(result.Items) != 0 {
+		t.Errorf("expected 0 items with no integrations, got %d", len(result.Items))
+	}
+	if result.DiskContext != nil {
+		t.Error("expected nil disk context with no disk groups")
+	}
+}
+
+func TestPreviewService_GetPreview_WithDiskGroups(t *testing.T) {
+	database := setupTestDB(t)
+	bus := newTestBus(t)
+	svc := NewPreviewService(bus)
+
+	// Wire real services as dependencies
+	integrationSvc := NewIntegrationService(database, bus)
+	settingsSvc := NewSettingsService(database, bus)
+	rulesSvc := NewRulesService(database, bus)
+	diskGroupSvc := NewDiskGroupService(database, bus)
+	svc.SetDependencies(integrationSvc, settingsSvc, rulesSvc, diskGroupSvc)
+
+	// Seed a disk group that is over threshold
+	dg := db.DiskGroup{
+		MountPath:    "/data",
+		TotalBytes:   1000000000,
+		UsedBytes:    900000000,
+		TargetPct:    80.0,
+		ThresholdPct: 85.0,
+	}
+	if err := database.Create(&dg).Error; err != nil {
+		t.Fatalf("failed to create disk group: %v", err)
+	}
+
+	result, err := svc.GetPreview(false)
+	if err != nil {
+		t.Fatalf("GetPreview error: %v", err)
+	}
+	if result.DiskContext == nil {
+		t.Fatal("expected non-nil disk context with disk groups")
+	}
+	if result.DiskContext.TotalBytes != 1000000000 {
+		t.Errorf("expected totalBytes 1000000000, got %d", result.DiskContext.TotalBytes)
+	}
+	if result.DiskContext.BytesToFree <= 0 {
+		t.Error("expected positive bytesToFree for over-threshold disk group")
+	}
+}
+
+func TestPreviewService_SetDependencies(t *testing.T) {
+	bus := newTestBus(t)
+	database := setupTestDB(t)
+	svc := NewPreviewService(bus)
+
+	// Before wiring, fields should be nil
+	if svc.integrations != nil {
+		t.Error("expected nil integrations before SetDependencies")
+	}
+
+	integrationSvc := NewIntegrationService(database, bus)
+	settingsSvc := NewSettingsService(database, bus)
+	rulesSvc := NewRulesService(database, bus)
+	diskGroupSvc := NewDiskGroupService(database, bus)
+	svc.SetDependencies(integrationSvc, settingsSvc, rulesSvc, diskGroupSvc)
+
+	if svc.integrations == nil {
+		t.Error("expected non-nil integrations after SetDependencies")
+	}
+	if svc.preferences == nil {
+		t.Error("expected non-nil preferences after SetDependencies")
+	}
+	if svc.rules == nil {
+		t.Error("expected non-nil rules after SetDependencies")
+	}
+	if svc.diskGroups == nil {
+		t.Error("expected non-nil diskGroups after SetDependencies")
+	}
+}
+
+func TestPreviewService_SetPreviewCache(t *testing.T) {
+	bus := newTestBus(t)
+	database := setupTestDB(t)
+	svc := NewPreviewService(bus)
+
+	diskGroupSvc := NewDiskGroupService(database, bus)
+	settingsSvc := NewSettingsService(database, bus)
+	svc.SetDependencies(nil, settingsSvc, nil, diskGroupSvc)
+
+	ch := bus.Subscribe()
+	defer bus.Unsubscribe(ch)
+
+	items := []integrations.MediaItem{
+		{Title: "Firefly", SizeBytes: 1000},
+		{Title: "Serenity", SizeBytes: 2000},
+	}
+	prefs := db.PreferenceSet{}
+	var rules []db.CustomRule
+
+	svc.SetPreviewCache(items, prefs, rules)
+
+	// Verify cache is populated
+	result, err := svc.GetPreview(false)
+	if err != nil {
+		t.Fatalf("GetPreview error: %v", err)
+	}
+	if len(result.Items) != 2 {
+		t.Errorf("expected 2 cached items, got %d", len(result.Items))
+	}
+
+	// Verify PreviewUpdatedEvent was published
+	select {
+	case evt := <-ch:
+		if evt.EventType() != "preview_updated" {
+			t.Errorf("expected preview_updated event, got %q", evt.EventType())
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for preview_updated event")
+	}
+}
+
+func TestPreviewService_CacheHit(t *testing.T) {
+	bus := newTestBus(t)
+	database := setupTestDB(t)
+	svc := NewPreviewService(bus)
+
+	diskGroupSvc := NewDiskGroupService(database, bus)
+	settingsSvc := NewSettingsService(database, bus)
+	svc.SetDependencies(nil, settingsSvc, nil, diskGroupSvc)
+
+	// Populate cache
+	items := []integrations.MediaItem{{Title: "Firefly"}}
+	svc.SetPreviewCache(items, db.PreferenceSet{}, nil)
+
+	// Should return cached result without error
+	result, err := svc.GetPreview(false)
+	if err != nil {
+		t.Fatalf("GetPreview error: %v", err)
+	}
+	if len(result.Items) != 1 {
+		t.Errorf("expected 1 cached item, got %d", len(result.Items))
+	}
+}
+
+func TestPreviewService_InvalidatePreviewCache(t *testing.T) {
+	bus := newTestBus(t)
+	database := setupTestDB(t)
+	svc := NewPreviewService(bus)
+
+	diskGroupSvc := NewDiskGroupService(database, bus)
+	settingsSvc := NewSettingsService(database, bus)
+	integrationSvc := NewIntegrationService(database, bus)
+	rulesSvc := NewRulesService(database, bus)
+	svc.SetDependencies(integrationSvc, settingsSvc, rulesSvc, diskGroupSvc)
+
+	// Populate cache
+	items := []integrations.MediaItem{{Title: "Firefly"}}
+	svc.SetPreviewCache(items, db.PreferenceSet{}, nil)
+
+	ch := bus.Subscribe()
+	defer bus.Unsubscribe(ch)
+
+	// Invalidate
+	svc.InvalidatePreviewCache("test_reason")
+
+	// Cache should be cleared — GetPreview should do fresh computation
+	result, err := svc.GetPreview(false)
+	if err != nil {
+		t.Fatalf("GetPreview after invalidation error: %v", err)
+	}
+	// Fresh computation with no integrations returns 0 items
+	if len(result.Items) != 0 {
+		t.Errorf("expected 0 items after invalidation (fresh compute), got %d", len(result.Items))
+	}
+
+	// Verify PreviewInvalidatedEvent was published
+	select {
+	case evt := <-ch:
+		if evt.EventType() != "preview_invalidated" {
+			t.Errorf("expected preview_invalidated event, got %q", evt.EventType())
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for preview_invalidated event")
+	}
+}
+
+func TestPreviewService_ForceBypassesCache(t *testing.T) {
+	bus := newTestBus(t)
+	database := setupTestDB(t)
+	svc := NewPreviewService(bus)
+
+	diskGroupSvc := NewDiskGroupService(database, bus)
+	settingsSvc := NewSettingsService(database, bus)
+	integrationSvc := NewIntegrationService(database, bus)
+	rulesSvc := NewRulesService(database, bus)
+	svc.SetDependencies(integrationSvc, settingsSvc, rulesSvc, diskGroupSvc)
+
+	// Populate cache with items
+	items := []integrations.MediaItem{{Title: "Firefly"}, {Title: "Serenity"}}
+	svc.SetPreviewCache(items, db.PreferenceSet{}, nil)
+
+	// Force=true should bypass cache and recompute from scratch (0 items — no integrations)
+	result, err := svc.GetPreview(true)
+	if err != nil {
+		t.Fatalf("GetPreview force error: %v", err)
+	}
+	if len(result.Items) != 0 {
+		t.Errorf("expected 0 items with force=true (no integrations), got %d", len(result.Items))
+	}
+}
+
+func TestPreviewService_SingleflightCoalesces(t *testing.T) {
+	bus := newTestBus(t)
+	database := setupTestDB(t)
+	svc := NewPreviewService(bus)
+
+	diskGroupSvc := NewDiskGroupService(database, bus)
+	settingsSvc := NewSettingsService(database, bus)
+	integrationSvc := NewIntegrationService(database, bus)
+	rulesSvc := NewRulesService(database, bus)
+	svc.SetDependencies(integrationSvc, settingsSvc, rulesSvc, diskGroupSvc)
+
+	// Launch multiple concurrent GetPreview calls — singleflight should coalesce
+	const goroutines = 5
+	var wg sync.WaitGroup
+	results := make([]*PreviewResult, goroutines)
+	errs := make([]error, goroutines)
+
+	for i := 0; i < goroutines; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			results[idx], errs[idx] = svc.GetPreview(false)
+		}(i)
+	}
+	wg.Wait()
+
+	for i := 0; i < goroutines; i++ {
+		if errs[i] != nil {
+			t.Errorf("goroutine %d error: %v", i, errs[i])
+		}
+		if results[i] == nil {
+			t.Errorf("goroutine %d got nil result", i)
+		}
+	}
+}
+
+func TestPreviewService_CacheInvalidationOnEvents(t *testing.T) {
+	bus := newTestBus(t)
+	database := setupTestDB(t)
+	svc := NewPreviewService(bus)
+
+	diskGroupSvc := NewDiskGroupService(database, bus)
+	settingsSvc := NewSettingsService(database, bus)
+	integrationSvc := NewIntegrationService(database, bus)
+	rulesSvc := NewRulesService(database, bus)
+	svc.SetDependencies(integrationSvc, settingsSvc, rulesSvc, diskGroupSvc)
+
+	svc.StartCacheInvalidation()
+	defer svc.Stop()
+
+	// Populate cache
+	items := []integrations.MediaItem{{Title: "Firefly"}}
+	svc.SetPreviewCache(items, db.PreferenceSet{}, nil)
+
+	// Verify cache is populated
+	svc.previewMu.RLock()
+	hasCacheBefore := svc.previewCache != nil
+	svc.previewMu.RUnlock()
+	if !hasCacheBefore {
+		t.Fatal("expected cache to be populated before event")
+	}
+
+	// Publish a settings changed event
+	bus.Publish(events.SettingsChangedEvent{})
+
+	// Wait briefly for the invalidation goroutine to process the event
+	time.Sleep(100 * time.Millisecond)
+
+	// Cache should be cleared
+	svc.previewMu.RLock()
+	hasCacheAfter := svc.previewCache != nil
+	svc.previewMu.RUnlock()
+	if hasCacheAfter {
+		t.Error("expected cache to be cleared after SettingsChangedEvent")
+	}
+}

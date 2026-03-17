@@ -11,7 +11,8 @@ import (
 // RegisterPreviewRoutes sets up the score preview endpoint.
 func RegisterPreviewRoutes(protected *echo.Group, reg *services.Registry) {
 	protected.GET("/preview", func(c echo.Context) error {
-		result, err := reg.Engine.GetPreview()
+		force := c.QueryParam("force") == "true"
+		result, err := reg.Preview.GetPreview(force)
 		if err != nil {
 			return apiError(c, http.StatusInternalServerError, "Failed to generate preview")
 		}

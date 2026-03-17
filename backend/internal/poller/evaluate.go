@@ -19,13 +19,7 @@ import (
 // evaluateAndCleanDisk scores all media items on a disk group and, when the
 // threshold is breached, queues the highest-scoring candidates for deletion.
 // Returns the number of items queued to the DeletionService worker (auto mode only).
-func (p *Poller) evaluateAndCleanDisk(group db.DiskGroup, allItems []integrations.MediaItem, serviceClients map[uint]integrations.Integration, runStatsID uint) int {
-	prefs, err := p.reg.Settings.GetPreferences()
-	if err != nil {
-		slog.Error("Failed to load preferences", "component", "poller", "operation", "load_preferences", "error", err)
-		return 0
-	}
-
+func (p *Poller) evaluateAndCleanDisk(group db.DiskGroup, allItems []integrations.MediaItem, serviceClients map[uint]integrations.Integration, runStatsID uint, prefs db.PreferenceSet, rules []db.CustomRule) int {
 	effectiveTotal := group.EffectiveTotalBytes()
 	if effectiveTotal == 0 {
 		return 0
@@ -70,12 +64,6 @@ func (p *Poller) evaluateAndCleanDisk(group db.DiskGroup, allItems []integration
 
 	slog.Debug("Items on disk mount", "component", "poller",
 		"mount", group.MountPath, "itemCount", len(diskItems))
-
-	rules, err := p.reg.Rules.List()
-	if err != nil {
-		slog.Error("Failed to load custom rules", "component", "poller", "operation", "load_rules", "error", err)
-		return 0
-	}
 
 	// Evaluate
 	evaluated := engine.EvaluateMedia(diskItems, prefs, rules)

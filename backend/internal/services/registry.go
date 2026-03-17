@@ -26,6 +26,7 @@ type Registry struct {
 	AuditLog             *AuditLogService
 	DiskGroup            *DiskGroupService
 	Engine               *EngineService
+	Preview              *PreviewService
 	Settings             *SettingsService
 	Integration          *IntegrationService
 	Auth                 *AuthService
@@ -54,6 +55,7 @@ func NewRegistry(database *gorm.DB, bus *events.EventBus, cfg *config.Config) *R
 	notifChannelSvc := NewNotificationChannelService(database, bus)
 	notifDispatch := NewNotificationDispatchService(bus, notifChannelSvc, nil, "")
 	backupSvc := NewBackupService(database, bus)
+	previewSvc := NewPreviewService(bus)
 
 	reg := &Registry{
 		DB:                   database,
@@ -65,6 +67,7 @@ func NewRegistry(database *gorm.DB, bus *events.EventBus, cfg *config.Config) *R
 		AuditLog:             auditLog,
 		DiskGroup:            diskGroupSvc,
 		Engine:               engineSvc,
+		Preview:              previewSvc,
 		Settings:             settingsSvc,
 		Integration:          NewIntegrationService(database, bus),
 		Auth:                 NewAuthService(database, bus, cfg),
@@ -84,8 +87,8 @@ func NewRegistry(database *gorm.DB, bus *events.EventBus, cfg *config.Config) *R
 	// Wire MetricsService's cross-service dependency on SettingsService
 	metricsSvc.SetSettingsService(settingsSvc)
 
-	// Wire EngineService's cross-service dependencies for GetPreview()
-	engineSvc.SetDependencies(reg.Integration, settingsSvc, reg.Rules, diskGroupSvc)
+	// Wire PreviewService's cross-service dependencies for preview computation
+	previewSvc.SetDependencies(reg.Integration, settingsSvc, reg.Rules, diskGroupSvc)
 
 	return reg
 }

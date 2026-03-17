@@ -156,6 +156,12 @@ func (p *Poller) poll() {
 		return
 	}
 
+	rules, err := p.reg.Rules.List()
+	if err != nil {
+		slog.Error("Failed to load custom rules", "component", "poller", "operation", "load_rules", "error", err)
+		return
+	}
+
 	// Fetch media items, disk space, and enrichment clients from all integrations
 	fetched := fetchAllIntegrations(p.reg.Integration)
 
@@ -196,7 +202,7 @@ func (p *Poller) poll() {
 		}
 
 		// Evaluate and trigger cleanup if threshold breached
-		totalDeletionsQueued += p.evaluateAndCleanDisk(*group, fetched.allItems, fetched.serviceClients, runStatsID)
+		totalDeletionsQueued += p.evaluateAndCleanDisk(*group, fetched.allItems, fetched.serviceClients, runStatsID, prefs, rules)
 	}
 
 	// Clean up orphaned disk groups that are no longer media mounts.
@@ -226,6 +232,9 @@ func (p *Poller) poll() {
 
 	// Sync per-run stats to EngineService for API consumers
 	p.reg.Engine.SetLastRunStats(int(evaluated), int(flagged), int(protected))
+
+	// Populate preview cache with already-fetched and enriched items
+	p.reg.Preview.SetPreviewCache(fetched.allItems, prefs, rules)
 
 	// Publish engine complete event
 	bus.Publish(events.EngineCompleteEvent{

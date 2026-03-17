@@ -219,7 +219,10 @@ func main() {
 	// Notification Dispatch Service — subscribes to events, dispatches digests + alerts
 	reg.NotificationDispatch.Start()
 
-	slog.Info("Event subscribers started", "component", "main", "subscribers", "activity_persister, notification_dispatch")
+	// Preview cache invalidation — subscribes to config change events
+	reg.Preview.StartCacheInvalidation()
+
+	slog.Info("Event subscribers started", "component", "main", "subscribers", "activity_persister, notification_dispatch, preview_cache_invalidation")
 
 	// Start the background deletion worker (replaces old init() goroutine)
 	reg.Deletion.Start()
@@ -406,6 +409,7 @@ func main() {
 		reg.Integration.CloseCache()
 
 		// Stop services
+		reg.Preview.Stop()
 		reg.Deletion.Stop()
 
 		// Stop event bus infrastructure

@@ -13,6 +13,7 @@ import {
   Trash2Icon,
   XIcon,
 } from 'lucide-vue-next';
+import { useVirtualizer } from '@tanstack/vue-virtual';
 import type { EvaluatedItem, IntegrationConfig } from '~/types/api';
 import { formatBytes } from '~/utils/format';
 
@@ -43,11 +44,18 @@ const mediaTypes = computed(() => {
 });
 
 const integrationMap = computed(() => {
-  const map = new Map<number, string>();
+  // Build map from all integrations for name lookups
+  const fullMap = new Map<number, string>();
   for (const integ of props.integrations) {
-    map.set(integ.id, integ.name);
+    fullMap.set(integ.id, integ.name);
   }
-  return map;
+  return fullMap;
+});
+
+/** Integrations that actually have media items (excludes enrichment-only integrations). */
+const mediaIntegrations = computed(() => {
+  const idsWithMedia = new Set(props.items.map((e) => e.item.integrationId));
+  return props.integrations.filter((i) => idsWithMedia.has(i.id));
 });
 
 // ---------------------------------------------------------------------------
@@ -70,7 +78,17 @@ function toggleSort(key: SortKey) {
 // Filtered + Sorted Items
 // ---------------------------------------------------------------------------
 const filteredItems = computed(() => {
-  let result = props.items;
+  // Dedup: when season entries exist for a show, skip the show-level entry.
+  // Season entries allow granular per-season actions (same logic as poller evaluate.go).
+  const showsWithSeasons = new Set<string>();
+  for (const e of props.items) {
+    if (e.item.type === 'season' && e.item.showTitle) {
+      showsWithSeasons.add(e.item.showTitle);
+    }
+  }
+  let result = props.items.filter(
+    (e) => !(e.item.type === 'show' && showsWithSeasons.has(e.item.title)),
+  );
 
   if (search.value) {
     const q = search.value.toLowerCase();
@@ -113,6 +131,67 @@ const filteredItems = computed(() => {
 const hasFilters = computed(
   () => search.value || typeFilter.value || integrationFilter.value !== null,
 );
+
+// ---------------------------------------------------------------------------
+// Virtual Scrolling
+// ---------------------------------------------------------------------------
+const TABLE_ROW_HEIGHT = 41;
+const GRID_ROW_HEIGHT = 280;
+const GRID_ROW_GAP = 12;
+
+/** Type-safe index access into filteredItems. The virtualizer guarantees valid indices. */
+function getEntry(index: number): EvaluatedItem {
+  const entry = filteredItems.value[index];
+  if (!entry) throw new Error(`Invalid virtualizer index: ${index}`);
+  return entry;
+}
+
+const tableScrollRef = ref<HTMLElement | null>(null);
+const gridScrollRef = ref<HTMLElement | null>(null);
+
+const tableVirtualizer = useVirtualizer(
+  computed(() => ({
+    count: filteredItems.value.length,
+    getScrollElement: () => tableScrollRef.value,
+    estimateSize: () => TABLE_ROW_HEIGHT,
+    overscan: 10,
+  })),
+);
+
+/** Responsive column count mirrors the Tailwind grid breakpoints. */
+const gridCols = ref(2);
+function updateGridCols() {
+  const w = window.innerWidth;
+  if (w >= 1280) gridCols.value = 6;
+  else if (w >= 1024) gridCols.value = 5;
+  else if (w >= 768) gridCols.value = 4;
+  else if (w >= 640) gridCols.value = 3;
+  else gridCols.value = 2;
+}
+onMounted(() => {
+  updateGridCols();
+  window.addEventListener('resize', updateGridCols);
+});
+onUnmounted(() => {
+  window.removeEventListener('resize', updateGridCols);
+});
+
+const gridRowCount = computed(() => Math.ceil(filteredItems.value.length / gridCols.value));
+
+const gridVirtualizer = useVirtualizer(
+  computed(() => ({
+    count: gridRowCount.value,
+    getScrollElement: () => gridScrollRef.value,
+    estimateSize: () => GRID_ROW_HEIGHT + GRID_ROW_GAP,
+    overscan: 3,
+  })),
+);
+
+// Reset scroll position when filters / sort change
+watch([search, typeFilter, integrationFilter, sortBy, sortDir], () => {
+  tableVirtualizer.value.scrollToIndex(0);
+  gridVirtualizer.value.scrollToIndex(0);
+});
 
 // ---------------------------------------------------------------------------
 // Selection Mode
@@ -278,8 +357,9 @@ const tableColumns = computed(() => [
       </div>
     </UiCardHeader>
     <UiCardContent>
-      <div v-if="loading" class="flex items-center justify-center py-12">
+      <div v-if="loading" class="flex flex-col items-center justify-center py-12 gap-3">
         <LoaderCircleIcon class="w-6 h-6 text-primary animate-spin" />
+        <p class="text-muted-foreground text-sm">{{ t('library.loadingHint') }}</p>
       </div>
 
       <div v-else-if="items.length === 0" class="text-center py-12 space-y-2">
@@ -327,7 +407,7 @@ const tableColumns = computed(() => [
                 <UiSelectContent>
                   <UiSelectItem value="all">{{ t('library.allIntegrations') }}</UiSelectItem>
                   <UiSelectItem
-                    v-for="integ in integrations"
+                    v-for="integ in mediaIntegrations"
                     :key="integ.id"
                     :value="String(integ.id)"
                   >
@@ -336,6 +416,28 @@ const tableColumns = computed(() => [
                 </UiSelectContent>
               </UiSelect>
             </template>
+            <!-- Sort control (always visible — supplements table headers in table mode) -->
+            <UiSeparator orientation="vertical" class="h-5 mx-1" />
+            <UiSelect :model-value="sortBy" @update:model-value="(v) => toggleSort(v as SortKey)">
+              <UiSelectTrigger class="h-7 text-xs w-32">
+                <UiSelectValue :placeholder="t('library.sortBy')" />
+              </UiSelectTrigger>
+              <UiSelectContent>
+                <UiSelectItem v-for="col in tableColumns" :key="col.key" :value="col.key">
+                  {{ col.label }}
+                </UiSelectItem>
+              </UiSelectContent>
+            </UiSelect>
+            <UiButton
+              variant="ghost"
+              size="sm"
+              class="h-7 w-7 p-0"
+              :aria-label="sortDir === 'asc' ? t('library.sortAsc') : t('library.sortDesc')"
+              @click="sortDir = sortDir === 'asc' ? 'desc' : 'asc'"
+            >
+              <ArrowUpIcon v-if="sortDir === 'asc'" class="w-3.5 h-3.5" />
+              <ArrowDownIcon v-else class="w-3.5 h-3.5" />
+            </UiButton>
           </div>
         </div>
 
@@ -358,31 +460,71 @@ const tableColumns = computed(() => [
           {{ t('library.noFilterMatch') }}
         </div>
 
-        <!-- Grid View -->
-        <div v-else-if="viewMode === 'grid'" class="max-h-[600px] overflow-y-auto">
+        <!-- Grid View (virtualized) -->
+        <div
+          v-else-if="viewMode === 'grid'"
+          ref="gridScrollRef"
+          class="library-scroll max-h-[calc(100vh-16rem)] overflow-y-auto"
+        >
           <div
-            class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3"
+            :style="{
+              height: `${gridVirtualizer.getTotalSize()}px`,
+              position: 'relative',
+              width: '100%',
+            }"
           >
-            <MediaPosterCard
-              v-for="(entry, idx) in filteredItems"
-              :key="itemKey(entry)"
-              :title="entry.item.title"
-              :poster-url="entry.item.posterUrl"
-              :year="entry.item.year"
-              :media-type="entry.item.type"
-              :score="entry.isProtected ? undefined : entry.score"
-              :size-bytes="entry.item.sizeBytes"
-              :is-protected="entry.isProtected"
-              :selectable="selectionMode"
-              :selected="selectedIds.has(itemKey(entry))"
-              @click="selectionMode ? toggleItem(entry, idx, $event) : openDetail(entry)"
-              @select="toggleItem(entry, idx)"
-            />
+            <div
+              v-for="vRow in gridVirtualizer.getVirtualItems()"
+              :key="vRow.index"
+              :style="{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: `${vRow.size - GRID_ROW_GAP}px`,
+                transform: `translateY(${vRow.start}px)`,
+              }"
+              class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3"
+            >
+              <template v-for="col in gridCols" :key="col">
+                <MediaPosterCard
+                  v-if="vRow.index * gridCols + (col - 1) < filteredItems.length"
+                  :title="getEntry(vRow.index * gridCols + (col - 1)).item.title"
+                  :poster-url="getEntry(vRow.index * gridCols + (col - 1)).item.posterUrl"
+                  :year="getEntry(vRow.index * gridCols + (col - 1)).item.year"
+                  :media-type="getEntry(vRow.index * gridCols + (col - 1)).item.type"
+                  :score="
+                    getEntry(vRow.index * gridCols + (col - 1)).isProtected
+                      ? undefined
+                      : getEntry(vRow.index * gridCols + (col - 1)).score
+                  "
+                  :size-bytes="getEntry(vRow.index * gridCols + (col - 1)).item.sizeBytes"
+                  :is-protected="getEntry(vRow.index * gridCols + (col - 1)).isProtected"
+                  :selectable="selectionMode"
+                  :selected="selectedIds.has(itemKey(getEntry(vRow.index * gridCols + (col - 1))))"
+                  @click="
+                    selectionMode
+                      ? toggleItem(
+                          getEntry(vRow.index * gridCols + (col - 1)),
+                          vRow.index * gridCols + (col - 1),
+                          $event,
+                        )
+                      : openDetail(getEntry(vRow.index * gridCols + (col - 1)))
+                  "
+                  @select="
+                    toggleItem(
+                      getEntry(vRow.index * gridCols + (col - 1)),
+                      vRow.index * gridCols + (col - 1),
+                    )
+                  "
+                />
+              </template>
+            </div>
           </div>
         </div>
 
-        <!-- Table View -->
-        <div v-else class="overflow-x-auto max-h-[600px] overflow-y-auto relative">
+        <!-- Table View (virtualized) -->
+        <div v-else class="overflow-x-auto relative">
           <UiTable>
             <UiTableHeader class="sticky top-0 z-10 bg-background">
               <UiTableRow>
@@ -413,66 +555,91 @@ const tableColumns = computed(() => [
                 </UiTableHead>
               </UiTableRow>
             </UiTableHeader>
-            <UiTableBody>
-              <UiTableRow
-                v-for="(entry, idx) in filteredItems"
-                :key="itemKey(entry)"
-                class="cursor-pointer"
-                @click="selectionMode ? toggleItem(entry, idx, $event) : openDetail(entry)"
-              >
-                <UiTableCell v-if="selectionMode" class="w-10 text-center">
-                  <component
-                    :is="
-                      entry.isProtected
-                        ? ShieldCheckIcon
-                        : selectedIds.has(itemKey(entry))
-                          ? CheckSquareIcon
-                          : SquareIcon
-                    "
-                    class="w-4 h-4"
-                    :class="
-                      entry.isProtected
-                        ? 'text-emerald-500 cursor-not-allowed'
-                        : 'text-muted-foreground'
-                    "
-                    :title="entry.isProtected ? t('library.protectedTooltip') : undefined"
-                  />
-                </UiTableCell>
-                <UiTableCell class="font-medium">
-                  <div class="flex items-center gap-2">
-                    <ShieldCheckIcon
-                      v-if="entry.isProtected"
-                      class="w-3.5 h-3.5 text-emerald-500 shrink-0"
-                    />
-                    <span class="truncate">{{ entry.item.title }}</span>
-                  </div>
-                </UiTableCell>
-                <UiTableCell>
-                  <UiBadge variant="secondary" class="text-[10px] capitalize">
-                    {{ entry.item.type }}
-                  </UiBadge>
-                </UiTableCell>
-                <UiTableCell>
-                  <span class="text-xs text-muted-foreground">
-                    {{ integrationMap.get(entry.item.integrationId) ?? '—' }}
-                  </span>
-                </UiTableCell>
-                <UiTableCell class="text-right">
-                  <span class="text-xs tabular-nums text-muted-foreground">
-                    {{ formatBytes(entry.item.sizeBytes) }}
-                  </span>
-                </UiTableCell>
-                <UiTableCell class="text-right">
-                  <span
-                    class="text-xs font-mono tabular-nums font-semibold"
-                    :class="entry.isProtected ? 'text-emerald-500' : 'text-primary'"
-                  >
-                    {{ entry.isProtected ? 'Protected' : entry.score.toFixed(2) }}
-                  </span>
-                </UiTableCell>
-              </UiTableRow>
-            </UiTableBody>
           </UiTable>
+          <div
+            ref="tableScrollRef"
+            class="library-scroll max-h-[calc(100vh-20rem)] overflow-y-auto"
+          >
+            <UiTable>
+              <UiTableBody>
+                <tr :style="{ height: `${tableVirtualizer.getVirtualItems()[0]?.start ?? 0}px` }" />
+                <UiTableRow
+                  v-for="vRow in tableVirtualizer.getVirtualItems()"
+                  :key="itemKey(getEntry(vRow.index))"
+                  class="cursor-pointer"
+                  @click="
+                    selectionMode
+                      ? toggleItem(getEntry(vRow.index), vRow.index, $event)
+                      : openDetail(getEntry(vRow.index))
+                  "
+                >
+                  <UiTableCell v-if="selectionMode" class="w-10 text-center">
+                    <component
+                      :is="
+                        getEntry(vRow.index).isProtected
+                          ? ShieldCheckIcon
+                          : selectedIds.has(itemKey(getEntry(vRow.index)))
+                            ? CheckSquareIcon
+                            : SquareIcon
+                      "
+                      class="w-4 h-4"
+                      :class="
+                        getEntry(vRow.index).isProtected
+                          ? 'text-emerald-500 cursor-not-allowed'
+                          : 'text-muted-foreground'
+                      "
+                      :title="
+                        getEntry(vRow.index).isProtected ? t('library.protectedTooltip') : undefined
+                      "
+                    />
+                  </UiTableCell>
+                  <UiTableCell class="font-medium">
+                    <div class="flex items-center gap-2">
+                      <ShieldCheckIcon
+                        v-if="getEntry(vRow.index).isProtected"
+                        class="w-3.5 h-3.5 text-emerald-500 shrink-0"
+                      />
+                      <span class="truncate">{{ getEntry(vRow.index).item.title }}</span>
+                    </div>
+                  </UiTableCell>
+                  <UiTableCell>
+                    <UiBadge variant="secondary" class="text-[10px] capitalize">
+                      {{ getEntry(vRow.index).item.type }}
+                    </UiBadge>
+                  </UiTableCell>
+                  <UiTableCell>
+                    <span class="text-xs text-muted-foreground">
+                      {{ integrationMap.get(getEntry(vRow.index).item.integrationId) ?? '—' }}
+                    </span>
+                  </UiTableCell>
+                  <UiTableCell class="text-right">
+                    <span class="text-xs tabular-nums text-muted-foreground">
+                      {{ formatBytes(getEntry(vRow.index).item.sizeBytes) }}
+                    </span>
+                  </UiTableCell>
+                  <UiTableCell class="text-right">
+                    <span
+                      class="text-xs font-mono tabular-nums font-semibold"
+                      :class="
+                        getEntry(vRow.index).isProtected ? 'text-emerald-500' : 'text-primary'
+                      "
+                    >
+                      {{
+                        getEntry(vRow.index).isProtected
+                          ? 'Protected'
+                          : getEntry(vRow.index).score.toFixed(2)
+                      }}
+                    </span>
+                  </UiTableCell>
+                </UiTableRow>
+                <tr
+                  :style="{
+                    height: `${tableVirtualizer.getTotalSize() - (tableVirtualizer.getVirtualItems().at(-1)?.end ?? 0)}px`,
+                  }"
+                />
+              </UiTableBody>
+            </UiTable>
+          </div>
         </div>
       </div>
     </UiCardContent>

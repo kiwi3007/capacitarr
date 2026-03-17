@@ -23,6 +23,7 @@
     "@nuxtjs/i18n": "^9.5.3",
     "@radix-icons/vue": "^1.0.0",
     "@tanstack/vue-table": "^8.21.3",
+    "@tanstack/vue-virtual": "^3.13.23",
     "@vueuse/core": "^13.0.0",
     "@vueuse/motion": "^3.0.3",
     "apexcharts": "^5.6.0",

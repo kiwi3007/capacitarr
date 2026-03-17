@@ -36,29 +36,32 @@
 
     <!-- Live Preview -->
     <RulesRulePreviewTable
-      :preview="preview"
+      :preview="previewItems"
       :loading="previewLoading"
       :fetched-at="previewFetchedAt"
-      :disk-context="diskContext"
+      :disk-context="previewDiskContext"
       :rules="rules"
-      @refresh="fetchPreview"
+      @refresh="previewRefresh(true)"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import type {
-  DiskGroup,
-  IntegrationConfig,
-  CustomRule,
-  PreferenceSet,
-  EvaluatedItem,
-  PreviewResponse,
-} from '~/types/api';
+import type { DiskGroup, IntegrationConfig, CustomRule, PreferenceSet } from '~/types/api';
 import type { WeightKeys } from '~/components/rules/RuleWeightEditor.vue';
 
 const api = useApi();
 const { addToast } = useToast();
+const {
+  items: previewItems,
+  diskContext: previewDiskContext,
+  loading: previewLoading,
+  refresh: previewRefresh,
+} = usePreview();
+const previewFetchedAt = ref<string>('');
+watch(previewItems, () => {
+  previewFetchedAt.value = new Date().toISOString();
+});
 
 // ---------------------------------------------------------------------------
 // Disk Groups
@@ -167,7 +170,6 @@ async function addRule(rule: {
     await api('/api/v1/custom-rules', { method: 'POST', body: rule });
     addToast('Rule added', 'success');
     await fetchRules();
-    await fetchPreview();
   } catch {
     addToast('Failed to add rule', 'error');
   }
@@ -178,7 +180,6 @@ async function deleteRule(id: number) {
     await api(`/api/v1/custom-rules/${id}`, { method: 'DELETE' });
     addToast('Rule removed', 'success');
     await fetchRules();
-    await fetchPreview();
   } catch {
     addToast('Failed to delete rule', 'error');
   }
@@ -221,41 +222,13 @@ async function reorderRules(order: number[]) {
 }
 
 // ---------------------------------------------------------------------------
-// Preview
-// ---------------------------------------------------------------------------
-const preview = ref<EvaluatedItem[]>([]);
-const previewLoading = ref(false);
-const previewFetchedAt = ref<string>('');
-const diskContext = ref<{
-  totalBytes: number;
-  usedBytes: number;
-  targetPct: number;
-  thresholdPct: number;
-  bytesToFree: number;
-} | null>(null);
-
-async function fetchPreview() {
-  previewLoading.value = true;
-  try {
-    const data = (await api('/api/v1/preview')) as PreviewResponse;
-    preview.value = data.items || [];
-    diskContext.value = data.diskContext || null;
-    previewFetchedAt.value = new Date().toISOString();
-  } catch (err) {
-    console.warn('[Rules] fetchPreview failed:', err);
-  } finally {
-    previewLoading.value = false;
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Lifecycle — fetch all data on mount
 // ---------------------------------------------------------------------------
 onMounted(async () => {
   await Promise.all([
     fetchPreferences(),
     fetchRules(),
-    fetchPreview(),
+    previewRefresh(),
     fetchDiskGroups(),
     fetchIntegrations(),
   ]);

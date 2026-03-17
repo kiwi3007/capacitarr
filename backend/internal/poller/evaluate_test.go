@@ -216,7 +216,7 @@ func TestEvaluateAndCleanDisk_BelowThreshold_ClearsQueue(t *testing.T) {
 	}
 
 	// Call evaluateAndCleanDisk — should trigger ClearQueue since below threshold
-	result := p.evaluateAndCleanDisk(group, nil, nil, 0)
+	result := p.evaluateAndCleanDisk(group, nil, nil, 0, db.PreferenceSet{}, nil)
 	if result != 0 {
 		t.Errorf("expected 0 deletions queued, got %d", result)
 	}
@@ -257,7 +257,7 @@ func TestEvaluateAndCleanDisk_WithOverride(t *testing.T) {
 	// Run with no items — it should still detect threshold breach and not return 0 early
 	// Since there are no media items, it won't actually queue anything, but the
 	// breach detection code path should be entered (checking for currentPct > threshold).
-	result := p.evaluateAndCleanDisk(group, nil, nil, 0)
+	result := p.evaluateAndCleanDisk(group, nil, nil, 0, db.PreferenceSet{}, nil)
 	// With no items, nothing to delete, but the important thing is it didn't
 	// short-circuit at the "below threshold" check.
 	if result != 0 {
@@ -282,7 +282,7 @@ func TestEvaluateAndCleanDisk_OverrideZeroUsesDetected(t *testing.T) {
 		TargetPct:          70.0,
 	}
 
-	result := p.evaluateAndCleanDisk(group, nil, nil, 0)
+	result := p.evaluateAndCleanDisk(group, nil, nil, 0, db.PreferenceSet{}, nil)
 	if result != 0 {
 		t.Errorf("expected 0 (below threshold), got %d", result)
 	}

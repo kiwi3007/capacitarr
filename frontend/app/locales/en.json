@@ -572,5 +572,12 @@
   "library.sortScore": "Score",
   "library.sortType": "Type",
   "library.sortIntegration": "Integration",
-  "library.allIntegrations": "All Integrations"
+  "library.sortBy": "Sort by",
+  "library.sortAsc": "Sort ascending",
+  "library.sortDesc": "Sort descending",
+  "library.allIntegrations": "All Integrations",
+  "library.loadingHint": "Large libraries may take a few moments to load",
+  "preview.stale": "Data may be stale — refreshing…",
+  "preview.refreshing": "Refreshing preview data…",
+  "preview.lastUpdated": "Last updated {time}"
 }

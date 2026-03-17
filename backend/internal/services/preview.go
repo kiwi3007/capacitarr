@@ -1,0 +1,301 @@
+package services
+
+import (
+	"log/slog"
+	"sync"
+	"time"
+
+	"golang.org/x/sync/singleflight"
+
+	"capacitarr/internal/db"
+	"capacitarr/internal/engine"
+	"capacitarr/internal/events"
+	"capacitarr/internal/integrations"
+)
+
+// IntegrationLister provides read access to enabled integrations and
+// enrichment client construction.
+// Defined here to avoid import cycles between PreviewService and IntegrationService.
+type IntegrationLister interface {
+	ListEnabled() ([]db.IntegrationConfig, error)
+	BuildEnrichmentClients() (*EnrichmentBuildResult, error)
+}
+
+// RulesProvider provides read access to custom rules.
+// Defined here to avoid import cycles between PreviewService and RulesService.
+type RulesProvider interface {
+	List() ([]db.CustomRule, error)
+}
+
+// DiskGroupLister provides read access to disk groups.
+// Defined here to avoid import cycles between PreviewService and DiskGroupService.
+type DiskGroupLister interface {
+	List() ([]db.DiskGroup, error)
+}
+
+// PreviewResult holds the full result of a score preview computation.
+type PreviewResult struct {
+	Items       []engine.EvaluatedItem `json:"items"`
+	DiskContext *DiskContext           `json:"diskContext"`
+}
+
+// DiskContext provides disk usage information for the deletion line in the UI.
+type DiskContext struct {
+	TotalBytes   int64   `json:"totalBytes"`
+	UsedBytes    int64   `json:"usedBytes"`
+	TargetPct    float64 `json:"targetPct"`
+	ThresholdPct float64 `json:"thresholdPct"`
+	BytesToFree  int64   `json:"bytesToFree"`
+}
+
+// PreviewService owns the global scored-media preview for the Library
+// Management page and other UI consumers. It caches the result of
+// evaluating all media items and provides SSE-based notifications when
+// the cache is updated or invalidated.
+type PreviewService struct {
+	bus *events.EventBus
+
+	// Cross-service dependencies (set via SetDependencies)
+	integrations IntegrationLister
+	preferences  SettingsReader
+	rules        RulesProvider
+	diskGroups   DiskGroupLister
+
+	// Preview cache
+	previewMu    sync.RWMutex
+	previewCache *PreviewResult
+	previewSF    singleflight.Group
+
+	// Cache invalidation subscriber
+	invalidCh chan events.Event
+	done      chan struct{}
+}
+
+// NewPreviewService creates a new PreviewService.
+func NewPreviewService(bus *events.EventBus) *PreviewService {
+	return &PreviewService{
+		bus:  bus,
+		done: make(chan struct{}),
+	}
+}
+
+// SetDependencies wires cross-service dependencies that cannot be injected
+// at construction time due to circular initialization in the registry.
+func (s *PreviewService) SetDependencies(integ IntegrationLister, settings SettingsReader, rules RulesProvider, diskGroups DiskGroupLister) {
+	s.integrations = integ
+	s.preferences = settings
+	s.rules = rules
+	s.diskGroups = diskGroups
+}
+
+// GetPreview returns the cached preview result if available, or computes
+// a fresh one from scratch (cold start). If force is true, the cache is
+// bypassed and a fresh computation is performed. Concurrent cache-miss
+// requests are coalesced via singleflight.
+func (s *PreviewService) GetPreview(force bool) (*PreviewResult, error) {
+	if !force {
+		s.previewMu.RLock()
+		if s.previewCache != nil {
+			result := s.previewCache
+			s.previewMu.RUnlock()
+			return result, nil
+		}
+		s.previewMu.RUnlock()
+	}
+
+	// Coalesce concurrent cache-miss (or force) requests
+	val, err, _ := s.previewSF.Do("preview", func() (any, error) {
+		result, buildErr := s.buildPreviewFromScratch()
+		if buildErr != nil {
+			return nil, buildErr
+		}
+
+		s.previewMu.Lock()
+		s.previewCache = result
+		s.previewMu.Unlock()
+
+		s.bus.Publish(events.PreviewUpdatedEvent{
+			ItemCount: len(result.Items),
+			Timestamp: time.Now().UTC(),
+		})
+
+		return result, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return val.(*PreviewResult), nil
+}
+
+// SetPreviewCache populates the cache with pre-fetched, enriched items.
+// Called by the poller at the end of each cycle. The service runs
+// EvaluateMedia + SortEvaluated + DiskContext assembly internally.
+func (s *PreviewService) SetPreviewCache(items []integrations.MediaItem, prefs db.PreferenceSet, rules []db.CustomRule) {
+	result := s.buildPreview(items, prefs, rules)
+
+	s.previewMu.Lock()
+	s.previewCache = result
+	s.previewMu.Unlock()
+
+	s.bus.Publish(events.PreviewUpdatedEvent{
+		ItemCount: len(result.Items),
+		Timestamp: time.Now().UTC(),
+	})
+}
+
+// InvalidatePreviewCache clears the cached preview and publishes an
+// invalidation event so connected clients can show a stale indicator.
+func (s *PreviewService) InvalidatePreviewCache(reason string) {
+	s.previewMu.Lock()
+	s.previewCache = nil
+	s.previewMu.Unlock()
+
+	s.bus.Publish(events.PreviewInvalidatedEvent{
+		Reason: reason,
+	})
+
+	slog.Debug("Preview cache invalidated", "component", "preview", "reason", reason)
+}
+
+// StartCacheInvalidation subscribes to the event bus and invalidates the
+// preview cache when configuration changes that affect scoring are detected.
+// Call Stop() to shut down the subscriber goroutine.
+func (s *PreviewService) StartCacheInvalidation() {
+	s.invalidCh = s.bus.Subscribe()
+	go s.runInvalidationListener()
+}
+
+// Stop unsubscribes from the event bus and waits for the invalidation
+// goroutine to finish.
+func (s *PreviewService) Stop() {
+	if s.invalidCh != nil {
+		s.bus.Unsubscribe(s.invalidCh)
+		<-s.done
+	}
+}
+
+func (s *PreviewService) runInvalidationListener() {
+	defer close(s.done)
+
+	for event := range s.invalidCh {
+		switch event.(type) {
+		case events.SettingsChangedEvent:
+			s.InvalidatePreviewCache("settings_changed")
+		case events.RuleCreatedEvent:
+			s.InvalidatePreviewCache("rule_created")
+		case events.RuleUpdatedEvent:
+			s.InvalidatePreviewCache("rule_updated")
+		case events.RuleDeletedEvent:
+			s.InvalidatePreviewCache("rule_deleted")
+		case events.IntegrationAddedEvent:
+			s.InvalidatePreviewCache("integration_added")
+		case events.IntegrationUpdatedEvent:
+			s.InvalidatePreviewCache("integration_updated")
+		case events.IntegrationRemovedEvent:
+			s.InvalidatePreviewCache("integration_removed")
+		case events.ThresholdChangedEvent:
+			s.InvalidatePreviewCache("threshold_changed")
+		}
+	}
+}
+
+// buildPreview evaluates and scores pre-fetched items. Used by
+// SetPreviewCache (poller-driven population).
+func (s *PreviewService) buildPreview(items []integrations.MediaItem, prefs db.PreferenceSet, rules []db.CustomRule) *PreviewResult {
+	evaluated := engine.EvaluateMedia(items, prefs, rules)
+	engine.SortEvaluated(evaluated, prefs.TiebreakerMethod)
+
+	diskCtx := s.buildDiskContext()
+
+	return &PreviewResult{
+		Items:       evaluated,
+		DiskContext: diskCtx,
+	}
+}
+
+// buildPreviewFromScratch fetches everything from integrations, enriches,
+// evaluates, and scores. Used on cold start (no cache, no poller data).
+func (s *PreviewService) buildPreviewFromScratch() (*PreviewResult, error) {
+	buildResult, err := s.integrations.BuildEnrichmentClients()
+	if err != nil {
+		return nil, err
+	}
+
+	var allItems []integrations.MediaItem
+	for _, cfg := range buildResult.ArrConfigs {
+		client := integrations.NewClient(cfg.Type, cfg.URL, cfg.APIKey)
+		if client == nil {
+			continue
+		}
+		items, fetchErr := client.GetMediaItems()
+		if fetchErr != nil {
+			continue
+		}
+		for i := range items {
+			items[i].IntegrationID = cfg.ID
+		}
+		allItems = append(allItems, items...)
+	}
+
+	// Apply enrichment (Plex, Tautulli, Jellyfin, Emby, Overseerr)
+	integrations.EnrichItems(allItems, buildResult.Clients)
+
+	prefs, err := s.preferences.GetPreferences()
+	if err != nil {
+		return nil, err
+	}
+
+	rules, err := s.rules.List()
+	if err != nil {
+		return nil, err
+	}
+
+	return s.buildPreview(allItems, prefs, rules), nil
+}
+
+// buildDiskContext assembles the DiskContext from disk groups.
+func (s *PreviewService) buildDiskContext() *DiskContext {
+	diskGroups, err := s.diskGroups.List()
+	if err != nil {
+		return nil
+	}
+
+	if len(diskGroups) == 0 {
+		return nil
+	}
+
+	var bestGroup *db.DiskGroup
+	var bestBytesToFree int64
+
+	for i := range diskGroups {
+		dg := &diskGroups[i]
+		if dg.TotalBytes == 0 {
+			continue
+		}
+		usedPct := float64(dg.UsedBytes) / float64(dg.TotalBytes) * 100
+		var btf int64
+		if usedPct >= dg.ThresholdPct {
+			btf = dg.UsedBytes - int64(float64(dg.TotalBytes)*dg.TargetPct/100)
+			if btf < 0 {
+				btf = 0
+			}
+		}
+		if bestGroup == nil || btf > bestBytesToFree {
+			bestGroup = dg
+			bestBytesToFree = btf
+		}
+	}
+
+	if bestGroup == nil {
+		return nil
+	}
+
+	return &DiskContext{
+		TotalBytes:   bestGroup.TotalBytes,
+		UsedBytes:    bestGroup.UsedBytes,
+		TargetPct:    bestGroup.TargetPct,
+		ThresholdPct: bestGroup.ThresholdPct,
+		BytesToFree:  bestBytesToFree,
+	}
+}

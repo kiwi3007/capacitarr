@@ -1,6 +1,6 @@
 # Preview Cache + SSE Notification
 
-**Status:** 📋 Planned
+**Status:** ⛔ Superseded by `20260317T1642Z-preview-service-cache-and-sse.md`
 **Branch:** `feature/library-management` (continuation)
 **Created:** 2026-03-17
 **Related:** `20260317T1101Z-library-management-page.md`

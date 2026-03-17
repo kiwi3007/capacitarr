@@ -1,6 +1,9 @@
 package events
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 // =============================================================================
 // Engine Events
@@ -642,6 +645,41 @@ func (e NotificationDeliveryFailedEvent) EventType() string { return "notificati
 // EventMessage implements Event.
 func (e NotificationDeliveryFailedEvent) EventMessage() string {
 	return fmt.Sprintf("Notification delivery failed: %s (%s) — %s", e.Name, e.ChannelType, e.Error)
+}
+
+// =============================================================================
+// Preview Events
+// =============================================================================
+
+// PreviewUpdatedEvent is published when the preview cache is populated with
+// fresh data (after a poller cycle or a force-refresh computation).
+type PreviewUpdatedEvent struct {
+	ItemCount int       `json:"itemCount"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+// EventType implements Event.
+func (e PreviewUpdatedEvent) EventType() string { return "preview_updated" }
+
+// EventMessage implements Event.
+func (e PreviewUpdatedEvent) EventMessage() string {
+	return fmt.Sprintf("Preview updated: %d items scored", e.ItemCount)
+}
+
+// PreviewInvalidatedEvent is published when the preview cache is cleared due
+// to a configuration change that affects scoring (rules, settings,
+// integrations, thresholds). Connected clients should show a stale indicator
+// and fetch fresh data.
+type PreviewInvalidatedEvent struct {
+	Reason string `json:"reason"` // e.g. "rule_changed", "settings_changed"
+}
+
+// EventType implements Event.
+func (e PreviewInvalidatedEvent) EventType() string { return "preview_invalidated" }
+
+// EventMessage implements Event.
+func (e PreviewInvalidatedEvent) EventMessage() string {
+	return fmt.Sprintf("Preview cache invalidated: %s", e.Reason)
 }
 
 // =============================================================================
