@@ -59,8 +59,8 @@ func RegisterPreferenceRoutes(protected *echo.Group, reg *services.Registry) {
 			return apiError(c, http.StatusBadRequest, "Log level must be debug, info, warn, or error")
 		}
 
-		// Validate poll interval (minimum 30s, default 300s)
-		if payload.PollIntervalSeconds < 30 {
+		// Validate poll interval (minimum 60s, default 300s)
+		if payload.PollIntervalSeconds < 60 {
 			payload.PollIntervalSeconds = 300
 		}
 

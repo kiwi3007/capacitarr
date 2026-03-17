@@ -67,7 +67,7 @@ func (p *Poller) getPollInterval() time.Duration {
 		return 5 * time.Minute
 	}
 	secs := prefs.PollIntervalSeconds
-	if secs < 30 {
+	if secs < 60 {
 		secs = 300
 	}
 	return time.Duration(secs) * time.Second

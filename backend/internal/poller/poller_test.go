@@ -77,7 +77,7 @@ func TestGetPollInterval_BelowMinimum(t *testing.T) {
 	database, reg := setupPollerTestDB(t)
 	p := New(reg)
 
-	// Set poll interval to 10s (below minimum of 30s)
+	// Set poll interval to 10s (below minimum of 60s)
 	database.Model(&db.PreferenceSet{}).Where("id = 1").Update("poll_interval_seconds", 10)
 
 	interval := p.getPollInterval()

@@ -30,12 +30,18 @@
             <UiSelectValue placeholder="Select interval" />
           </UiSelectTrigger>
           <UiSelectContent>
-            <UiSelectItem value="30"> 30 seconds </UiSelectItem>
             <UiSelectItem value="60"> 1 minute </UiSelectItem>
             <UiSelectItem value="300"> 5 minutes (default) </UiSelectItem>
+            <UiSelectItem value="600"> 10 minutes </UiSelectItem>
             <UiSelectItem value="900"> 15 minutes </UiSelectItem>
             <UiSelectItem value="1800"> 30 minutes </UiSelectItem>
             <UiSelectItem value="3600"> 1 hour </UiSelectItem>
+            <UiSelectItem value="7200"> 2 hours </UiSelectItem>
+            <UiSelectItem value="14400"> 4 hours </UiSelectItem>
+            <UiSelectItem value="21600"> 6 hours </UiSelectItem>
+            <UiSelectItem value="28800"> 8 hours </UiSelectItem>
+            <UiSelectItem value="43200"> 12 hours </UiSelectItem>
+            <UiSelectItem value="86400"> 24 hours </UiSelectItem>
           </UiSelectContent>
         </UiSelect>
         <p class="text-xs text-muted-foreground/70">
@@ -500,7 +506,7 @@ async function fetchPreferences() {
     if (prefs?.auditLogRetentionDays !== undefined) {
       retentionDays.value = prefs.auditLogRetentionDays;
     }
-    if (prefs?.pollIntervalSeconds !== undefined && prefs.pollIntervalSeconds >= 30) {
+    if (prefs?.pollIntervalSeconds !== undefined && prefs.pollIntervalSeconds >= 60) {
       pollIntervalSeconds.value = prefs.pollIntervalSeconds;
     }
     if (prefs?.deletionsEnabled !== undefined) {
