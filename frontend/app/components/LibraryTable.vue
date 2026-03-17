@@ -511,24 +511,24 @@ const tableColumns = computed(() => [
   </Teleport>
 
   <!-- Force-Delete Confirmation Dialog -->
-  <UiAlertDialog
+  <UiDialog
     :open="showDeleteDialog"
     @update:open="
-      (v: boolean) => {
-        if (!v) showDeleteDialog = false;
+      (val: boolean) => {
+        if (!val) showDeleteDialog = false;
       }
     "
   >
-    <UiAlertDialogContent>
-      <UiAlertDialogHeader>
-        <UiAlertDialogTitle class="flex items-center gap-2">
+    <UiDialogContent class="max-w-lg">
+      <UiDialogHeader>
+        <UiDialogTitle class="flex items-center gap-2">
           <AlertTriangleIcon class="w-5 h-5 text-destructive" />
           {{ t('library.forceDeleteTitle', { count: selectedItems.length }) }}
-        </UiAlertDialogTitle>
-        <UiAlertDialogDescription>
+        </UiDialogTitle>
+        <UiDialogDescription>
           {{ t('library.forceDeleteDesc') }}
-        </UiAlertDialogDescription>
-      </UiAlertDialogHeader>
+        </UiDialogDescription>
+      </UiDialogHeader>
 
       <div class="max-h-60 overflow-y-auto my-2 space-y-1">
         <div
@@ -547,22 +547,18 @@ const tableColumns = computed(() => [
         <span>{{ t('library.forceDeleteTotal', { size: formatBytes(selectedTotalBytes) }) }}</span>
       </div>
 
-      <UiAlertDialogFooter>
-        <UiAlertDialogCancel :disabled="deleteLoading">
+      <UiDialogFooter>
+        <UiButton variant="outline" :disabled="deleteLoading" @click="showDeleteDialog = false">
           {{ t('library.cancel') }}
-        </UiAlertDialogCancel>
-        <UiAlertDialogAction
-          class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-          :disabled="deleteLoading"
-          @click.prevent="confirmForceDelete"
-        >
+        </UiButton>
+        <UiButton variant="destructive" :disabled="deleteLoading" @click="confirmForceDelete">
           <LoaderCircleIcon v-if="deleteLoading" class="w-3.5 h-3.5 mr-1 animate-spin" />
           <Trash2Icon v-else class="w-3.5 h-3.5 mr-1" />
           {{ t('library.forceDelete') }}
-        </UiAlertDialogAction>
-      </UiAlertDialogFooter>
-    </UiAlertDialogContent>
-  </UiAlertDialog>
+        </UiButton>
+      </UiDialogFooter>
+    </UiDialogContent>
+  </UiDialog>
 
   <!-- Score Detail Modal -->
   <ScoreDetailModal
