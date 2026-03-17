@@ -1,6 +1,6 @@
 # Library Management Page
 
-**Status:** 🔧 In Progress
+**Status:** ✅ Complete
 **Branch:** `feature/library-management`
 **Created:** 2026-03-17
 
@@ -229,52 +229,52 @@ The force-delete backend was implemented in the `feature/rule-filter-force-delet
 
 ### Frontend Steps
 
-#### Step 1: Create Library Management Page
+#### Step 1: Create Library Management Page — ✅ Complete
 
-Create `frontend/app/pages/library.vue` with the page layout, data fetching (reuse preview API), and flat item display. Includes browse mode with detail sheet.
+Created `frontend/app/pages/library.vue` with page layout, data fetching (reuses `/api/v1/preview`), and flat item display. Includes browse mode with score detail modal.
 
 **Files:**
 - `frontend/app/pages/library.vue` — New page component
 
-#### Step 2: Add Nav Link
+#### Step 2: Add Nav Link — ✅ Complete
 
-Add "Library" link to the navbar between "Scoring Engine" and "Audit Log".
+Added "Library" link to the navbar between "Scoring Engine" and "Audit Log".
 
 **Files:**
-- `frontend/app/components/Navbar.vue` — Add library nav item
+- `frontend/app/components/Navbar.vue` — Added library nav item
 
-#### Step 3: Flat Item Table + Poster Grid Components
+#### Step 3: Flat Item Table + Poster Grid Components — ✅ Complete
 
-Create a `LibraryTable.vue` component that displays items as flat rows (no grouping). Includes search, filter by integration/type, sort by title/size/score/type. Poster grid mode reuses `MediaPosterCard` with flat layout (no popover grouping).
+Created `LibraryTable.vue` component that displays items as flat rows (no grouping). Includes search, filter by integration/type, sort by title/size/score/type. Poster grid mode reuses `MediaPosterCard` with flat layout (no popover grouping).
 
 **Files:**
 - `frontend/app/components/LibraryTable.vue` — New component
 
-#### Step 4: Selection Mode + Floating Action Bar
+#### Step 4: Selection Mode + Floating Action Bar — ✅ Complete
 
-Add selection mode toggle, checkbox column/overlay, floating action bar with count + total size + Force Delete button. Shift-click range selection. Select All / Deselect All. Protected items have disabled checkboxes.
+Added selection mode toggle, checkbox column/overlay, floating action bar with count + total size + Force Delete button. Shift-click range selection. Select All / Deselect All. Protected items have disabled checkboxes with tooltip.
 
 **Files:**
 - `frontend/app/components/LibraryTable.vue` — Selection state, checkboxes, floating bar
 
-#### Step 5: Force-Delete Confirmation Dialog
+#### Step 5: Force-Delete Confirmation Dialog — ✅ Complete
 
-`UiAlertDialog` (destructive variant) listing selected items with names and sizes, total size, and Force Delete / Cancel buttons. Calls `POST /api/v1/force-delete`.
+`UiAlertDialog` (destructive variant) listing selected items with names and sizes, total size, and Force Delete / Cancel buttons. Calls `POST /api/v1/force-delete` via parent page handler.
 
 **Files:**
 - `frontend/app/components/LibraryTable.vue` — Confirmation dialog
 
-#### Step 6: i18n Strings
+#### Step 6: i18n Strings — ✅ Complete
 
-Add English strings for the Library Management page and force-delete UI, then propagate to all locales.
+Added 27 English strings for the Library Management page and force-delete UI, propagated to all 22 locale files.
 
 **Files:**
 - `frontend/app/locales/en.json` — New strings
-- `frontend/app/locales/*.json` — Propagate to all locales
+- `frontend/app/locales/*.json` — Propagated to all 22 locales
 
-#### Step 7: Tests + CI
+#### Step 7: Tests + CI — ✅ Complete
 
-Run `make ci` to verify all changes pass.
+`make ci` passes: Go lint (0 issues), ESLint (0 errors), Prettier (all files formatted), TypeScript typecheck (0 errors), Go tests (all pass), Semgrep security (0 findings).
 
 ## Safety Considerations
 
