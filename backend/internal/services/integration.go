@@ -167,8 +167,8 @@ func (s *IntegrationService) TestConnection(intType, url, apiKey string, integra
 	switch intType {
 	case string(integrations.IntegrationTypeTautulli):
 		return s.testClient(intType, url, integrations.NewTautulliClient(url, apiKey).TestConnection)
-	case string(integrations.IntegrationTypeOverseerr):
-		return s.testClient(intType, url, integrations.NewOverseerrClient(url, apiKey).TestConnection)
+	case string(integrations.IntegrationTypeSeerr):
+		return s.testClient(intType, url, integrations.NewSeerrClient(url, apiKey).TestConnection)
 	case string(integrations.IntegrationTypeJellyfin):
 		return s.testClient(intType, url, integrations.NewJellyfinClient(url, apiKey).TestConnection)
 	case string(integrations.IntegrationTypeEmby):
@@ -530,8 +530,8 @@ func (s *IntegrationService) BuildEnrichmentClients() (*EnrichmentBuildResult, e
 		case integrations.IntegrationTypeTautulli:
 			result.Clients.Tautulli = integrations.NewTautulliClient(cfg.URL, cfg.APIKey)
 			result.EnrichmentConfigs = append(result.EnrichmentConfigs, cfg)
-		case integrations.IntegrationTypeOverseerr:
-			result.Clients.Overseerr = integrations.NewOverseerrClient(cfg.URL, cfg.APIKey)
+		case integrations.IntegrationTypeSeerr:
+			result.Clients.Seerr = integrations.NewSeerrClient(cfg.URL, cfg.APIKey)
 			result.EnrichmentConfigs = append(result.EnrichmentConfigs, cfg)
 		case integrations.IntegrationTypeJellyfin:
 			result.Clients.Jellyfin = integrations.NewJellyfinClient(cfg.URL, cfg.APIKey)

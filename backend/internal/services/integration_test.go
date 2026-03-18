@@ -460,7 +460,7 @@ func TestIntegrationService_SyncAll_TestsEnrichmentTypes(t *testing.T) {
 	// Tautulli and Overseerr don't implement the full Integration interface,
 	// but SyncAll should still test their connections and return results.
 	database.Create(&db.IntegrationConfig{Type: "tautulli", Name: "Firefly Tautulli", URL: "http://localhost:8181", APIKey: "key1", Enabled: true})
-	database.Create(&db.IntegrationConfig{Type: "overseerr", Name: "Serenity Overseerr", URL: "http://localhost:5055", APIKey: "key2", Enabled: true})
+	database.Create(&db.IntegrationConfig{Type: "seerr", Name: "Serenity Overseerr", URL: "http://localhost:5055", APIKey: "key2", Enabled: true})
 
 	results, err := svc.SyncAll()
 	if err != nil {
@@ -492,7 +492,7 @@ func TestIntegrationService_BuildEnrichmentClients_NoConfigs(t *testing.T) {
 	if result.Clients.Tautulli != nil {
 		t.Error("expected nil Tautulli client with no configs")
 	}
-	if result.Clients.Overseerr != nil {
+	if result.Clients.Seerr != nil {
 		t.Error("expected nil Overseerr client with no configs")
 	}
 	if result.Clients.Jellyfin != nil {
@@ -519,7 +519,7 @@ func TestIntegrationService_BuildEnrichmentClients_MixedConfigs(t *testing.T) {
 	database.Create(&db.IntegrationConfig{Type: "plex", Name: "Firefly Plex", URL: "http://localhost:32400", APIKey: "key2", Enabled: true})
 	database.Create(&db.IntegrationConfig{Type: "tautulli", Name: "Firefly Tautulli", URL: "http://localhost:8181", APIKey: "key3", Enabled: true})
 	database.Create(&db.IntegrationConfig{Type: "radarr", Name: "Serenity Radarr", URL: "http://localhost:7878", APIKey: "key4", Enabled: true})
-	database.Create(&db.IntegrationConfig{Type: "overseerr", Name: "Firefly Overseerr", URL: "http://localhost:5055", APIKey: "key5", Enabled: true})
+	database.Create(&db.IntegrationConfig{Type: "seerr", Name: "Firefly Overseerr", URL: "http://localhost:5055", APIKey: "key5", Enabled: true})
 	database.Create(&db.IntegrationConfig{Type: "jellyfin", Name: "Firefly Jellyfin", URL: "http://localhost:8096", APIKey: "key6", Enabled: true})
 	database.Create(&db.IntegrationConfig{Type: "emby", Name: "Firefly Emby", URL: "http://localhost:8920", APIKey: "key7", Enabled: true})
 	database.Create(&db.IntegrationConfig{Type: "lidarr", Name: "Firefly Lidarr", URL: "http://localhost:8686", APIKey: "key8", Enabled: true})
@@ -536,7 +536,7 @@ func TestIntegrationService_BuildEnrichmentClients_MixedConfigs(t *testing.T) {
 	if result.Clients.Tautulli == nil {
 		t.Error("expected non-nil Tautulli client")
 	}
-	if result.Clients.Overseerr == nil {
+	if result.Clients.Seerr == nil {
 		t.Error("expected non-nil Overseerr client")
 	}
 	if result.Clients.Jellyfin == nil {
@@ -571,7 +571,7 @@ func TestIntegrationService_BuildEnrichmentClients_OnlyArr(t *testing.T) {
 		t.Fatalf("BuildEnrichmentClients returned error: %v", err)
 	}
 
-	if result.Clients.Plex != nil || result.Clients.Tautulli != nil || result.Clients.Overseerr != nil ||
+	if result.Clients.Plex != nil || result.Clients.Tautulli != nil || result.Clients.Seerr != nil ||
 		result.Clients.Jellyfin != nil || result.Clients.Emby != nil {
 		t.Error("expected no enrichment clients with only *arr configs")
 	}

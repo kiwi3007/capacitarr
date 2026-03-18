@@ -456,7 +456,7 @@ func TestEnrichItems_OverseerrEnrichment(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	overseerrClient := NewOverseerrClient(srv.URL, "test-key")
+	overseerrClient := NewSeerrClient(srv.URL, "test-key")
 
 	// Items with TMDb IDs set (as would happen after the fix)
 	items := []MediaItem{
@@ -466,7 +466,7 @@ func TestEnrichItems_OverseerrEnrichment(t *testing.T) {
 		{Title: "Firefly 2", Type: MediaTypeShow, ExternalID: "3", TMDbID: 0}, // No TMDb ID — should NOT be enriched
 	}
 
-	ec := EnrichmentClients{Overseerr: overseerrClient}
+	ec := EnrichmentClients{Seerr: overseerrClient}
 	EnrichItems(items, ec)
 
 	// Serenity: TMDb 16320 matches → IsRequested=true, RequestedBy="RJ"
@@ -537,7 +537,7 @@ func TestEnrichItems_OverseerrWithWatchedByRequestor(t *testing.T) {
 	}))
 	defer overseerrSrv.Close()
 
-	overseerrClient := NewOverseerrClient(overseerrSrv.URL, "test-key")
+	overseerrClient := NewSeerrClient(overseerrSrv.URL, "test-key")
 
 	// Item has TMDbID AND watch data from Tautulli where "RJ" watched it
 	items := []MediaItem{
@@ -550,7 +550,7 @@ func TestEnrichItems_OverseerrWithWatchedByRequestor(t *testing.T) {
 		},
 	}
 
-	ec := EnrichmentClients{Overseerr: overseerrClient}
+	ec := EnrichmentClients{Seerr: overseerrClient}
 	EnrichItems(items, ec)
 
 	// RequestedBy should be "RJ"

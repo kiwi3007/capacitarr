@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestOverseerrClient_TestConnection_Success(t *testing.T) {
+func TestSeerrClient_TestConnection_Success(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1/status" {
 			t.Errorf("Unexpected path: %s", r.URL.Path)
@@ -20,67 +20,67 @@ func TestOverseerrClient_TestConnection_Success(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := NewOverseerrClient(srv.URL, testTautulliAPIKey)
+	client := NewSeerrClient(srv.URL, testTautulliAPIKey)
 	if err := client.TestConnection(); err != nil {
 		t.Fatalf("TestConnection should succeed: %v", err)
 	}
 }
 
-func TestOverseerrClient_TestConnection_Unauthorized(t *testing.T) {
+func TestSeerrClient_TestConnection_Unauthorized(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 	}))
 	defer srv.Close()
 
-	client := NewOverseerrClient(srv.URL, "bad-key")
+	client := NewSeerrClient(srv.URL, "bad-key")
 	err := client.TestConnection()
 	if err == nil {
 		t.Fatal("TestConnection should fail with 401")
 	}
 }
 
-func TestOverseerrClient_TestConnection_ServerError(t *testing.T) {
+func TestSeerrClient_TestConnection_ServerError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer srv.Close()
 
-	client := NewOverseerrClient(srv.URL, testTautulliAPIKey)
+	client := NewSeerrClient(srv.URL, testTautulliAPIKey)
 	err := client.TestConnection()
 	if err == nil {
 		t.Fatal("TestConnection should fail with 500")
 	}
 }
 
-func TestOverseerrClient_TestConnection_EmptyVersion(t *testing.T) {
+func TestSeerrClient_TestConnection_EmptyVersion(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"version":""}`))
 	}))
 	defer srv.Close()
 
-	client := NewOverseerrClient(srv.URL, testTautulliAPIKey)
+	client := NewSeerrClient(srv.URL, testTautulliAPIKey)
 	err := client.TestConnection()
 	if err == nil {
 		t.Fatal("TestConnection should fail when version is empty")
 	}
 }
 
-func TestOverseerrClient_TestConnection_MalformedJSON(t *testing.T) {
+func TestSeerrClient_TestConnection_MalformedJSON(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`not json`))
 	}))
 	defer srv.Close()
 
-	client := NewOverseerrClient(srv.URL, testTautulliAPIKey)
+	client := NewSeerrClient(srv.URL, testTautulliAPIKey)
 	err := client.TestConnection()
 	if err == nil {
 		t.Fatal("TestConnection should fail with malformed JSON")
 	}
 }
 
-func TestOverseerrClient_GetRequestedMedia(t *testing.T) {
+func TestSeerrClient_GetRequestedMedia(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1/request" {
 			t.Errorf("Unexpected path: %s", r.URL.Path)
@@ -137,7 +137,7 @@ func TestOverseerrClient_GetRequestedMedia(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := NewOverseerrClient(srv.URL, testTautulliAPIKey)
+	client := NewSeerrClient(srv.URL, testTautulliAPIKey)
 	requests, err := client.GetRequestedMedia()
 	if err != nil {
 		t.Fatalf("GetRequestedMedia should succeed: %v", err)
@@ -180,7 +180,7 @@ func TestOverseerrClient_GetRequestedMedia(t *testing.T) {
 	}
 }
 
-func TestOverseerrClient_GetRequestedMedia_Pagination(t *testing.T) {
+func TestSeerrClient_GetRequestedMedia_Pagination(t *testing.T) {
 	callCount := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -202,7 +202,7 @@ func TestOverseerrClient_GetRequestedMedia_Pagination(t *testing.T) {
 			}
 			results += `]`
 			page1 := `{"pageInfo": {"pages": 2, "page": 1, "results": 150}, ` + results + `}`
-			_, _ = w.Write([]byte(page1)) // nosemgrep — test-only mock HTTP server for Overseerr pagination, not production code
+			_, _ = w.Write([]byte(page1)) // nosemgrep — test-only mock HTTP server for Seerr pagination, not production code
 		} else {
 			// Second page: return remaining 50 results
 			results := `"results": [`
@@ -220,12 +220,12 @@ func TestOverseerrClient_GetRequestedMedia_Pagination(t *testing.T) {
 			}
 			results += `]`
 			page2 := `{"pageInfo": {"pages": 2, "page": 2, "results": 150}, ` + results + `}`
-			_, _ = w.Write([]byte(page2)) // nosemgrep — test-only mock HTTP server for Overseerr pagination, not production code
+			_, _ = w.Write([]byte(page2)) // nosemgrep — test-only mock HTTP server for Seerr pagination, not production code
 		}
 	}))
 	defer srv.Close()
 
-	client := NewOverseerrClient(srv.URL, testTautulliAPIKey)
+	client := NewSeerrClient(srv.URL, testTautulliAPIKey)
 	requests, err := client.GetRequestedMedia()
 	if err != nil {
 		t.Fatalf("GetRequestedMedia should succeed: %v", err)
@@ -238,7 +238,7 @@ func TestOverseerrClient_GetRequestedMedia_Pagination(t *testing.T) {
 	}
 }
 
-func TestOverseerrClient_GetRequestedMedia_EmptyResults(t *testing.T) {
+func TestSeerrClient_GetRequestedMedia_EmptyResults(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{
@@ -248,7 +248,7 @@ func TestOverseerrClient_GetRequestedMedia_EmptyResults(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := NewOverseerrClient(srv.URL, testTautulliAPIKey)
+	client := NewSeerrClient(srv.URL, testTautulliAPIKey)
 	requests, err := client.GetRequestedMedia()
 	if err != nil {
 		t.Fatalf("GetRequestedMedia should succeed with empty: %v", err)
@@ -258,21 +258,21 @@ func TestOverseerrClient_GetRequestedMedia_EmptyResults(t *testing.T) {
 	}
 }
 
-func TestOverseerrClient_GetRequestedMedia_MalformedJSON(t *testing.T) {
+func TestSeerrClient_GetRequestedMedia_MalformedJSON(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{broken`))
 	}))
 	defer srv.Close()
 
-	client := NewOverseerrClient(srv.URL, testTautulliAPIKey)
+	client := NewSeerrClient(srv.URL, testTautulliAPIKey)
 	_, err := client.GetRequestedMedia()
 	if err == nil {
 		t.Fatal("Expected error for malformed JSON")
 	}
 }
 
-func TestOverseerrClient_URLTrailingSlash(t *testing.T) {
+func TestSeerrClient_URLTrailingSlash(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1/status" {
 			t.Errorf("Expected /api/v1/status, got %s", r.URL.Path)
@@ -282,7 +282,7 @@ func TestOverseerrClient_URLTrailingSlash(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := NewOverseerrClient(srv.URL+"/", testTautulliAPIKey)
+	client := NewSeerrClient(srv.URL+"/", testTautulliAPIKey)
 	if err := client.TestConnection(); err != nil {
 		t.Fatalf("TestConnection should succeed: %v", err)
 	}

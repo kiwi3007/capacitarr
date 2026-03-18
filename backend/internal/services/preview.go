@@ -262,7 +262,7 @@ func (s *PreviewService) buildPreviewFromScratch() (*PreviewResult, error) {
 		allItems = append(allItems, items...)
 	}
 
-	// Apply enrichment (Plex, Tautulli, Jellyfin, Emby, Overseerr)
+	// Apply enrichment (Plex, Tautulli, Jellyfin, Emby, Seerr)
 	integrations.EnrichItems(allItems, buildResult.Clients)
 
 	prefs, err := s.preferences.GetPreferences()

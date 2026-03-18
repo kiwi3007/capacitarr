@@ -6,73 +6,73 @@ import (
 	"strings"
 )
 
-// OverseerrClient provides access to the Overseerr/Jellyseerr API for media request data.
-// Overseerr tracks user-requested content, which is valuable for scoring — requested
+// SeerrClient provides access to the Seerr (compatible with Overseerr and Jellyseerr) API for media request data.
+// Seerr tracks user-requested content, which is valuable for scoring — requested
 // content should be protected from deletion since users specifically asked for it.
-type OverseerrClient struct {
+type SeerrClient struct {
 	URL    string
 	APIKey string `json:"-"`
 }
 
-// NewOverseerrClient creates a new Overseerr/Jellyseerr API client.
-func NewOverseerrClient(url, apiKey string) *OverseerrClient {
-	return &OverseerrClient{
+// NewSeerrClient creates a new Seerr (compatible with Overseerr and Jellyseerr) API client.
+func NewSeerrClient(url, apiKey string) *SeerrClient {
+	return &SeerrClient{
 		URL:    strings.TrimRight(url, "/"),
 		APIKey: apiKey,
 	}
 }
 
-// OverseerrMediaRequest contains a media request from Overseerr.
-type OverseerrMediaRequest struct {
+// SeerrMediaRequest contains a media request from Seerr.
+type SeerrMediaRequest struct {
 	MediaType   string `json:"mediaType"` // "movie" or "tv"
 	TMDbID      int    `json:"tmdbId"`
 	Status      int    `json:"status"` // 1=pending, 2=approved, 3=declined, 4=available
 	RequestedBy string `json:"requestedBy"`
 }
 
-// doRequest executes an Overseerr API call using the X-Api-Key header.
-func (o *OverseerrClient) doRequest(endpoint string) ([]byte, error) {
+// doRequest executes an Seerr API call using the X-Api-Key header.
+func (o *SeerrClient) doRequest(endpoint string) ([]byte, error) {
 	fullURL := fmt.Sprintf("%s/api/v1%s", o.URL, endpoint)
 	return DoAPIRequest(fullURL, "X-Api-Key", o.APIKey)
 }
 
-// overseerrStatusResponse maps the /api/v1/status endpoint response.
-type overseerrStatusResponse struct {
+// seerrStatusResponse maps the /api/v1/status endpoint response.
+type seerrStatusResponse struct {
 	Version string `json:"version"`
 }
 
-// TestConnection verifies the Overseerr URL and API key are valid
+// TestConnection verifies the Seerr URL and API key are valid
 // by calling the /api/v1/status endpoint.
-func (o *OverseerrClient) TestConnection() error {
+func (o *SeerrClient) TestConnection() error {
 	body, err := o.doRequest("/status")
 	if err != nil {
 		return err
 	}
 
-	var resp overseerrStatusResponse
+	var resp seerrStatusResponse
 	if err := json.Unmarshal(body, &resp); err != nil {
-		return fmt.Errorf("failed to parse Overseerr status response: %w", err)
+		return fmt.Errorf("failed to parse Seerr status response: %w", err)
 	}
 
 	if resp.Version == "" {
-		return fmt.Errorf("overseerr returned empty version, unexpected response")
+		return fmt.Errorf("seerr returned empty version, unexpected response")
 	}
 
 	return nil
 }
 
-// overseerrRequestResults maps the paginated request list response.
-type overseerrRequestResults struct {
+// seerrRequestResults maps the paginated request list response.
+type seerrRequestResults struct {
 	PageInfo struct {
 		Pages   int `json:"pages"`
 		Page    int `json:"page"`
 		Results int `json:"results"`
 	} `json:"pageInfo"`
-	Results []overseerrRequest `json:"results"`
+	Results []seerrRequest `json:"results"`
 }
 
-// overseerrRequest maps a single request object from Overseerr.
-type overseerrRequest struct {
+// seerrRequest maps a single request object from Seerr.
+type seerrRequest struct {
 	ID        int    `json:"id"`
 	Status    int    `json:"status"` // 1=pending, 2=approved, 3=declined, 4=available
 	MediaType string `json:"type"`   // "movie" or "tv"
@@ -86,11 +86,11 @@ type overseerrRequest struct {
 	} `json:"requestedBy"`
 }
 
-// GetRequestedMedia fetches all media requests from Overseerr to identify
+// GetRequestedMedia fetches all media requests from Seerr to identify
 // user-requested content. This data can be used to protect requested items
 // from automatic deletion.
-func (o *OverseerrClient) GetRequestedMedia() ([]OverseerrMediaRequest, error) {
-	var allRequests []OverseerrMediaRequest
+func (o *SeerrClient) GetRequestedMedia() ([]SeerrMediaRequest, error) {
+	var allRequests []SeerrMediaRequest
 	skip := 0
 	take := 100
 
@@ -101,7 +101,7 @@ func (o *OverseerrClient) GetRequestedMedia() ([]OverseerrMediaRequest, error) {
 			return nil, fmt.Errorf("failed to fetch requests: %w", err)
 		}
 
-		var results overseerrRequestResults
+		var results seerrRequestResults
 		if err := json.Unmarshal(body, &results); err != nil {
 			return nil, fmt.Errorf("failed to parse request results: %w", err)
 		}
@@ -117,7 +117,7 @@ func (o *OverseerrClient) GetRequestedMedia() ([]OverseerrMediaRequest, error) {
 				mediaType = req.MediaType
 			}
 
-			allRequests = append(allRequests, OverseerrMediaRequest{
+			allRequests = append(allRequests, SeerrMediaRequest{
 				MediaType:   mediaType,
 				TMDbID:      req.Media.TmdbID,
 				Status:      req.Status,

@@ -14,13 +14,13 @@ import (
 
 // enrichmentPresence tracks which enrichment integration types are enabled.
 type enrichmentPresence struct {
-	hasTautulli  bool
-	hasOverseerr bool
-	hasMedia     bool
+	hasTautulli bool
+	hasSeerr    bool
+	hasMedia    bool
 }
 
 // detectEnrichment scans enabled integrations and returns which enrichment
-// services are available (Tautulli, Overseerr, Plex/Jellyfin/Emby).
+// services are available (Tautulli, Seerr, Plex/Jellyfin/Emby).
 func detectEnrichment(reg *services.Registry) enrichmentPresence {
 	configs, _ := reg.Integration.ListEnabled()
 	var p enrichmentPresence
@@ -28,8 +28,8 @@ func detectEnrichment(reg *services.Registry) enrichmentPresence {
 		switch cfg.Type {
 		case string(integrations.IntegrationTypeTautulli):
 			p.hasTautulli = true
-		case string(integrations.IntegrationTypeOverseerr):
-			p.hasOverseerr = true
+		case string(integrations.IntegrationTypeSeerr):
+			p.hasSeerr = true
 		case string(integrations.IntegrationTypePlex), string(integrations.IntegrationTypeJellyfin), string(integrations.IntegrationTypeEmby):
 			p.hasMedia = true
 		}
@@ -47,7 +47,7 @@ func appendEnrichmentFields(fields []map[string]any, p enrichmentPresence) []map
 			map[string]any{"field": "lastplayed", "label": "Last Watched", "type": "date", "operators": []string{"in_last", "over_ago", "never"}},
 		)
 	}
-	if p.hasOverseerr {
+	if p.hasSeerr {
 		fields = append(fields,
 			map[string]any{"field": "requested", "label": "Is Requested", "type": "boolean", "operators": []string{"=="}},
 			map[string]any{"field": "requestcount", "label": "Request Count", "type": "number", "operators": []string{"==", "!=", ">", ">=", "<", "<="}},
@@ -61,7 +61,7 @@ func appendEnrichmentFields(fields []map[string]any, p enrichmentPresence) []map
 			map[string]any{"field": "collection", "label": "Collection Name", "type": "string", "operators": []string{"==", "!=", "contains", "!contains"}},
 		)
 	}
-	if p.hasOverseerr && (p.hasTautulli || p.hasMedia) {
+	if p.hasSeerr && (p.hasTautulli || p.hasMedia) {
 		fields = append(fields,
 			map[string]any{"field": "watchedbyreq", "label": "Watched by Requestor", "type": "boolean", "operators": []string{"=="}},
 		)
@@ -121,7 +121,7 @@ func RegisterRuleFieldRoutes(protected *echo.Group, reg *services.Registry) {
 			}
 		}
 
-		// Enrichment fields from Tautulli / Overseerr / media servers.
+		// Enrichment fields from Tautulli / Seerr / media servers.
 		// For unfiltered requests (serviceType == ""), always check enrichment.
 		// For filtered requests, only add enrichment for *arr service types.
 		addEnrichment := serviceType == ""

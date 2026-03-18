@@ -10,15 +10,15 @@ import (
 // they provide watch history, request data, and other metadata used to enrich
 // *arr media items before scoring.
 type EnrichmentClients struct {
-	Tautulli  *TautulliClient
-	Overseerr *OverseerrClient
-	Plex      *PlexClient
-	Jellyfin  *JellyfinClient
-	Emby      *EmbyClient
+	Tautulli *TautulliClient
+	Seerr    *SeerrClient
+	Plex     *PlexClient
+	Jellyfin *JellyfinClient
+	Emby     *EmbyClient
 }
 
 // EnrichItems applies watch history and request data from enrichment services
-// (Tautulli, Plex, Overseerr, Jellyfin, Emby) to the collected media items.
+// (Tautulli, Plex, Seerr, Jellyfin, Emby) to the collected media items.
 // Enrichment priority: Tautulli > Plex > Jellyfin > Emby (each source only
 // enriches items that don't already have watch data, i.e. PlayCount == 0).
 func EnrichItems(items []MediaItem, ec EnrichmentClients) {
@@ -77,15 +77,15 @@ func EnrichItems(items []MediaItem, ec EnrichmentClients) {
 		}
 	}
 
-	// ─── Enrichment: Overseerr request data ──────────────────────────────────
-	if ec.Overseerr != nil && len(items) > 0 {
-		slog.Info("Enriching items with Overseerr request data", "component", "enrichment", "itemCount", len(items))
-		requests, err := ec.Overseerr.GetRequestedMedia()
+	// ─── Enrichment: Seerr request data ──────────────────────────────────
+	if ec.Seerr != nil && len(items) > 0 {
+		slog.Info("Enriching items with Seerr request data", "component", "enrichment", "itemCount", len(items))
+		requests, err := ec.Seerr.GetRequestedMedia()
 		if err != nil {
-			slog.Warn("Failed to fetch Overseerr requests", "component", "enrichment", "operation", "fetch_overseerr", "error", err)
+			slog.Warn("Failed to fetch Seerr requests", "component", "enrichment", "operation", "fetch_seerr", "error", err)
 		} else {
 			// Build lookup by TMDb ID
-			requestMap := make(map[int]OverseerrMediaRequest)
+			requestMap := make(map[int]SeerrMediaRequest)
 			for _, req := range requests {
 				requestMap[req.TMDbID] = req
 			}
@@ -101,7 +101,7 @@ func EnrichItems(items []MediaItem, ec EnrichmentClients) {
 					}
 				}
 			}
-			slog.Debug("Overseerr enrichment complete", "component", "enrichment", "requests", len(requests), "matched", matched)
+			slog.Debug("Seerr enrichment complete", "component", "enrichment", "requests", len(requests), "matched", matched)
 		}
 	}
 

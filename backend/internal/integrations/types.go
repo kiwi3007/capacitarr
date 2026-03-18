@@ -14,8 +14,9 @@ const (
 	IntegrationTypeRadarr IntegrationType = "radarr"
 	// IntegrationTypeTautulli identifies a Tautulli (Plex analytics) integration.
 	IntegrationTypeTautulli IntegrationType = "tautulli"
-	// IntegrationTypeOverseerr identifies an Overseerr (media requests) integration.
-	IntegrationTypeOverseerr IntegrationType = "overseerr"
+	// IntegrationTypeSeerr identifies a Seerr (media requests) integration.
+	// Compatible with Overseerr, Jellyseerr, and Seerr instances.
+	IntegrationTypeSeerr IntegrationType = "seerr"
 	// IntegrationTypeLidarr identifies a Lidarr (music) integration.
 	IntegrationTypeLidarr IntegrationType = "lidarr"
 	// IntegrationTypeReadarr identifies a Readarr (books) integration.
@@ -80,10 +81,10 @@ type MediaItem struct {
 	Tags []string `json:"tags,omitempty"`
 
 	// Enrichment data (from Tautulli, Overseerr, etc.)
-	IsRequested        bool     `json:"isRequested,omitempty"`    // Overseerr: was this item user-requested?
-	RequestedBy        string   `json:"requestedBy,omitempty"`    // Overseerr: who requested it
-	RequestCount       int      `json:"requestCount,omitempty"`   // Overseerr: number of requests
-	TMDbID             int      `json:"tmdbId,omitempty"`         // TMDb ID for cross-referencing Overseerr
+	IsRequested        bool     `json:"isRequested,omitempty"`    // Seerr: was this item user-requested?
+	RequestedBy        string   `json:"requestedBy,omitempty"`    // Seerr: who requested it
+	RequestCount       int      `json:"requestCount,omitempty"`   // Seerr: number of requests
+	TMDbID             int      `json:"tmdbId,omitempty"`         // TMDb ID for cross-referencing Seerr
 	Language           string   `json:"language,omitempty"`       // Original language from *arr
 	Collections        []string `json:"collections,omitempty"`    // Plex collection membership
 	WatchedByUsers     []string `json:"watchedByUsers,omitempty"` // Users who watched (from Tautulli)
@@ -111,7 +112,7 @@ const (
 
 // NewClient constructs an Integration client for the given integration type.
 // Returns nil if the type is not a primary media-managing integration
-// (e.g. tautulli, overseerr are enrichment-only and don't implement Integration).
+// (e.g. tautulli, seerr are enrichment-only and don't implement Integration).
 func NewClient(intType, url, apiKey string) Integration {
 	switch IntegrationType(intType) {
 	case IntegrationTypeSonarr:
@@ -124,7 +125,7 @@ func NewClient(intType, url, apiKey string) Integration {
 		return NewReadarrClient(url, apiKey)
 	case IntegrationTypePlex:
 		return NewPlexClient(url, apiKey)
-	case IntegrationTypeTautulli, IntegrationTypeOverseerr, IntegrationTypeJellyfin, IntegrationTypeEmby:
+	case IntegrationTypeTautulli, IntegrationTypeSeerr, IntegrationTypeJellyfin, IntegrationTypeEmby:
 		// These are enrichment-only clients that don't implement the full
 		// Integration interface (no DeleteMediaItem). Use their dedicated
 		// constructors (NewTautulliClient, etc.) directly.

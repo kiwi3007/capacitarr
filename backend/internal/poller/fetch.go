@@ -48,9 +48,9 @@ func enrichmentTestFn(ec integrations.EnrichmentClients, cfgType string) func() 
 		if ec.Tautulli != nil {
 			return ec.Tautulli.TestConnection
 		}
-	case integrations.IntegrationTypeOverseerr:
-		if ec.Overseerr != nil {
-			return ec.Overseerr.TestConnection
+	case integrations.IntegrationTypeSeerr:
+		if ec.Seerr != nil {
+			return ec.Seerr.TestConnection
 		}
 	case integrations.IntegrationTypeJellyfin:
 		if ec.Jellyfin != nil {

@@ -102,7 +102,7 @@ func TestGetPreview_SkipsNonArrIntegrations(t *testing.T) {
 	e := testutil.SetupTestServer(t, database)
 
 	// Seed non-arr integrations that should be skipped by the preview handler
-	nonArrTypes := []string{"plex", "tautulli", "overseerr", "jellyfin", "emby"}
+	nonArrTypes := []string{"plex", "tautulli", "seerr", "jellyfin", "emby"}
 	for _, intType := range nonArrTypes {
 		cfg := struct {
 			Type    string
