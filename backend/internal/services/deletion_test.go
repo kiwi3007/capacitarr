@@ -433,6 +433,112 @@ func TestDeletionService_ProgressEvent_ActualDeletion(t *testing.T) {
 	}
 }
 
+func TestDeletionService_ForceDryRun_OverridesDeletionsEnabled(t *testing.T) {
+	database := setupTestDB(t)
+	bus := newTestBus(t)
+	auditLog := NewAuditLogService(database)
+	svc := NewDeletionService(bus, auditLog)
+	svc.SetDependencies(
+		&mockSettingsReader{deletionsEnabled: true}, // deletions enabled, but ForceDryRun overrides
+		&mockEngineStatsWriter{},
+		&mockDeletionStatsWriter{},
+	)
+
+	ch := bus.Subscribe()
+	defer bus.Unsubscribe(ch)
+
+	svc.Start()
+	defer svc.Stop()
+
+	svc.SignalBatchSize(1)
+
+	// ForceDryRun=true should cause a dry-delete even though DeletionsEnabled=true
+	job := DeleteJob{
+		Client:      &mockIntegration{deleteErr: nil},
+		Item:        integrations.MediaItem{Title: "Serenity", Type: "movie", SizeBytes: 1024 * 1024 * 100},
+		Reason:      "force-dry-run-test",
+		ForceDryRun: true,
+	}
+	if err := svc.QueueDeletion(job); err != nil {
+		t.Fatalf("QueueDeletion returned error: %v", err)
+	}
+
+	// Should receive DeletionDryRunEvent, not DeletionSuccessEvent
+	deadline := time.After(15 * time.Second)
+	gotDryRun := false
+	for {
+		select {
+		case evt := <-ch:
+			switch evt.(type) {
+			case events.DeletionDryRunEvent:
+				gotDryRun = true
+			case events.DeletionSuccessEvent:
+				t.Fatal("Expected DeletionDryRunEvent but got DeletionSuccessEvent — ForceDryRun was not honoured")
+			case events.DeletionBatchCompleteEvent:
+				if !gotDryRun {
+					t.Fatal("Batch completed without DeletionDryRunEvent")
+				}
+				return // test passed
+			}
+		case <-deadline:
+			t.Fatal("timeout waiting for events")
+		}
+	}
+}
+
+func TestDeletionService_NoDryRun_WhenDeletionsDisabled(t *testing.T) {
+	database := setupTestDB(t)
+	bus := newTestBus(t)
+	auditLog := NewAuditLogService(database)
+	svc := NewDeletionService(bus, auditLog)
+	svc.SetDependencies(
+		&mockSettingsReader{deletionsEnabled: false}, // deletions disabled
+		&mockEngineStatsWriter{},
+		&mockDeletionStatsWriter{},
+	)
+
+	ch := bus.Subscribe()
+	defer bus.Unsubscribe(ch)
+
+	svc.Start()
+	defer svc.Stop()
+
+	svc.SignalBatchSize(1)
+
+	// ForceDryRun=false, but DeletionsEnabled=false → should dry-delete
+	job := DeleteJob{
+		Client:      &mockIntegration{deleteErr: nil},
+		Item:        integrations.MediaItem{Title: "Firefly", Type: "show", SizeBytes: 1024 * 1024 * 200},
+		Reason:      "deletions-disabled-test",
+		ForceDryRun: false,
+	}
+	if err := svc.QueueDeletion(job); err != nil {
+		t.Fatalf("QueueDeletion returned error: %v", err)
+	}
+
+	// Should receive DeletionDryRunEvent, not DeletionSuccessEvent
+	deadline := time.After(15 * time.Second)
+	gotDryRun := false
+	for {
+		select {
+		case evt := <-ch:
+			switch evt.(type) {
+			case events.DeletionDryRunEvent:
+				gotDryRun = true
+			case events.DeletionSuccessEvent:
+				t.Fatal("Expected DeletionDryRunEvent but got DeletionSuccessEvent")
+			case events.DeletionBatchCompleteEvent:
+				if !gotDryRun {
+					t.Fatal("Batch completed without DeletionDryRunEvent")
+				}
+				return // test passed
+			}
+		case <-deadline:
+			t.Fatal("timeout waiting for events")
+		}
+	}
+}
+
 func TestDeletionService_ProgressEvent_Failure(t *testing.T) {
 	database := setupTestDB(t)
 	bus := newTestBus(t)

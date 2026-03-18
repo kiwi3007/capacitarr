@@ -18,12 +18,13 @@ import (
 
 // DeleteJob describes a media item to be deleted.
 type DeleteJob struct {
-	Client     integrations.Integration
-	Item       integrations.MediaItem
-	Reason     string
-	Score      float64
-	Factors    []engine.ScoreFactor
-	RunStatsID uint // Engine run stats row to increment Deleted counter
+	Client      integrations.Integration
+	Item        integrations.MediaItem
+	Reason      string
+	Score       float64
+	Factors     []engine.ScoreFactor
+	RunStatsID  uint // Engine run stats row to increment Deleted counter
+	ForceDryRun bool // When true, skip actual deletion even if DeletionsEnabled=true
 }
 
 // DeletionService manages the background deletion worker and queue.
@@ -179,7 +180,7 @@ func (s *DeletionService) processJob(job DeleteJob) {
 		factorsJSON = []byte("[]")
 	}
 
-	if !deletionsEnabled {
+	if !deletionsEnabled || job.ForceDryRun {
 		// Dry-Delete: log but do not actually remove the file
 		s.processed.Add(1)
 		s.batchSucceeded.Add(1)

@@ -338,12 +338,13 @@ func (s *ApprovalService) ExecuteApproval(entryID uint, deps ExecuteApprovalDeps
 
 	// 7. Queue for background deletion
 	if queueErr := deps.Deletion.QueueDeletion(DeleteJob{
-		Client:     client,
-		Item:       item,
-		Reason:     approved.Reason,
-		Score:      0,
-		Factors:    factors,
-		RunStatsID: runStatsID,
+		Client:      client,
+		Item:        item,
+		Reason:      approved.Reason,
+		Score:       0,
+		Factors:     factors,
+		RunStatsID:  runStatsID,
+		ForceDryRun: deps.ForceDryRun,
 	}); queueErr != nil {
 		return approved, fmt.Errorf("deletion queue is full: %w", queueErr)
 	}
@@ -358,6 +359,7 @@ type ExecuteApprovalDeps struct {
 	Integration *IntegrationService
 	Deletion    *DeletionService
 	Engine      *EngineService
+	ForceDryRun bool // When true, the queued DeleteJob will simulate deletion
 }
 
 // CreateForceDelete inserts an item into the approval queue with force_delete=true

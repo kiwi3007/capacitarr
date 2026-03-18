@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
@@ -472,7 +471,8 @@ func TestApproveEntry_DeletionsDisabled(t *testing.T) {
 
 	itemID := seedApprovalEntry(t, database)
 
-	// Disable deletions in preferences
+	// Disable deletions in preferences — approval should still succeed
+	// (the DeletionService will dry-delete via ForceDryRun)
 	if err := database.Model(&db.PreferenceSet{}).Where("id = 1").
 		Update("deletions_enabled", false).Error; err != nil {
 		t.Fatalf("Failed to disable deletions: %v", err)
@@ -483,28 +483,17 @@ func TestApproveEntry_DeletionsDisabled(t *testing.T) {
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusConflict {
-		t.Fatalf("Expected 409, got %d: %s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Expected 200 (approve with dry-run simulation), got %d: %s", rec.Code, rec.Body.String())
 	}
 
-	// Verify the response body contains the expected error message
-	var resp map[string]string
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
-	}
-	if msg, ok := resp["error"]; !ok {
-		t.Error("Expected 'error' key in response body")
-	} else if !strings.Contains(msg, "Deletions are currently disabled") {
-		t.Errorf("Expected error message about deletions disabled, got %q", msg)
-	}
-
-	// Verify the queue item was NOT changed (still "pending")
+	// Verify the queue item was approved (DeletionService will dry-delete it)
 	var entry db.ApprovalQueueItem
 	if err := database.First(&entry, itemID).Error; err != nil {
 		t.Fatalf("Failed to find queue item: %v", err)
 	}
-	if entry.Status != "pending" {
-		t.Errorf("Expected status 'pending' (unchanged), got %q", entry.Status)
+	if entry.Status != "approved" {
+		t.Errorf("Expected status 'approved', got %q", entry.Status)
 	}
 }
 

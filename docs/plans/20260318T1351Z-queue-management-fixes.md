@@ -1,6 +1,6 @@
 # Queue Management, Force-Delete, Stale Data, and Queue Status Fixes
 
-**Status:** 🔲 Not Started  
+**Status:** 🔲 In Progress  
 **Created:** 2026-03-18T13:51Z  
 **Scope:** Backend services, poller, routes, frontend composables and components
 
@@ -15,7 +15,7 @@ A deep-dive analysis identified four interconnected issues in the approval/delet
 
 These issues compound each other: force-delete items can also get stuck (issue 2b), stale data makes it hard to tell what's been processed (issue 3), and the lack of queue indicators means users can't see what's pending (issue 4).
 
-## Phase 1: Approval Queue Dismiss/Clear API
+## Phase 1: Approval Queue Dismiss/Clear API ✅ Complete
 
 Add the ability for users to remove items from the approval queue without approving or rejecting them.
 
@@ -125,7 +125,7 @@ Verify all linting, tests, and security checks pass.
 
 ---
 
-## Phase 2: Force-Delete Dry-Run Simulation
+## Phase 2: Force-Delete Dry-Run Simulation ✅ Complete
 
 Allow force-delete to work in dry-run mode and when `DeletionsEnabled=false`, flowing through to the DeletionService for simulation.
 

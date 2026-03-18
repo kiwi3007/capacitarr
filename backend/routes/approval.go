@@ -35,7 +35,10 @@ func RegisterApprovalRoutes(g *echo.Group, reg *services.Registry) {
 		return c.JSON(http.StatusOK, items)
 	})
 
-	// Approve a queued item: queue it for deletion
+	// Approve a queued item: queue it for deletion.
+	// When DeletionsEnabled=false or in dry-run mode, the item is still approved
+	// and queued — the DeletionService will simulate (dry-delete) instead of
+	// performing an actual deletion.
 	g.POST("/approval-queue/:id/approve", func(c echo.Context) error {
 		id := c.Param("id")
 		entryID, err := strconv.ParseUint(id, 10, 64)
@@ -43,21 +46,20 @@ func RegisterApprovalRoutes(g *echo.Group, reg *services.Registry) {
 			return apiError(c, http.StatusBadRequest, "Invalid ID")
 		}
 
-		// Safety check: block approvals when deletions are disabled
+		// Determine whether a dry-run simulation is needed
 		prefs, err := reg.Settings.GetPreferences()
 		if err != nil {
 			slog.Error("Failed to load preferences for approval check", "error", err)
 			return apiError(c, http.StatusInternalServerError, "Failed to load preferences")
 		}
-		if !prefs.DeletionsEnabled {
-			return apiError(c, http.StatusConflict, "Deletions are currently disabled in settings. Enable deletions before approving items.")
-		}
+		forceDryRun := !prefs.DeletionsEnabled || prefs.ExecutionMode == "dry-run"
 
 		// Execute the full approval workflow via service
 		approved, err := reg.Approval.ExecuteApproval(uint(entryID), services.ExecuteApprovalDeps{
 			Integration: reg.Integration,
 			Deletion:    reg.Deletion,
 			Engine:      reg.Engine,
+			ForceDryRun: forceDryRun,
 		})
 		if err != nil {
 			if errors.Is(err, services.ErrApprovalNotPending) {
@@ -102,21 +104,11 @@ func RegisterApprovalRoutes(g *echo.Group, reg *services.Registry) {
 		return c.JSON(http.StatusOK, rejected)
 	})
 
-	// Force-delete: queue items for deletion regardless of disk threshold
+	// Force-delete: queue items for deletion regardless of disk threshold.
+	// Works in any execution mode — when DeletionsEnabled=false or in dry-run
+	// mode, the poller will pass ForceDryRun=true so the DeletionService
+	// simulates the deletion instead of blocking.
 	g.POST("/force-delete", func(c echo.Context) error {
-		// Safety check: block when deletions are disabled
-		prefs, err := reg.Settings.GetPreferences()
-		if err != nil {
-			slog.Error("Failed to load preferences for force-delete check", "error", err)
-			return apiError(c, http.StatusInternalServerError, "Failed to load preferences")
-		}
-		if !prefs.DeletionsEnabled {
-			return apiError(c, http.StatusConflict, "Deletions are currently disabled in settings")
-		}
-		if prefs.ExecutionMode == "dry-run" {
-			return apiError(c, http.StatusConflict, "Force delete is not available in dry-run mode. Switch to approval or auto mode.")
-		}
-
 		// Parse request body — array of items to force-delete
 		var items []struct {
 			MediaName     string `json:"mediaName"`

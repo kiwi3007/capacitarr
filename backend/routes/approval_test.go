@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -140,7 +141,8 @@ func TestApproveQueueItem_DeletionsDisabled(t *testing.T) {
 	database := testutil.SetupTestDB(t)
 	e := testutil.SetupTestServer(t, database)
 
-	// Ensure deletions are disabled (default)
+	// Ensure deletions are disabled — approval should still succeed
+	// (the DeletionService will dry-delete via ForceDryRun)
 	database.Model(&db.PreferenceSet{}).Where("id = 1").Update("deletions_enabled", false)
 
 	ic := db.IntegrationConfig{
@@ -149,7 +151,7 @@ func TestApproveQueueItem_DeletionsDisabled(t *testing.T) {
 	database.Create(&ic)
 
 	item := db.ApprovalQueueItem{
-		MediaName: "Movie", MediaType: "movie", Reason: "Score: 0.90",
+		MediaName: "Serenity", MediaType: "movie", Reason: "Score: 0.90",
 		SizeBytes: 1000, IntegrationID: ic.ID, ExternalID: "1", Status: db.StatusPending,
 	}
 	database.Create(&item)
@@ -162,8 +164,15 @@ func TestApproveQueueItem_DeletionsDisabled(t *testing.T) {
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusConflict {
-		t.Fatalf("Expected 409 Conflict when deletions disabled, got %d: %s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Expected 200 (approve with dry-run simulation), got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// Verify status changed to approved
+	var approved db.ApprovalQueueItem
+	database.First(&approved, item.ID)
+	if approved.Status != db.StatusApproved {
+		t.Errorf("Expected status %q, got %q", db.StatusApproved, approved.Status)
 	}
 }
 
@@ -470,6 +479,113 @@ func TestClearQueue(t *testing.T) {
 	database.Model(&db.ApprovalQueueItem{}).Count(&remaining)
 	if remaining != 0 {
 		t.Errorf("Expected 0 remaining items, got %d", remaining)
+	}
+}
+
+func TestForceDelete_DryRunMode(t *testing.T) {
+	database := testutil.SetupTestDB(t)
+	e := testutil.SetupTestServer(t, database)
+
+	// Set dry-run mode with deletions enabled
+	database.Model(&db.PreferenceSet{}).Where("id = 1").Updates(map[string]any{
+		"execution_mode":    "dry-run",
+		"deletions_enabled": true,
+	})
+
+	ic := db.IntegrationConfig{
+		Type: "sonarr", Name: "Test", URL: "http://localhost:8989", APIKey: "key",
+	}
+	database.Create(&ic)
+
+	body := fmt.Sprintf(`[{"mediaName":"Firefly","mediaType":"show","integrationId":%d,"externalId":"1","sizeBytes":5000000,"reason":"user request"}]`, ic.ID)
+	req := testutil.AuthenticatedRequest(t, http.MethodPost, "/api/force-delete", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Expected 200 in dry-run mode, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &result); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+	if queued, ok := result["queued"].(float64); !ok || int(queued) != 1 {
+		t.Errorf("Expected queued=1, got %v", result["queued"])
+	}
+}
+
+func TestForceDelete_DeletionsDisabled(t *testing.T) {
+	database := testutil.SetupTestDB(t)
+	e := testutil.SetupTestServer(t, database)
+
+	// Disable deletions — force-delete should still accept the request
+	database.Model(&db.PreferenceSet{}).Where("id = 1").Updates(map[string]any{
+		"execution_mode":    "approval",
+		"deletions_enabled": false,
+	})
+
+	ic := db.IntegrationConfig{
+		Type: "radarr", Name: "Test", URL: "http://localhost:7878", APIKey: "key",
+	}
+	database.Create(&ic)
+
+	body := fmt.Sprintf(`[{"mediaName":"Serenity","mediaType":"movie","integrationId":%d,"externalId":"42","sizeBytes":3000000,"reason":"user request"}]`, ic.ID)
+	req := testutil.AuthenticatedRequest(t, http.MethodPost, "/api/force-delete", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Expected 200 when deletions disabled, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &result); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+	if queued, ok := result["queued"].(float64); !ok || int(queued) != 1 {
+		t.Errorf("Expected queued=1, got %v", result["queued"])
+	}
+}
+
+func TestApproveQueueItem_DryRunMode(t *testing.T) {
+	database := testutil.SetupTestDB(t)
+	e := testutil.SetupTestServer(t, database)
+
+	// Set dry-run mode — approval should still succeed (simulated deletion)
+	database.Model(&db.PreferenceSet{}).Where("id = 1").Updates(map[string]any{
+		"execution_mode":    "dry-run",
+		"deletions_enabled": true,
+	})
+
+	ic := db.IntegrationConfig{
+		Type: "sonarr", Name: "Test", URL: "http://localhost:8989", APIKey: "key",
+	}
+	database.Create(&ic)
+
+	item := db.ApprovalQueueItem{
+		MediaName: "Firefly", MediaType: "show", Reason: "Score: 0.85",
+		SizeBytes: 5000000, IntegrationID: ic.ID, ExternalID: "1", Status: db.StatusPending,
+	}
+	database.Create(&item)
+
+	req := testutil.AuthenticatedRequest(t,
+		http.MethodPost,
+		fmt.Sprintf("/api/approval-queue/%d/approve", item.ID),
+		nil,
+	)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Expected 200 in dry-run mode, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// Verify status changed to approved
+	var approved db.ApprovalQueueItem
+	database.First(&approved, item.ID)
+	if approved.Status != db.StatusApproved {
+		t.Errorf("Expected status %q, got %q", db.StatusApproved, approved.Status)
 	}
 }
 

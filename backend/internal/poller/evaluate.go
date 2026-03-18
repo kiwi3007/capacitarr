@@ -235,10 +235,9 @@ func (p *Poller) processForceDeletes(serviceClients map[uint]integrations.Integr
 		slog.Error("Failed to load preferences for force-delete", "component", "poller", "error", err)
 		return 0
 	}
-	if !prefs.DeletionsEnabled {
-		slog.Warn("Force-delete items exist but deletions are disabled", "component", "poller")
-		return 0
-	}
+
+	// Determine whether to simulate (dry-delete) instead of actually deleting
+	forceDryRun := !prefs.DeletionsEnabled || prefs.ExecutionMode == "dry-run"
 
 	var queued int
 	for _, item := range items {
@@ -266,12 +265,13 @@ func (p *Poller) processForceDeletes(serviceClients map[uint]integrations.Integr
 		}
 
 		if queueErr := p.reg.Deletion.QueueDeletion(services.DeleteJob{
-			Client:     client,
-			Item:       mediaItem,
-			Reason:     item.Reason,
-			Score:      0,
-			Factors:    factors,
-			RunStatsID: runStatsID,
+			Client:      client,
+			Item:        mediaItem,
+			Reason:      item.Reason,
+			Score:       0,
+			Factors:     factors,
+			RunStatsID:  runStatsID,
+			ForceDryRun: forceDryRun,
 		}); queueErr != nil {
 			slog.Warn("Deletion queue full, skipping force-delete item", "component", "poller", "item", item.MediaName)
 			continue
