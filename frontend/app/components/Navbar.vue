@@ -418,9 +418,9 @@ const { t, locale, locales, setLocale } = useI18n();
 
 const navLinks = computed(() => [
   { to: '/', label: t('nav.dashboard') },
-  { to: '/rules', label: t('nav.scoringEngine') },
+  { to: '/insights', label: t('nav.insights') },
   { to: '/library', label: t('nav.library') },
-  { to: '/audit', label: t('nav.auditLog') },
+  { to: '/rules', label: t('nav.scoringEngine') },
   { to: '/settings', label: t('nav.settings') },
 ]);
 

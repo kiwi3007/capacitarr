@@ -29,6 +29,7 @@
 
   "nav.dashboard": "Dashboard",
   "nav.scoringEngine": "Scoring Engine",
+  "nav.insights": "Insights",
   "nav.auditLog": "Audit Log",
   "nav.settings": "Settings",
   "nav.help": "Help",
@@ -79,6 +80,10 @@
   "login.createAccount": "Create Account",
   "login.setupHint": "Choose a username and password — this will be your admin account",
 
+  "insights.title": "Insights",
+  "insights.tabs.overview": "Overview",
+  "insights.tabs.quality": "Quality",
+  "insights.tabs.watch": "Watch Intelligence",
   "dashboard.title": "Dashboard",
   "dashboard.subtitle": "Capacity overview across your media storage.",
   "dashboard.updated": "Updated {time}",
