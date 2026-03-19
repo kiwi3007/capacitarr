@@ -846,7 +846,7 @@ const techStack = {
     'Nuxt 4',
     'Tailwind CSS v4',
     'shadcn-vue',
-    'ApexCharts',
+    'ECharts',
     'Lucide Icons',
     'SSE (EventSource)',
   ],

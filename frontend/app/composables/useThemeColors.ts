@@ -1,6 +1,6 @@
 /**
  * Resolves CSS custom property oklch values to hex colors for use in
- * libraries that don't support oklch (e.g., ApexCharts).
+ * libraries that don't support oklch.
  *
  * Creates a hidden element, applies the CSS variable as background-color,
  * then reads the computed rgb value from the browser.

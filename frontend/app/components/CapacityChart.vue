@@ -22,7 +22,7 @@
 
     <!-- Chart -->
     <ClientOnly v-else>
-      <apexchart type="area" height="100%" :options="chartOptions" :series="series" />
+      <v-chart :option="chartOption" autoresize class="h-full w-full" />
     </ClientOnly>
   </div>
 </template>
@@ -51,69 +51,82 @@ interface ChartSeries {
   data: [number, number][];
 }
 
-const series = ref<ChartSeries[]>([]);
+const seriesData = ref<ChartSeries[]>([]);
 const totalCapacity = ref<number | undefined>(undefined);
 
-const chartOptions = computed(() => {
+const chartOption = computed(() => {
   const dark = isDark.value;
   const textColor = dark ? '#a1a1aa' : '#71717a';
   const gridColor = dark ? 'rgba(63,63,70,0.5)' : '#e4e4e7';
   const isPercent = props.mode === 'percentage';
   const isRaw = props.mode === 'raw';
 
+  const colors =
+    isPercent || isRaw
+      ? [primaryColor.value]
+      : [primaryColor.value, successColor.value];
+
   return {
-    chart: {
-      type: 'area',
-      height: '100%',
-      toolbar: { show: false },
-      zoom: { enabled: false },
-      background: 'transparent',
-      fontFamily: 'Geist Sans, Geist, system-ui, sans-serif',
-      animations: { enabled: true, easing: 'easeinout', speed: 400 },
-    },
-    // Theme-aware colors: primary for used, success green for total
-    // Raw mode only has one series (Used), so only one color needed
-    colors: isPercent || isRaw ? [primaryColor.value] : [primaryColor.value, successColor.value],
-    fill: {
-      type: 'gradient',
-      gradient: { shadeIntensity: 1, opacityFrom: 0.35, opacityTo: 0.05, stops: [0, 90, 100] },
-    },
-    dataLabels: { enabled: false },
-    stroke: { curve: 'smooth', width: 2 },
-    xaxis: {
-      type: 'datetime',
-      labels: { style: { colors: textColor, fontSize: '11px' }, datetimeUTC: false },
-      axisBorder: { show: false },
-      axisTicks: { show: false },
-    },
-    yaxis: {
-      min: isPercent ? 0 : undefined,
-      max: isPercent ? 100 : isRaw && totalCapacity.value ? totalCapacity.value : undefined,
-      labels: {
-        style: { colors: textColor, fontSize: '11px' },
-        formatter: (value: number) => (isPercent ? `${value.toFixed(0)}%` : formatBytes(value)),
-      },
-    },
-    grid: {
-      borderColor: gridColor,
-      strokeDashArray: 4,
-      xaxis: { lines: { show: false } },
-      yaxis: { lines: { show: true } },
-    },
-    theme: { mode: dark ? 'dark' : 'light' },
+    backgroundColor: 'transparent',
+    textStyle: { fontFamily: 'Geist Sans, Geist, system-ui, sans-serif' },
+    color: colors,
     tooltip: {
-      theme: dark ? 'dark' : 'light',
-      x: { format: 'MMM dd, yyyy HH:mm' },
-      y: {
-        formatter: (value: number) => (isPercent ? `${value.toFixed(1)}%` : formatBytes(value)),
-      },
+      trigger: 'axis',
+      backgroundColor: dark ? 'rgba(30,30,30,0.9)' : 'rgba(255,255,255,0.96)',
+      borderColor: dark ? '#333' : '#e3e3e3',
+      textStyle: { color: dark ? '#fff' : '#333' },
+      valueFormatter: (value: number) =>
+        isPercent ? `${value.toFixed(1)}%` : formatBytes(value),
     },
     legend: {
       show: !isPercent && !isRaw,
-      position: 'top',
-      horizontalAlign: 'right',
-      labels: { colors: textColor },
+      top: 0,
+      right: 0,
+      textStyle: { color: textColor },
     },
+    grid: { top: 30, right: 10, bottom: 30, left: 60, containLabel: false },
+    xAxis: {
+      type: 'time',
+      axisLabel: { color: textColor, fontSize: 11 },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      min: isPercent ? 0 : undefined,
+      max: isPercent ? 100 : isRaw && totalCapacity.value ? totalCapacity.value : undefined,
+      axisLabel: {
+        color: textColor,
+        fontSize: 11,
+        formatter: (value: number) => (isPercent ? `${value.toFixed(0)}%` : formatBytes(value)),
+      },
+      splitLine: { lineStyle: { color: gridColor, type: 'dashed' as const } },
+    },
+    series: seriesData.value.map((s, idx) => ({
+      name: s.name,
+      type: 'line',
+      smooth: true,
+      symbol: 'none',
+      lineStyle: { width: 2 },
+      areaStyle: {
+        opacity: 0.35,
+        color: {
+          type: 'linear',
+          x: 0,
+          y: 0,
+          x2: 0,
+          y2: 1,
+          colorStops: [
+            { offset: 0, color: colors[idx] || colors[0] },
+            { offset: 1, color: 'transparent' },
+          ],
+        },
+      },
+      data: s.data,
+    })),
+    animationDuration: 400,
+    animationEasing: 'cubicInOut',
   };
 });
 
@@ -148,16 +161,15 @@ async function fetchMetrics() {
       });
 
       if (isPercent) {
-        series.value = [{ name: 'Used %', data: usedData }];
+        seriesData.value = [{ name: 'Used %', data: usedData }];
       } else if (isRaw) {
-        // Raw mode: only show Used series; y-axis max is set to totalCapacity
-        series.value = [{ name: 'Used', data: usedData }];
+        seriesData.value = [{ name: 'Used', data: usedData }];
       } else {
         const totalData: [number, number][] = res.data.map(
           (row: LibraryHistoryRow) =>
             [new Date(row.timestamp).getTime(), row.totalCapacity] as [number, number],
         );
-        series.value = [
+        seriesData.value = [
           { name: 'Used', data: usedData },
           { name: 'Total', data: totalData },
         ];
