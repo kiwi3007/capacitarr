@@ -505,60 +505,10 @@ func (s *IntegrationService) ListEnabled() ([]db.IntegrationConfig, error) {
 	return configs, nil
 }
 
-// EnrichmentBuildResult holds the result of BuildEnrichmentClients:
-// the constructed enrichment clients, the enrichment-type configs (for
-// connection testing in the poller), and the remaining *arr configs for
-// media item processing.
-type EnrichmentBuildResult struct {
-	Clients           integrations.EnrichmentClients
-	EnrichmentConfigs []db.IntegrationConfig
-	ArrConfigs        []db.IntegrationConfig
-}
-
-// BuildEnrichmentClients creates enrichment clients from all enabled integrations.
-// Returns a result containing the populated EnrichmentClients struct, the
-// enrichment-type configs (useful for connection testing), and the remaining
-// *arr configs that are not enrichment-only services.
-func (s *IntegrationService) BuildEnrichmentClients() (*EnrichmentBuildResult, error) {
-	configs, err := s.ListEnabled()
-	if err != nil {
-		return nil, fmt.Errorf("failed to list enabled integrations: %w", err)
-	}
-
-	result := &EnrichmentBuildResult{}
-
-	for _, cfg := range configs {
-		switch integrations.IntegrationType(cfg.Type) {
-		case integrations.IntegrationTypePlex:
-			result.Clients.Plex = integrations.NewPlexClient(cfg.URL, cfg.APIKey)
-			result.EnrichmentConfigs = append(result.EnrichmentConfigs, cfg)
-		case integrations.IntegrationTypeTautulli:
-			result.Clients.Tautulli = integrations.NewTautulliClient(cfg.URL, cfg.APIKey)
-			result.EnrichmentConfigs = append(result.EnrichmentConfigs, cfg)
-		case integrations.IntegrationTypeSeerr:
-			result.Clients.Seerr = integrations.NewSeerrClient(cfg.URL, cfg.APIKey)
-			result.EnrichmentConfigs = append(result.EnrichmentConfigs, cfg)
-		case integrations.IntegrationTypeJellyfin:
-			result.Clients.Jellyfin = integrations.NewJellyfinClient(cfg.URL, cfg.APIKey)
-			result.EnrichmentConfigs = append(result.EnrichmentConfigs, cfg)
-		case integrations.IntegrationTypeEmby:
-			result.Clients.Emby = integrations.NewEmbyClient(cfg.URL, cfg.APIKey)
-			result.EnrichmentConfigs = append(result.EnrichmentConfigs, cfg)
-		case integrations.IntegrationTypeSonarr,
-			integrations.IntegrationTypeRadarr,
-			integrations.IntegrationTypeLidarr,
-			integrations.IntegrationTypeReadarr:
-			result.ArrConfigs = append(result.ArrConfigs, cfg)
-		}
-	}
-
-	return result, nil
-}
-
 // BuildIntegrationRegistry creates an IntegrationRegistry populated with clients
 // for all enabled integrations, using the factory + capability-based pattern.
-// This is the 2.0 replacement for BuildEnrichmentClients. Clients are created via
-// RegisterAllFactories and auto-discovered for their capabilities.
+// Clients are created via RegisterAllFactories and auto-discovered for their
+// capabilities.
 func (s *IntegrationService) BuildIntegrationRegistry() (*integrations.IntegrationRegistry, error) {
 	configs, err := s.ListEnabled()
 	if err != nil {

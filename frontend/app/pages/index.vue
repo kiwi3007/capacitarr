@@ -1156,7 +1156,7 @@ const flaggedSeries = computed(() => bucketHourly(engineHistoryData.value, 'flag
 
 const deletedSeries = computed(() => bucketHourly(engineHistoryData.value, 'deleted'));
 
-// --- ECharts sparkline options (replaces ApexCharts sparklines) ---
+// --- ECharts sparkline options ---
 
 const sparklineEChartsOption = computed(() => {
   const flagged = flaggedSeries.value;
