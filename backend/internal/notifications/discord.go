@@ -32,8 +32,8 @@ type discordAuthor struct {
 	IconURL string `json:"icon_url,omitempty"`
 }
 
-// TODO: populate capacitarrIconURL once a hosted logo is available.
-// Discord gracefully ignores empty/missing icon_url fields.
+// capacitarrIconURL is intentionally empty — Discord gracefully ignores
+// empty/missing icon_url fields. Populate once a hosted logo is available.
 const capacitarrIconURL = ""
 
 type discordField struct {
