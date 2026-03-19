@@ -167,6 +167,21 @@ func (s *PreviewService) SetPreviewCache(items []integrations.MediaItem, prefs d
 	})
 }
 
+// GetCachedItems returns the raw MediaItem slice from the preview cache.
+// Returns nil if the cache is empty. Implements PreviewDataSource for analytics.
+func (s *PreviewService) GetCachedItems() []integrations.MediaItem {
+	s.previewMu.RLock()
+	defer s.previewMu.RUnlock()
+	if s.previewCache == nil {
+		return nil
+	}
+	items := make([]integrations.MediaItem, len(s.previewCache.Items))
+	for i, eval := range s.previewCache.Items {
+		items[i] = eval.Item
+	}
+	return items
+}
+
 // InvalidatePreviewCache clears the cached preview and publishes an
 // invalidation event so connected clients can show a stale indicator.
 func (s *PreviewService) InvalidatePreviewCache(reason string) {
