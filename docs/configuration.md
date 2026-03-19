@@ -161,6 +161,30 @@ After importing integrations or notification channels, you will need to re-enter
 
 To back up just your custom rules, select only the **Rules** section during export. This produces a portable JSON file containing all your protection rules that can be imported into another Capacitarr instance. Integration references use human-readable names instead of IDs for cross-instance compatibility.
 
+## Libraries
+
+Libraries group integrations and allow per-library threshold management. They are managed through the **Settings → Libraries** page or the REST API.
+
+| Field | Description |
+|-------|-------------|
+| `name` | Human-readable library name (e.g., "Movies", "TV Shows - Anime") |
+| `diskGroupId` | Optional association with a disk group |
+| `thresholdPct` | Override threshold percentage (overrides disk group default) |
+| `targetPct` | Override target percentage (overrides disk group default) |
+
+## Per-Integration Thresholds
+
+Each integration can optionally override the default disk group thresholds. This is useful when different *arr instances manage storage differently — for example, an Anime Sonarr on a 2TB SSD should trigger at 90%, while a main Radarr on a 20TB NAS should trigger at 80%.
+
+To configure per-integration thresholds:
+
+1. Navigate to **Settings → Integrations**
+2. Expand an integration card
+3. Toggle **Override Thresholds**
+4. Set the custom **Threshold %** and **Target %** using the sliders
+
+When overrides are set, the evaluation loop uses the per-integration threshold instead of the disk group default. Items from different integrations in the same disk group may have different trigger conditions.
+
 ## Approval Queue
 
 When the engine mode is set to **Approval**, items that meet deletion criteria are placed in the `approval_queue` table instead of being deleted automatically. A user must explicitly approve each item before deletion proceeds.

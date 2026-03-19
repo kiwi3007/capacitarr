@@ -1,3 +1,47 @@
+## [2.0.0] - Unreleased
+
+### ⚠️ Breaking Changes
+
+- Fresh database schema — 2.0 uses a clean baseline schema. An optional migration tool imports 1.x configurations.
+- `overseerr` integration type renamed to `seerr` (compatible with Overseerr, Jellyseerr, and Seerr)
+
+### 🚀 Features
+
+- *(architecture)* Capability-based integration interfaces replacing monolithic `Integration` interface
+- *(architecture)* Integration registry with runtime capability discovery
+- *(architecture)* Pluggable enrichment pipeline with auto-discovered enrichers
+- *(architecture)* Pluggable scoring factors with `ScoringFactor` interface
+- *(architecture)* Extracted evaluator from poller — reusable scoring + filtering logic
+- *(analytics)* Library composition dashboard (quality, genre, year, type, integration breakdowns)
+- *(analytics)* Quality distribution visualization with bloat detection
+- *(analytics)* Dead content detection (never-watched, not on watchlist)
+- *(analytics)* Stale content reports with configurable staleness threshold
+- *(analytics)* Popularity heatmap (genre × year → play count)
+- *(analytics)* Request fulfillment tracking (Seerr request vs. watch correlation)
+- *(frontend)* Insights page with Overview, Quality, and Watch Intelligence tabs
+- *(frontend)* ECharts replaces ApexCharts with tree-shaken imports
+- *(frontend)* Virtual scrolling on all unbounded lists via @tanstack/vue-virtual
+- *(frontend)* CreatableCombobox component for free-text rule value input
+- *(frontend)* DashboardCard component for consistent analytics card layout
+- *(frontend)* Granular SSE event subscriptions per component
+- *(frontend)* Universal bottom toolbar with glassmorphism and iOS safe area support
+- *(frontend)* Cross-page linking (Insights → Library, Rules → Library)
+- *(library)* Library entity with per-library threshold management
+- *(library)* Smart filter presets (Dead, Stale, Bloated, Requested, Protected)
+- *(library)* Audit log merged into Library → History tab
+- *(rules)* Rule impact preview showing affected item counts
+- *(rules)* CreatableCombobox for custom value input in rule builder
+- *(settings)* Per-integration threshold overrides with slider UI
+- *(migration)* Optional one-way migration from 1.x database (CLI + web UI)
+
+### 🔧 Refactors
+
+- *(integrations)* Rename `overseerr.go` → `seerr.go`, `OverseerrClient` → `SeerrClient`
+- *(integrations)* Factory pattern for client creation (`integrations.CreateClient()`)
+- *(poller)* Poller is now an orchestrator calling the extracted evaluator
+- *(models)* Layered media model with `EnrichmentData` and typed `MediaMetadata`
+- *(navigation)* Simplified top navbar to brand + 6 page links; utilities moved to bottom toolbar
+
 ## [1.10.0] - 2026-03-18
 
 ### 🚀 Features
