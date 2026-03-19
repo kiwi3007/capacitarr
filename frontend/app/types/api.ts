@@ -306,16 +306,6 @@ export interface ApiError {
 }
 
 // ---------------------------------------------------------------------------
-// Sparkline tooltip opts shape (from ApexCharts)
-// ---------------------------------------------------------------------------
-
-export interface SparklineTooltipOpts {
-  seriesIndex: number;
-  dataPointIndex: number;
-  w: unknown;
-}
-
-// ---------------------------------------------------------------------------
 // Selected audit/preview detail item (used by ScoreDetailModal)
 // ---------------------------------------------------------------------------
 

@@ -176,11 +176,10 @@ rs
             </span>
           </div>
           <ClientOnly>
-            <apexchart
-              type="area"
-              height="120"
-              :options="sparklineOptions"
-              :series="sparklineSeries"
+            <VChart
+              :option="sparklineEChartsOption"
+              :autoresize="true"
+              style="height: 120px; width: 100%"
             />
           </ClientOnly>
         </div>
@@ -213,11 +212,10 @@ rs
               {{ $t('dashboard.maxDuration', { max: maxDurationMs + 'ms' }) }}
             </div>
             <ClientOnly>
-              <apexchart
-                type="area"
-                height="70"
-                :options="durationSparklineOptions"
-                :series="durationSparklineSeries"
+              <VChart
+                :option="durationSparklineEChartsOption"
+                :autoresize="true"
+                style="height: 70px; width: 100%"
               />
             </ClientOnly>
           </div>
@@ -588,7 +586,6 @@ import type {
   DiskGroup,
   IntegrationConfig,
   DashboardStats,
-  SparklineTooltipOpts,
 } from '~/types/api';
 
 const { t } = useI18n();
@@ -1124,48 +1121,74 @@ const flaggedSeries = computed(() => bucketHourly(engineHistoryData.value, 'flag
 
 const deletedSeries = computed(() => bucketHourly(engineHistoryData.value, 'deleted'));
 
-const sparklineSeries = computed(() => {
-  const series = [];
-  if (flaggedSeries.value.length > 0) {
-    series.push({ name: 'Flagged', data: flaggedSeries.value });
-  }
-  if (deletedSeries.value.length > 0) {
-    series.push({ name: 'Deleted', data: deletedSeries.value });
-  }
-  return series;
-});
+// --- ECharts sparkline options (replaces ApexCharts sparklines) ---
 
-const sparklineOptions = computed(() => ({
-  chart: {
-    type: 'area' as const,
-    sparkline: { enabled: true },
-    animations: { enabled: true, easing: 'easeinout', speed: 400 },
-  },
-  stroke: { curve: 'smooth' as const, width: 2 },
-  colors: [primaryColor.value, destructiveColor.value],
-  fill: {
-    type: 'gradient',
-    gradient: {
-      shadeIntensity: 1,
-      opacityFrom: 0.45,
-      opacityTo: 0.05,
-      stops: [0, 100],
-    },
-  },
-  tooltip: {
-    enabled: true,
-    shared: true,
-    x: { show: true, format: 'MMM dd, yyyy HH:mm' },
-    y: {
-      formatter: (val: number, opts: SparklineTooltipOpts) => {
-        const label = opts?.seriesIndex === 1 ? 'deleted' : 'flagged';
-        return `${val} ${label}`;
+const sparklineEChartsOption = computed(() => {
+  const flagged = flaggedSeries.value;
+  const deleted = deletedSeries.value;
+  const series: Array<Record<string, unknown>> = [];
+
+  if (flagged.length > 0) {
+    series.push({
+      name: 'Flagged',
+      type: 'line',
+      smooth: true,
+      symbol: 'none',
+      lineStyle: { width: 2, color: primaryColor.value },
+      areaStyle: {
+        color: {
+          type: 'linear',
+          x: 0,
+          y: 0,
+          x2: 0,
+          y2: 1,
+          colorStops: [
+            { offset: 0, color: primaryColor.value + '73' },
+            { offset: 1, color: primaryColor.value + '0D' },
+          ],
+        },
       },
+      data: flagged.map((d) => [d.x, d.y]),
+    });
+  }
+  if (deleted.length > 0) {
+    series.push({
+      name: 'Deleted',
+      type: 'line',
+      smooth: true,
+      symbol: 'none',
+      lineStyle: { width: 2, color: destructiveColor.value },
+      areaStyle: {
+        color: {
+          type: 'linear',
+          x: 0,
+          y: 0,
+          x2: 0,
+          y2: 1,
+          colorStops: [
+            { offset: 0, color: destructiveColor.value + '73' },
+            { offset: 1, color: destructiveColor.value + '0D' },
+          ],
+        },
+      },
+      data: deleted.map((d) => [d.x, d.y]),
+    });
+  }
+
+  return {
+    animation: true,
+    grid: { top: 4, right: 4, bottom: 4, left: 4 },
+    xAxis: { type: 'time', show: false },
+    yAxis: { type: 'value', show: false },
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      borderColor: 'transparent',
+      textStyle: { color: '#fff', fontSize: 12 },
     },
-    theme: 'dark',
-  },
-  xaxis: { type: 'datetime' as const, labels: { datetimeUTC: false } },
-}));
+    series,
+  };
+});
 
 // --- Mini sparklines: duration + freed bytes ---
 
@@ -1182,48 +1205,47 @@ const maxDurationMs = computed(() => {
   return Math.max(...data.map((p) => p.durationMs));
 });
 
-const durationSparklineSeries = computed(() => [
-  {
-    name: 'Duration',
-    data: engineHistoryData.value.map((p) => ({
-      x: new Date(p.timestamp).getTime(),
-      y: p.durationMs,
-    })),
-  },
-]);
-
-// Base sparkline chart options shared by both mini sparklines
-function miniSparklineBase(color: string) {
-  return {
-    chart: {
-      type: 'area' as const,
-      sparkline: { enabled: true },
-      animations: { enabled: true, easing: 'easeinout', speed: 400 },
-    },
-    stroke: { curve: 'smooth' as const, width: 2 },
-    colors: [color],
-    fill: {
-      type: 'gradient',
-      gradient: {
-        shadeIntensity: 1,
-        opacityFrom: 0.45,
-        opacityTo: 0.05,
-        stops: [0, 100],
-      },
-    },
-    xaxis: { type: 'datetime' as const, labels: { datetimeUTC: false } },
-  };
-}
-
-// Duration sparkline: tooltip shows milliseconds
-const durationSparklineOptions = computed(() => ({
-  ...miniSparklineBase(successColor.value),
+// Duration sparkline ECharts option
+const durationSparklineEChartsOption = computed(() => ({
+  animation: true,
+  grid: { top: 4, right: 4, bottom: 4, left: 4 },
+  xAxis: { type: 'time' as const, show: false },
+  yAxis: { type: 'value' as const, show: false },
   tooltip: {
-    enabled: true,
-    x: { show: true, format: 'MMM dd, yyyy HH:mm' },
-    y: { formatter: (val: number) => `${val}ms` },
-    theme: 'dark',
+    trigger: 'axis' as const,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    borderColor: 'transparent',
+    textStyle: { color: '#fff', fontSize: 12 },
+    formatter: (params: Array<{ value: [number, number] }>) => {
+      if (!params[0]) return '';
+      const [ts, val] = params[0].value;
+      const date = new Date(ts).toLocaleString();
+      return `${date}<br/>${val}ms`;
+    },
   },
+  series: [
+    {
+      name: 'Duration',
+      type: 'line',
+      smooth: true,
+      symbol: 'none',
+      lineStyle: { width: 2, color: successColor.value },
+      areaStyle: {
+        color: {
+          type: 'linear',
+          x: 0,
+          y: 0,
+          x2: 0,
+          y2: 1,
+          colorStops: [
+            { offset: 0, color: successColor.value + '73' },
+            { offset: 1, color: successColor.value + '0D' },
+          ],
+        },
+      },
+      data: engineHistoryData.value.map((p) => [new Date(p.timestamp).getTime(), p.durationMs]),
+    },
+  ],
 }));
 
 // Re-fetch engine history when time range changes
