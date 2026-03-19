@@ -51,7 +51,7 @@ flowchart LR
 
     subgraph ENRICHMENT["Enrichment"]
         TAUTULLI["Tautulli"]
-        OVERSEERR["Overseerr"]
+        SEERR["Seerr"]
     end
 
     POLLER -->|"Fetch media + disk space"| ARR_APPS
@@ -64,7 +64,7 @@ flowchart LR
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| **Frontend** | Nuxt 4, Vue 3, Tailwind CSS 4, shadcn-vue, Lucide, ApexCharts | Dashboard UI, rule builder, score visualization, real-time updates via SSE |
+| **Frontend** | Nuxt 4, Vue 3, Tailwind CSS 4, shadcn-vue, Lucide, ECharts | Dashboard UI, analytics visualizations, rule builder, score visualization, real-time updates via SSE |
 | **Backend** | Go, Echo, GORM | REST API, authentication, integration clients, scheduling |
 | **Service Layer** | Go (custom) | Business logic, event publishing, dependency injection |
 | **Event System** | Go (custom) | Typed event bus, activity persistence, SSE broadcast, notification dispatch |
@@ -107,13 +107,16 @@ All services accept `*gorm.DB` and `*events.EventBus` in their constructor and a
 | | DiskGroupService | Disk group CRUD, threshold management |
 | | EngineService | Trigger runs, get stats |
 | | SettingsService | Update preferences and thresholds |
+| | LibraryService | Library CRUD, per-library threshold management |
 | **Data** | AuditLogService | Create, upsert, dedup audit entries |
 | | BackupService | Database backup, restore, and export/import |
 | | DataService | Data reset operations |
 | | MetricsService | History, rollup, lifetime stats |
-| | RulesService | Custom rule CRUD and validation |
+| | RulesService | Custom rule CRUD, validation, and impact preview |
 | | PreviewService | Scored media preview cache, SSE-driven invalidation |
-| **External** | IntegrationService | CRUD, test connections, sync data |
+| **Analytics** | AnalyticsService | Composition, quality, and bloat analytics over preview cache |
+| | WatchAnalyticsService | Dead content, stale content, popularity, request fulfillment |
+| **External** | IntegrationService | CRUD, test connections, sync data, per-integration thresholds |
 | | AuthService | Login, change password, generate API keys |
 | | NotificationChannelService | CRUD for notification channels |
 | | NotificationDispatchService | Two-gate flush, digest, and alerts |
@@ -135,6 +138,7 @@ type Registry struct {
     AuditLog             *AuditLogService
     DiskGroup            *DiskGroupService
     Engine               *EngineService
+    Preview              *PreviewService
     Settings             *SettingsService
     Integration          *IntegrationService
     Auth                 *AuthService
@@ -144,11 +148,74 @@ type Registry struct {
     Rules                *RulesService
     Metrics              *MetricsService
     Version              *VersionService
-    Preview              *PreviewService
+    Library              *LibraryService
+    Analytics            *AnalyticsService
+    WatchAnalytics       *WatchAnalyticsService
 }
 ```
 
 Each service receives a `*gorm.DB` and `*events.EventBus` via constructor injection — no global state.
+
+### Capability-Based Integration Interfaces
+
+Integration clients implement only the capability interfaces they support, replacing a monolithic `Integration` interface:
+
+| Interface | Description | Implementors |
+|-----------|-------------|-------------|
+| `Connectable` | Connection testing | All integrations |
+| `MediaSource` | List managed media items | Sonarr, Radarr, Lidarr, Readarr, Plex |
+| `DiskReporter` | Disk usage reporting | Sonarr, Radarr, Lidarr, Readarr |
+| `MediaDeleter` | Delete media items | Sonarr, Radarr, Lidarr, Readarr |
+| `WatchDataProvider` | Play counts and history | Plex, Tautulli, Jellyfin, Emby |
+| `RequestProvider` | Media request data | Seerr |
+| `WatchlistProvider` | User watchlists/favorites | Plex, Jellyfin, Emby |
+| `RuleValueFetcher` | Dynamic rule field values | Sonarr, Radarr, Lidarr, Readarr |
+
+### Integration Registry
+
+The `IntegrationRegistry` provides runtime discovery of available integrations by capability:
+
+```go
+registry.WatchProviders()   // → [Plex, Tautulli, Jellyfin, Emby]
+registry.MediaSources()     // → [Sonarr, Radarr]
+registry.DiskReporters()    // → [Sonarr, Radarr]
+registry.RequestProviders() // → [Seerr]
+```
+
+Integration clients are created via a factory pattern (`integrations.CreateClient(config)`) and auto-registered. The poller and preview service use the registry to discover capabilities instead of hardcoded wiring.
+
+### Enrichment Pipeline
+
+Media items pass through a composable enrichment pipeline after fetching:
+
+```mermaid
+flowchart LR
+    FETCH["Fetch<br/>MediaSource.GetMediaItems()"]
+    BULK["BulkWatchEnricher<br/>Play counts + last played"]
+    TAUTULLI_E["TautulliEnricher<br/>Per-user watch data"]
+    REQUEST["RequestEnricher<br/>Seerr request status"]
+    WATCHLIST["WatchlistEnricher<br/>Watchlist/favorites"]
+    XREF["CrossReferenceEnricher<br/>Requestor watched?"]
+
+    FETCH --> BULK --> TAUTULLI_E --> REQUEST --> WATCHLIST --> XREF
+```
+
+Each enricher implements the `Enricher` interface (`Name()`, `Priority()`, `Enrich(items)`) and is auto-discovered from the registry's capabilities.
+
+### Pluggable Scoring Factors
+
+The scoring engine uses a `ScoringFactor` interface for each scoring dimension:
+
+| Factor | Weight Key | Description |
+|--------|-----------|-------------|
+| `WatchHistoryFactor` | `WatchHistoryWeight` | Play count influence |
+| `LastWatchedFactor` | `LastWatchedWeight` | Recency of last watch |
+| `FileSizeFactor` | `FileSizeWeight` | Larger files scored higher for deletion |
+| `RatingFactor` | `RatingWeight` | Community/critic ratings |
+| `TimeInLibraryFactor` | `TimeInLibraryWeight` | Older items scored higher |
+| `SeriesStatusFactor` | `SeriesStatusWeight` | Ended series scored higher |
+
+New factors can be added by implementing the `ScoringFactor` interface and registering them — no changes to the evaluator loop.
 
 ### Event Bus
 
@@ -213,7 +280,7 @@ See [notifications.md](notifications.md) for the full user-facing guide.
 | **Deletion** | `deletion_success`, `deletion_failed`, `deletion_dry_run`, `deletion_batch_complete`, `deletion_progress` |
 | **Rules** | `rule_created`, `rule_updated`, `rule_deleted` |
 | **Notifications** | `notification_channel_added`, `notification_channel_updated`, `notification_channel_removed`, `notification_sent`, `notification_delivery_failed` |
-| **Preview** | `preview_updated`, `preview_invalidated` |
+| **Preview** | `preview_updated`, `preview_invalidated`, `analytics_updated` |
 | **Data** | `data_reset` |
 | **System** | `server_started`, `update_available`, `version_check` |
 
@@ -325,10 +392,10 @@ flowchart LR
 | Page | Route | Purpose |
 |------|-------|---------|
 | Dashboard | `/` | Disk groups, approval queue, activity feed, engine controls, sparklines |
-| Audit Log | `/audit` | History-only view (deleted, dry-run, dry-delete) |
-| Library | `/library` | Full media library browser, search/filter, force-delete with selection mode |
-| Rules | `/rules` | Cascading rule builder + disk threshold configuration |
-| Settings | `/settings` | Preferences, integrations, notifications, authentication |
+| Insights | `/insights` | Library analytics: composition, quality, watch intelligence (3 tabs) |
+| Library | `/library` | Browse (smart filters, virtual scrolling) + History (audit log) — 2 tabs |
+| Rules | `/rules` | Cascading rule builder, drag-and-drop sort, rule impact badges |
+| Settings | `/settings` | Preferences, integrations (per-integration thresholds), notifications, auth |
 | Help | `/help` | Scoring guide, FAQ, about section |
 | Login | `/login` | Authentication |
 
@@ -344,7 +411,7 @@ capacitarr/
 │   │   ├── db/                     # SQLite models, schema migrations
 │   │   ├── engine/                 # Scoring + rule evaluation
 │   │   ├── events/                 # Event bus, typed events, SSE broadcaster, activity persister
-│   │   ├── integrations/           # *arr, Plex, Jellyfin, Emby, Overseerr, Tautulli clients
+│   │   ├── integrations/           # *arr, Plex, Jellyfin, Emby, Seerr, Tautulli clients + registry + enrichment pipeline
 │   │   ├── jobs/                   # Cron scheduling (retention cleanup, time-series rollups)
 │   │   ├── notifications/          # Discord, Apprise notification senders + HTTP client
 │   │   ├── poller/                 # Engine orchestrator (scheduled disk monitoring)

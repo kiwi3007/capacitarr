@@ -47,18 +47,22 @@ Capacitarr uses a layered architecture with clear separation of concerns:
 
 - **HTTP Layer** — Thin route handlers that parse requests, call services, and return responses
 - **Service Layer** — All business logic lives in `backend/internal/services/`. Each service receives a `*gorm.DB` and `*events.EventBus` via constructor injection — no global state
+- **Integration Layer** — Capability-based interfaces (`Connectable`, `MediaSource`, `DiskReporter`, `MediaDeleter`, `WatchDataProvider`, `RequestProvider`, `WatchlistProvider`). The `IntegrationRegistry` provides runtime capability discovery.
+- **Enrichment Pipeline** — Composable enrichers auto-discovered from registry capabilities (watch data, requests, watchlists, cross-references)
+- **Scoring Engine** — Pluggable `ScoringFactor` interface for each scoring dimension. New factors can be added without modifying the evaluator.
 - **Event Bus** — A typed pub/sub system with fan-out to three subscribers: activity persister (dashboard feed), notification dispatcher (Discord/Apprise), and SSE broadcaster (real-time browser updates)
-- **Data Layer** — SQLite via GORM with a single baseline migration. Two purpose-specific tables: `approval_queue` (state machine) and `audit_log` (append-only history)
+- **Data Layer** — SQLite via GORM with a single baseline migration
 
 For the full architecture documentation with diagrams, see [docs/architecture.md](docs/architecture.md).
 
 ### Code Standards
 
 - **Go backend**: Follow `gofmt` formatting; `golangci-lint` is run automatically via Docker
-- **Vue frontend**: Follow the project's ESLint and Prettier configuration
+- **Vue frontend**: Follow the project's ESLint and Prettier configuration; use shadcn-vue components (not raw HTML elements); use ECharts via DashboardCard for analytics
 - **Commits**: Use Conventional Commits format (required for changelog generation)
 - **Documentation**: Update relevant docs when changing user-facing behavior
-- **Services**: New business logic should be added to the service layer, not inline in route handlers
+- **Services**: New business logic must be added to the service layer, not inline in route handlers. All DB access — both reads and writes — must go through services.
+- **Integrations**: New integration clients must implement capability interfaces (not a monolithic interface)
 - **Events**: All user-visible actions should publish typed events to the event bus
 
 ### Local Development Checks

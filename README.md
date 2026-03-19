@@ -16,11 +16,14 @@ Capacitarr scores every media item across six dimensions — watch history, rece
 
 ## ✨ Highlights
 
-- **Intelligent Scoring** — Six weighted factors rank every item for deletion priority
-- **Visual Rule Builder** — Protect content with `always_keep`, `prefer_keep`, `prefer_delete`, and `always_delete` rules
-- **9 Integrations** — Sonarr, Radarr, Lidarr, Readarr, Plex, Jellyfin, Emby, Tautulli, Overseerr
+- **Intelligent Scoring** — Six pluggable weighted factors rank every item for deletion priority
+- **Insights Dashboard** — Library composition, quality distribution, bloat detection, and watch intelligence analytics
+- **Visual Rule Builder** — Protect content with `always_keep`, `prefer_keep`, `prefer_delete`, and `always_delete` rules with impact previews
+- **9 Integrations** — Sonarr, Radarr, Lidarr, Readarr, Plex, Jellyfin, Emby, Tautulli, Seerr (Overseerr/Jellyseerr)
 - **Approval Queue** — Review and approve deletions before they happen
-- **Real-Time Dashboard** — 40 SSE event types push everything to the browser instantly
+- **Real-Time Dashboard** — 44+ SSE event types push everything to the browser instantly
+- **Per-Integration Thresholds** — Different disk usage triggers per *arr instance
+- **Watch Intelligence** — Dead content detection, stale content reports, popularity heatmaps, request fulfillment tracking
 - **Single Container** — Go + Nuxt + SQLite in one ~30 MB Docker image
 
 ## 🚀 Quick Start
