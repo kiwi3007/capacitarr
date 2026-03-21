@@ -243,6 +243,20 @@ func (s *NotificationDispatchService) handle(event events.Event) {
 			Title:   "😴 Item Snoozed",
 			Message: fmt.Sprintf("Snoozed for %s", e.SnoozeDuration),
 		}, func(cfg db.NotificationConfig) bool { return cfg.OnApprovalActivity })
+
+	case events.IntegrationTestFailedEvent:
+		s.dispatchAlert(notifications.Alert{
+			Type:    notifications.AlertIntegrationStatus,
+			Title:   fmt.Sprintf("🔴 Integration Down: %s", e.Name),
+			Message: fmt.Sprintf("**%s** (%s) failed connection test:\n%s", e.Name, e.IntegrationType, e.Error),
+		}, func(cfg db.NotificationConfig) bool { return cfg.OnIntegrationStatus })
+
+	case events.IntegrationRecoveredEvent:
+		s.dispatchAlert(notifications.Alert{
+			Type:    notifications.AlertIntegrationStatus,
+			Title:   fmt.Sprintf("🟢 Integration Recovered: %s", e.Name),
+			Message: fmt.Sprintf("**%s** (%s) is back online", e.Name, e.IntegrationType),
+		}, func(cfg db.NotificationConfig) bool { return cfg.OnIntegrationStatus })
 	}
 }
 

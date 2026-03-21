@@ -36,7 +36,8 @@ func fetchAllIntegrations(integrationSvc *services.IntegrationService) fetchResu
 	}
 	result.registry = registry
 
-	// Test all connectable integrations and update sync status
+	// Test all connectable integrations and update sync status.
+	// Detect error→healthy transitions to publish recovery events.
 	for id, conn := range registry.Connectors() {
 		now := time.Now()
 		if connErr := conn.TestConnection(); connErr != nil {
@@ -45,6 +46,10 @@ func fetchAllIntegrations(integrationSvc *services.IntegrationService) fetchResu
 			_ = integrationSvc.UpdateSyncStatus(id, nil, connErr.Error())
 			continue
 		}
+
+		// Check if this integration was previously in an error state
+		integrationSvc.PublishRecoveryIfNeeded(id)
+
 		_ = integrationSvc.UpdateSyncStatus(id, &now, "")
 	}
 

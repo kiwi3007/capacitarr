@@ -68,8 +68,6 @@ type IntegrationConfig struct {
 	APIKey         string     `gorm:"not null" json:"apiKey"` // API key or Plex token
 	Enabled        bool       `gorm:"default:true" json:"enabled"`
 	LibraryID      *uint      `gorm:"index" json:"libraryId,omitempty"` // FK to Library (ON DELETE SET NULL)
-	ThresholdPct   *float64   `json:"thresholdPct,omitempty"`           // Per-integration threshold override; nil = inherit
-	TargetPct      *float64   `json:"targetPct,omitempty"`              // Per-integration target override; nil = inherit
 	MediaSizeBytes int64      `json:"mediaSizeBytes"`                   // Total media file size
 	MediaCount     int        `json:"mediaCount"`                       // Number of media items
 	LastSync       *time.Time `json:"lastSync,omitempty"`
@@ -279,15 +277,16 @@ type NotificationConfig struct {
 	AppriseTags string `gorm:"default:''" json:"appriseTags,omitempty"` // Comma-separated Apprise tags for routing
 	Enabled     bool   `gorm:"default:true" json:"enabled"`
 	// Event subscriptions — which notification types trigger this channel
-	OnCycleDigest      bool      `gorm:"default:true" json:"onCycleDigest"`
-	OnError            bool      `gorm:"default:true" json:"onError"`
-	OnModeChanged      bool      `gorm:"default:true" json:"onModeChanged"`
-	OnServerStarted    bool      `gorm:"default:true" json:"onServerStarted"`
-	OnThresholdBreach  bool      `gorm:"default:true" json:"onThresholdBreach"`
-	OnUpdateAvailable  bool      `gorm:"default:true" json:"onUpdateAvailable"`
-	OnApprovalActivity bool      `gorm:"default:true" json:"onApprovalActivity"`
-	CreatedAt          time.Time `json:"createdAt"`
-	UpdatedAt          time.Time `json:"updatedAt"`
+	OnCycleDigest       bool      `gorm:"default:true" json:"onCycleDigest"`
+	OnError             bool      `gorm:"default:true" json:"onError"`
+	OnModeChanged       bool      `gorm:"default:true" json:"onModeChanged"`
+	OnServerStarted     bool      `gorm:"default:true" json:"onServerStarted"`
+	OnThresholdBreach   bool      `gorm:"default:true" json:"onThresholdBreach"`
+	OnUpdateAvailable   bool      `gorm:"default:true" json:"onUpdateAvailable"`
+	OnApprovalActivity  bool      `gorm:"default:true" json:"onApprovalActivity"`
+	OnIntegrationStatus bool      `gorm:"default:true" json:"onIntegrationStatus"`
+	CreatedAt           time.Time `json:"createdAt"`
+	UpdatedAt           time.Time `json:"updatedAt"`
 }
 
 // ActivityEvent stores system-level activity events for the dashboard feed.

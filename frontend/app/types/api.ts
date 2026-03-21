@@ -16,10 +16,6 @@ export interface IntegrationConfig {
   enabled: boolean;
   mediaSizeBytes: number;
   mediaCount: number;
-  /** Per-integration threshold override (null = use disk group default) */
-  thresholdPct?: number | null;
-  /** Per-integration target override (null = use disk group default) */
-  targetPct?: number | null;
   lastSync?: string | null;
   lastError?: string;
   createdAt: string;
@@ -384,6 +380,7 @@ export interface NotificationExport {
   onThresholdBreach: boolean;
   onUpdateAvailable: boolean;
   onApprovalActivity: boolean;
+  onIntegrationStatus: boolean;
 }
 
 export interface SettingsExportEnvelope {
@@ -470,6 +467,7 @@ export interface NotificationChannel {
   onThresholdBreach: boolean;
   onUpdateAvailable: boolean;
   onApprovalActivity: boolean;
+  onIntegrationStatus: boolean;
   createdAt: string;
   updatedAt: string;
 }

@@ -44,7 +44,7 @@
         y: 0,
         transition: { type: 'spring', stiffness: 260, damping: 24, delay: 80 * idx },
       }"
-      class="overflow-hidden"
+      :class="['overflow-hidden transition-opacity', { 'opacity-50': !integration.enabled }]"
     >
       <UiCardHeader class="border-b border-border">
         <div class="flex items-center justify-between">
@@ -70,13 +70,17 @@
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <UiBadge v-if="getWeightState(integration.id).enabled" variant="outline" class="gap-1">
-              <component :is="SlidersHorizontalIcon" class="w-3 h-3" />
-              {{ $t('settings.customWeightsBadge') }}
-            </UiBadge>
-            <UiBadge :variant="integration.enabled ? 'default' : 'secondary'">
-              {{ integration.enabled ? $t('common.active') : $t('common.disabled') }}
-            </UiBadge>
+            <UiLabel class="text-xs text-muted-foreground">
+              {{
+                integration.enabled
+                  ? $t('settings.integrationEnabled')
+                  : $t('settings.integrationDisabled')
+              }}
+            </UiLabel>
+            <UiSwitch
+              :model-value="integration.enabled"
+              @update:model-value="(val: boolean) => toggleEnabled(integration, val)"
+            />
           </div>
         </div>
       </UiCardHeader>
@@ -103,152 +107,16 @@
           <component :is="ClockIcon" class="w-3.5 h-3.5 shrink-0" />
           <span>Synced <DateDisplay :date="integration.lastSync" /></span>
         </div>
-        <div v-if="integration.lastError" class="flex items-center gap-2 text-red-500">
-          <component :is="AlertTriangleIcon" class="w-3.5 h-3.5 shrink-0" />
-          <span class="text-xs">{{ integration.lastError }}</span>
+        <div v-if="integration.lastError" class="space-y-1">
+          <div class="flex items-start gap-2 text-red-500 min-w-0">
+            <component :is="AlertTriangleIcon" class="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <span class="text-xs break-all">{{ integration.lastError }}</span>
+          </div>
+          <p class="text-xs text-muted-foreground/70 pl-5.5">
+            {{ $t('settings.integrationErrorHint') }}
+          </p>
         </div>
       </UiCardContent>
-
-      <!-- Custom Scoring Weights Toggle & Panel -->
-      <div class="border-t border-border px-6 py-3">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <UiSwitch
-              :model-value="getWeightState(integration.id).enabled"
-              @update:model-value="(val: boolean) => toggleCustomWeights(integration.id, val)"
-            />
-            <UiLabel class="text-sm font-medium cursor-pointer">
-              {{ $t('settings.customScoringWeights') }}
-            </UiLabel>
-          </div>
-          <UiTooltipProvider>
-            <UiTooltip>
-              <UiTooltipTrigger as-child>
-                <UiBadge variant="outline" class="text-xs text-muted-foreground">
-                  {{ $t('settings.customWeightsPreview') }}
-                </UiBadge>
-              </UiTooltipTrigger>
-              <UiTooltipContent>
-                <p>{{ $t('settings.customWeightsPreviewDesc') }}</p>
-              </UiTooltipContent>
-            </UiTooltip>
-          </UiTooltipProvider>
-        </div>
-
-        <!-- Collapsible Weight Sliders -->
-        <Transition
-          enter-active-class="transition-all duration-300 ease-out"
-          leave-active-class="transition-all duration-200 ease-in"
-          enter-from-class="opacity-0 max-h-0"
-          enter-to-class="opacity-100 max-h-[500px]"
-          leave-from-class="opacity-100 max-h-[500px]"
-          leave-to-class="opacity-0 max-h-0"
-        >
-          <div v-if="getWeightState(integration.id).enabled" class="mt-4 space-y-3 overflow-hidden">
-            <div v-for="slider in weightSliders" :key="slider.key" class="space-y-1">
-              <div class="flex justify-between text-sm">
-                <span class="font-medium text-foreground">{{ slider.label }}</span>
-                <span class="text-muted-foreground font-mono tabular-nums">
-                  {{ getWeightValue(integration.id, slider.key) }} / 10
-                </span>
-              </div>
-              <UiSlider
-                :model-value="[getWeightValue(integration.id, slider.key)]"
-                :min="0"
-                :max="10"
-                :step="1"
-                class="w-full"
-                @update:model-value="
-                  (v: number[] | undefined) => {
-                    if (v && v[0] != null) updateWeight(integration.id, slider.key, v[0]);
-                  }
-                "
-              />
-              <p class="text-xs text-muted-foreground">
-                {{ slider.description }}
-              </p>
-            </div>
-          </div>
-        </Transition>
-      </div>
-
-      <!-- Per-Integration Threshold Overrides -->
-      <div class="border-t border-border px-6 py-3">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <UiSwitch
-              :model-value="getThresholdState(integration.id).enabled"
-              @update:model-value="(val: boolean) => toggleThresholdOverride(integration.id, val)"
-            />
-            <UiLabel class="text-sm font-medium cursor-pointer">
-              {{ $t('settings.overrideThresholds') }}
-            </UiLabel>
-          </div>
-        </div>
-
-        <!-- Collapsible Threshold Sliders -->
-        <Transition
-          enter-active-class="transition-all duration-300 ease-out"
-          leave-active-class="transition-all duration-200 ease-in"
-          enter-from-class="opacity-0 max-h-0"
-          enter-to-class="opacity-100 max-h-[300px]"
-          leave-from-class="opacity-100 max-h-[300px]"
-          leave-to-class="opacity-0 max-h-0"
-        >
-          <div
-            v-if="getThresholdState(integration.id).enabled"
-            class="mt-4 space-y-3 overflow-hidden"
-          >
-            <div class="space-y-1">
-              <div class="flex justify-between text-sm">
-                <span class="font-medium text-foreground">{{ $t('settings.thresholdPct') }}</span>
-                <span class="text-muted-foreground font-mono tabular-nums">
-                  {{ getThresholdState(integration.id).thresholdPct }}%
-                </span>
-              </div>
-              <UiSlider
-                :model-value="[getThresholdState(integration.id).thresholdPct]"
-                :min="50"
-                :max="99"
-                :step="1"
-                class="w-full"
-                @update:model-value="
-                  (v: number[] | undefined) => {
-                    if (v && v[0] != null) updateThreshold(integration.id, 'thresholdPct', v[0]);
-                  }
-                "
-              />
-              <p class="text-xs text-muted-foreground">
-                {{ $t('settings.thresholdPctDesc') }}
-              </p>
-            </div>
-
-            <div class="space-y-1">
-              <div class="flex justify-between text-sm">
-                <span class="font-medium text-foreground">{{ $t('settings.targetPct') }}</span>
-                <span class="text-muted-foreground font-mono tabular-nums">
-                  {{ getThresholdState(integration.id).targetPct }}%
-                </span>
-              </div>
-              <UiSlider
-                :model-value="[getThresholdState(integration.id).targetPct]"
-                :min="50"
-                :max="99"
-                :step="1"
-                class="w-full"
-                @update:model-value="
-                  (v: number[] | undefined) => {
-                    if (v && v[0] != null) updateThreshold(integration.id, 'targetPct', v[0]);
-                  }
-                "
-              />
-              <p class="text-xs text-muted-foreground">
-                {{ $t('settings.targetPctDesc') }}
-              </p>
-            </div>
-          </div>
-        </Transition>
-      </div>
 
       <UiCardFooter class="border-t border-border flex items-center justify-between">
         <div class="flex gap-2">
@@ -384,7 +252,6 @@ import {
   ClockIcon,
   AlertTriangleIcon,
   LogInIcon,
-  SlidersHorizontalIcon,
 } from 'lucide-vue-next';
 import type { IntegrationConfig, ConnectionTestResult, ApiError } from '~/types/api';
 import { PlexOAuth } from '~/utils/plexOAuth';
@@ -408,161 +275,31 @@ const editingIntegration = ref<IntegrationConfig | null>(null);
 const saving = ref(false);
 const formError = ref('');
 
-// ─── Per-integration custom weight overrides (local state only) ──────────────
-interface WeightOverrides {
-  enabled: boolean;
-  watchHistoryWeight: number;
-  lastWatchedWeight: number;
-  fileSizeWeight: number;
-  ratingWeight: number;
-  timeInLibraryWeight: number;
-  seriesStatusWeight: number;
-}
-
-const defaultWeights: Omit<WeightOverrides, 'enabled'> = {
-  watchHistoryWeight: 5,
-  lastWatchedWeight: 5,
-  fileSizeWeight: 5,
-  ratingWeight: 5,
-  timeInLibraryWeight: 5,
-  seriesStatusWeight: 5,
-};
-
-const customWeightsState = reactive<Record<number, WeightOverrides>>({});
-
-function getWeightState(integrationId: number): WeightOverrides {
-  if (!customWeightsState[integrationId]) {
-    customWeightsState[integrationId] = {
-      enabled: false,
-      ...defaultWeights,
-    };
-  }
-  // Non-null: we just ensured the entry exists above
-  return customWeightsState[integrationId]!;
-}
-
-function toggleCustomWeights(integrationId: number, enabled: boolean) {
-  const state = getWeightState(integrationId);
-  state.enabled = enabled;
-}
-
-function updateWeight(integrationId: number, key: string, value: number) {
-  (getWeightState(integrationId) as unknown as Record<string, number>)[key] = value;
-}
-
-function getWeightValue(integrationId: number, key: string): number {
-  return Number(
-    (getWeightState(integrationId) as unknown as Record<string, number | undefined>)[key] ?? 5,
-  );
-}
-
-const weightSliders = computed(() => [
-  {
-    key: 'watchHistoryWeight',
-    label: t('settings.weightWatchHistory'),
-    description: t('settings.weightWatchHistoryDesc'),
-  },
-  {
-    key: 'lastWatchedWeight',
-    label: t('settings.weightLastWatched'),
-    description: t('settings.weightLastWatchedDesc'),
-  },
-  {
-    key: 'fileSizeWeight',
-    label: t('settings.weightFileSize'),
-    description: t('settings.weightFileSizeDesc'),
-  },
-  {
-    key: 'ratingWeight',
-    label: t('settings.weightRating'),
-    description: t('settings.weightRatingDesc'),
-  },
-  {
-    key: 'timeInLibraryWeight',
-    label: t('settings.weightTimeInLibrary'),
-    description: t('settings.weightTimeInLibraryDesc'),
-  },
-  {
-    key: 'seriesStatusWeight',
-    label: t('settings.weightSeriesStatus'),
-    description: t('settings.weightSeriesStatusDesc'),
-  },
-]);
-
-// ─── Per-integration threshold overrides (local state, wired to API in Phase 6) ─
-interface ThresholdOverride {
-  enabled: boolean;
-  thresholdPct: number;
-  targetPct: number;
-}
-
-const thresholdState = reactive<Record<number, ThresholdOverride>>({});
-
-function getThresholdState(integrationId: number): ThresholdOverride {
-  if (!thresholdState[integrationId]) {
-    // Initialize from integration's stored thresholds if available
-    const integration = integrations.value.find((i) => i.id === integrationId);
-    const hasOverride = integration?.thresholdPct != null || integration?.targetPct != null;
-    thresholdState[integrationId] = {
-      enabled: hasOverride,
-      thresholdPct: integration?.thresholdPct ?? 85,
-      targetPct: integration?.targetPct ?? 80,
-    };
-  }
-  return thresholdState[integrationId]!;
-}
-
-function toggleThresholdOverride(integrationId: number, enabled: boolean) {
-  const state = getThresholdState(integrationId);
-  state.enabled = enabled;
-
-  // Persist: when disabling, set both to null (inherit from disk group)
-  if (!enabled) {
-    saveThresholds(integrationId, null, null);
-  } else {
-    saveThresholds(integrationId, state.thresholdPct, state.targetPct);
-  }
-}
-
-function updateThreshold(integrationId: number, key: 'thresholdPct' | 'targetPct', value: number) {
-  const state = getThresholdState(integrationId);
-  state[key] = value;
-  debouncedSaveThresholds(integrationId);
-}
-
-// Debounce threshold saves to avoid flooding the API during slider drags
-const _thresholdTimers = new Map<number, ReturnType<typeof setTimeout>>();
-
-function debouncedSaveThresholds(integrationId: number) {
-  const existing = _thresholdTimers.get(integrationId);
-  if (existing) clearTimeout(existing);
-  _thresholdTimers.set(
-    integrationId,
-    setTimeout(() => {
-      const state = getThresholdState(integrationId);
-      saveThresholds(integrationId, state.thresholdPct, state.targetPct);
-      _thresholdTimers.delete(integrationId);
-    }, 500),
-  );
-}
-
-async function saveThresholds(
-  integrationId: number,
-  thresholdPct: number | null,
-  targetPct: number | null,
-) {
-  try {
-    await api(`/api/v1/integrations/${integrationId}`, {
-      method: 'PUT',
-      body: { thresholdPct, targetPct },
-    });
-    addToast(t('settings.thresholdsSaved'), 'success');
-  } catch {
-    addToast(t('settings.thresholdsSaveFailed'), 'error');
-  }
-}
-
 const formState = reactive({ type: 'sonarr', name: '', url: '', apiKey: '' });
+
+// ─── Enable/Disable toggle ──────────────────────────────────────────────────
+async function toggleEnabled(integration: IntegrationConfig, enabled: boolean) {
+  // Optimistic update — toggle immediately in the UI
+  const previous = integration.enabled;
+  integration.enabled = enabled;
+
+  try {
+    await api(`/api/v1/integrations/${integration.id}`, {
+      method: 'PUT',
+      body: { enabled },
+    });
+    addToast(
+      t('settings.integrationToggled', {
+        action: enabled ? t('common.enabled') : t('common.disabled'),
+      }),
+      'success',
+    );
+  } catch {
+    // Revert on failure
+    integration.enabled = previous;
+    addToast(t('settings.integrationToggleFailed'), 'error');
+  }
+}
 
 // ─── Plex OAuth ──────────────────────────────────────────────────────────────
 const plexAuthLoading = ref(false);
@@ -598,8 +335,8 @@ const urlPlaceholder = computed(() => urlPlaceholders[formState.type] || 'http:/
 const urlHelp = computed(() => urlHelpTexts[formState.type] || 'The base URL of your integration.');
 
 // ─── CRUD operations ─────────────────────────────────────────────────────────
-async function fetchIntegrations() {
-  loading.value = true;
+async function fetchIntegrations(showSpinner = true) {
+  if (showSpinner) loading.value = true;
   try {
     integrations.value = (await api('/api/v1/integrations')) as IntegrationConfig[];
   } catch {
@@ -681,6 +418,8 @@ async function testConnection(integration: IntegrationConfig) {
       result.success ? 'Connection successful!' : `Connection failed: ${result.error}`,
       result.success ? 'success' : 'error',
     );
+    // Silently refetch to reflect updated lastError / lastSync status
+    await fetchIntegrations(false);
   } catch {
     addToast('Connection test failed', 'error');
   }
