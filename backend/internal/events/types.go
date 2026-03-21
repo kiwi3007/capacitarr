@@ -270,6 +270,23 @@ func (e IntegrationTestFailedEvent) EventMessage() string {
 	return fmt.Sprintf("Connection test failed: %s (%s) — %s", e.Name, e.IntegrationType, e.Error)
 }
 
+// IntegrationRecoveredEvent is published when an integration transitions from
+// an error state to a healthy state (lastError cleared after being non-empty).
+type IntegrationRecoveredEvent struct {
+	IntegrationID   uint   `json:"integrationId"`
+	IntegrationType string `json:"integrationType"`
+	Name            string `json:"name"`
+	URL             string `json:"url"`
+}
+
+// EventType implements Event.
+func (e IntegrationRecoveredEvent) EventType() string { return "integration_recovered" }
+
+// EventMessage implements Event.
+func (e IntegrationRecoveredEvent) EventMessage() string {
+	return fmt.Sprintf("Integration recovered: %s (%s)", e.Name, e.IntegrationType)
+}
+
 // =============================================================================
 // Approval Events
 // =============================================================================

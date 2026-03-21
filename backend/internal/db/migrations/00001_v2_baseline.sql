@@ -67,8 +67,6 @@ CREATE TABLE integration_configs (
     api_key          TEXT    NOT NULL,                     -- API key or Plex token (plaintext — see security note in models.go)
     enabled          INTEGER NOT NULL DEFAULT 1,
     library_id       INTEGER REFERENCES libraries(id) ON DELETE SET NULL,  -- Optional library grouping
-    threshold_pct    REAL    DEFAULT NULL,                 -- Per-integration threshold override; NULL = inherit
-    target_pct       REAL    DEFAULT NULL,                 -- Per-integration target override; NULL = inherit
     media_size_bytes INTEGER NOT NULL DEFAULT 0,
     media_count      INTEGER NOT NULL DEFAULT 0,
     last_sync        DATETIME,
@@ -263,9 +261,10 @@ CREATE TABLE notification_configs (
     on_server_started    INTEGER NOT NULL DEFAULT 1,
     on_threshold_breach  INTEGER NOT NULL DEFAULT 1,
     on_update_available  INTEGER NOT NULL DEFAULT 1,
-    on_approval_activity INTEGER NOT NULL DEFAULT 1,
-    created_at           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    on_approval_activity   INTEGER NOT NULL DEFAULT 1,
+    on_integration_status  INTEGER NOT NULL DEFAULT 1,
+    created_at             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ============================================================================

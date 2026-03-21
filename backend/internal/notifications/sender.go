@@ -51,6 +51,7 @@ const (
 	AlertThresholdBreached AlertType = "threshold_breached"
 	AlertUpdateAvailable   AlertType = "update_available"
 	AlertApprovalActivity  AlertType = "approval_activity"
+	AlertIntegrationStatus AlertType = "integration_status"
 	AlertTest              AlertType = "test"
 )
 
@@ -80,6 +81,8 @@ func TriggerLabel(t AlertType) string {
 		return "Update Available"
 	case AlertApprovalActivity:
 		return "Approval Activity"
+	case AlertIntegrationStatus:
+		return "Integration Status"
 	case AlertTest:
 		return "Test"
 	default:
@@ -235,6 +238,8 @@ func alertColor(t AlertType) int {
 		return ColorBlue
 	case AlertApprovalActivity:
 		return ColorAmber
+	case AlertIntegrationStatus:
+		return ColorOrange
 	case AlertTest:
 		return ColorBlue
 	default:

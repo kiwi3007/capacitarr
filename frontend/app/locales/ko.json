@@ -464,12 +464,5 @@
   "library.filterProtected": "Protected",
   "library.filterActive": "Filtered: {name}",
   "audit.movedToLibrary": "The audit log has moved to Library → History",
-  "audit.goToLibraryHistory": "Go to Library → History",
-  "settings.overrideThresholds": "Override Thresholds",
-  "settings.thresholdPct": "Cleanup Threshold",
-  "settings.thresholdPctDesc": "Begin cleanup when disk usage exceeds this %",
-  "settings.targetPct": "Cleanup Target",
-  "settings.targetPctDesc": "Stop cleanup when disk usage drops to this %",
-  "settings.thresholdsSaved": "Threshold overrides saved",
-  "settings.thresholdsSaveFailed": "Failed to save threshold overrides"
+  "audit.goToLibraryHistory": "Go to Library → History"
 }

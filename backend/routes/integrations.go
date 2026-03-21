@@ -98,12 +98,21 @@ func RegisterIntegrationRoutes(g *echo.Group, reg *services.Registry) {
 			return apiError(c, http.StatusNotFound, "Integration not found")
 		}
 
-		var update db.IntegrationConfig
+		// Use a dedicated struct with pointer fields so we can distinguish
+		// "field not sent" (nil) from "explicitly set to false/empty".
+		// This prevents partial updates (e.g. toggling enabled) from
+		// accidentally zeroing out other fields.
+		var update struct {
+			Name    string `json:"name"`
+			URL     string `json:"url"`
+			APIKey  string `json:"apiKey"`
+			Enabled *bool  `json:"enabled"`
+		}
 		if err := c.Bind(&update); err != nil {
 			return apiError(c, http.StatusBadRequest, "Invalid request body")
 		}
 
-		// Update fields
+		// Update fields only when explicitly provided
 		if update.Name != "" {
 			existing.Name = update.Name
 		}
@@ -118,11 +127,9 @@ func RegisterIntegrationRoutes(g *echo.Group, reg *services.Registry) {
 		if update.APIKey != "" && !db.IsMaskedKey(update.APIKey) {
 			existing.APIKey = update.APIKey
 		}
-		existing.Enabled = update.Enabled
-
-		// Per-integration threshold overrides (nullable)
-		existing.ThresholdPct = update.ThresholdPct
-		existing.TargetPct = update.TargetPct
+		if update.Enabled != nil {
+			existing.Enabled = *update.Enabled
+		}
 
 		// Clear stale sync status — configuration has changed, so the
 		// previous error and sync time are no longer valid.

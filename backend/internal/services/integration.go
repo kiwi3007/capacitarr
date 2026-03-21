@@ -172,12 +172,36 @@ func (s *IntegrationService) TestConnection(intType, url, apiKey string, integra
 
 	result := s.testClient(intType, url, conn.TestConnection)
 
-	// Invalidate rule value cache on successful test of *arr integrations
-	if result.Success && integrationID != nil {
-		s.InvalidateRuleValueCache(*integrationID)
+	// When testing an existing integration, update its sync status and cache
+	if integrationID != nil && *integrationID > 0 {
+		id := uint(*integrationID)
+		if result.Success {
+			s.PublishRecoveryIfNeeded(id)
+			now := time.Now()
+			_ = s.UpdateSyncStatus(id, &now, "")
+			s.InvalidateRuleValueCache(*integrationID)
+		} else {
+			_ = s.UpdateSyncStatus(id, nil, result.Error)
+		}
 	}
 
 	return result
+}
+
+// PublishRecoveryIfNeeded checks if an integration was previously in an error
+// state and publishes an IntegrationRecoveredEvent if so. Call this before
+// clearing the error via UpdateSyncStatus.
+func (s *IntegrationService) PublishRecoveryIfNeeded(id uint) {
+	existing, err := s.GetByID(id)
+	if err != nil || existing.LastError == "" {
+		return
+	}
+	s.bus.Publish(events.IntegrationRecoveredEvent{
+		IntegrationID:   id,
+		IntegrationType: existing.Type,
+		Name:            existing.Name,
+		URL:             existing.URL,
+	})
 }
 
 // FetchRuleValues retrieves autocomplete values for a given rule field action

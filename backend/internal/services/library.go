@@ -79,16 +79,11 @@ func (s *LibraryService) Delete(id uint) error {
 }
 
 // EffectiveThresholdForIntegration resolves the threshold percentage for an integration
-// by walking the override chain: integration → library → disk group → default (85%).
+// by walking the override chain: library → disk group → default (85%).
 func (s *LibraryService) EffectiveThresholdForIntegration(integrationID uint) (float64, float64, error) {
 	var integration db.IntegrationConfig
 	if err := s.db.First(&integration, integrationID).Error; err != nil {
 		return 0, 0, fmt.Errorf("get integration %d: %w", integrationID, err)
-	}
-
-	// Check integration-level override
-	if integration.ThresholdPct != nil && integration.TargetPct != nil {
-		return *integration.ThresholdPct, *integration.TargetPct, nil
 	}
 
 	// Check library-level override

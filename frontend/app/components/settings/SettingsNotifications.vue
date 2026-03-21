@@ -169,6 +169,21 @@
               Items approved or snoozed in the queue
             </p>
           </div>
+          <div>
+            <UiLabel class="flex items-center gap-2 text-sm font-normal">
+              <UiSwitch
+                :model-value="channel.onIntegrationStatus"
+                size="sm"
+                @update:model-value="
+                  (val: boolean) => updateChannelEvent(channel, 'onIntegrationStatus', val)
+                "
+              />
+              <span>{{ $t('notifications.integrationStatus') }}</span>
+            </UiLabel>
+            <p class="text-xs text-muted-foreground ml-11">
+              {{ $t('notifications.integrationStatusDesc') }}
+            </p>
+          </div>
         </div>
       </UiCardContent>
 

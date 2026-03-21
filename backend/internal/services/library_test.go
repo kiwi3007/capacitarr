@@ -116,22 +116,6 @@ func TestLibraryService_EffectiveThreshold(t *testing.T) {
 	if threshold != 95.0 || targetPct != 85.0 {
 		t.Errorf("expected (95, 85), got (%.1f, %.1f)", threshold, targetPct)
 	}
-
-	// Now set integration-level override
-	integThresh := 98.0
-	integTarget := 90.0
-	integ.ThresholdPct = &integThresh
-	integ.TargetPct = &integTarget
-	database.Save(&integ)
-
-	// Should get integration threshold (98, 90) — integration override takes priority
-	threshold, targetPct, err = svc.EffectiveThresholdForIntegration(integ.ID)
-	if err != nil {
-		t.Fatalf("EffectiveThresholdForIntegration failed: %v", err)
-	}
-	if threshold != 98.0 || targetPct != 90.0 {
-		t.Errorf("expected (98, 90), got (%.1f, %.1f)", threshold, targetPct)
-	}
 }
 
 func TestLibraryService_EffectiveThresholdFallback(t *testing.T) {
