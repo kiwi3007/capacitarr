@@ -486,6 +486,101 @@
         </div>
       </details>
 
+      <!-- Collection Deletion -->
+      <details
+        id="collection-deletion"
+        v-motion
+        :initial="{ opacity: 0, y: 12 }"
+        :enter="{
+          opacity: 1,
+          y: 0,
+          transition: { type: 'spring', stiffness: 260, damping: 24, delay: 540 },
+        }"
+        data-slot="card"
+        class="group rounded-xl border border-border bg-card shadow-sm overflow-hidden"
+      >
+        <summary
+          class="flex items-center gap-3 px-5 py-4 cursor-pointer select-none hover:bg-accent transition-colors"
+        >
+          <ChevronRightIcon
+            class="w-4 h-4 text-muted-foreground transition-transform group-open:rotate-90"
+          />
+          <h3 class="font-semibold text-primary">Collection Deletion</h3>
+        </summary>
+        <div class="px-5 pb-5 text-sm text-muted-foreground leading-relaxed space-y-4">
+          <p>
+            <span class="font-medium text-foreground">What it does:</span> When enabled on an
+            integration, deleting any item that belongs to a collection automatically deletes
+            <em>all other items</em> in that collection. For example, if "Serenity" is part of the
+            "Firefly Collection" and gets selected for deletion, all movies in the Firefly Collection
+            are deleted together.
+          </p>
+
+          <div class="space-y-2">
+            <p class="font-medium text-foreground">How collections are defined:</p>
+            <ul class="list-disc pl-5 space-y-1">
+              <li>
+                <span class="text-foreground font-medium">Radarr</span> — Uses TMDb movie
+                collections (curated franchise groupings like "The Lord of the Rings Collection").
+                These are well-defined and predictable.
+              </li>
+              <li>
+                <span class="text-foreground font-medium">Plex</span> — Uses Plex library
+                collections. These can be automatic (TMDb-based) or user-created. Custom collections
+                may group unrelated media — use with caution.
+              </li>
+              <li>
+                <span class="text-foreground font-medium">Jellyfin</span> — Uses Box Sets. These
+                are groups of related movies that were auto-detected or manually organized.
+              </li>
+              <li>
+                <span class="text-foreground font-medium">Emby</span> — Uses Box Sets, same as
+                Jellyfin.
+              </li>
+            </ul>
+          </div>
+
+          <div class="space-y-2">
+            <p class="font-medium text-foreground">⚠️ Important warnings:</p>
+            <ul class="list-disc pl-5 space-y-1">
+              <li>
+                <span class="text-foreground font-medium">Overshoot:</span> The engine may need to
+                free 5 GB, but a collection totals 50 GB. All members are deleted regardless — there
+                is no partial collection deletion.
+              </li>
+              <li>
+                <span class="text-foreground font-medium">Large collections:</span> A movie in a
+                large collection (e.g., "Marvel Cinematic Universe" — 30+ movies) could trigger a
+                massive cascade of deletions.
+              </li>
+              <li>
+                <span class="text-foreground font-medium">Plex custom collections:</span> Unlike
+                TMDb collections (curated), Plex collections can be user-created and arbitrary. A
+                "Family Movie Night" collection might group otherwise unrelated movies.
+              </li>
+              <li>
+                <span class="text-foreground font-medium">Protected members:</span> If any item in
+                a collection has an "always keep" rule, the entire collection is protected.
+              </li>
+              <li>
+                <span class="text-foreground font-medium">Snoozed members:</span> If any item in a
+                collection is snoozed, the entire collection is skipped for that cycle.
+              </li>
+              <li>
+                <span class="text-foreground font-medium">Irreversible:</span> Deleted files cannot
+                be recovered. This feature deletes an entire group of items at once.
+              </li>
+            </ul>
+          </div>
+
+          <p>
+            <span class="font-medium text-foreground">How to enable:</span> Go to Settings →
+            Integrations → Edit an integration (Radarr, Plex, Jellyfin, or Emby) → Toggle
+            "Collection Deletion" on. The toggle is off by default.
+          </p>
+        </div>
+      </details>
+
       <!-- About Capacitarr -->
       <details
         v-motion
@@ -493,7 +588,7 @@
         :enter="{
           opacity: 1,
           y: 0,
-          transition: { type: 'spring', stiffness: 260, damping: 24, delay: 560 },
+          transition: { type: 'spring', stiffness: 260, damping: 24, delay: 580 },
         }"
         data-slot="card"
         class="group rounded-xl border border-border bg-card shadow-sm overflow-hidden"
