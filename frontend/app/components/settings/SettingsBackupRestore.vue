@@ -1,10 +1,17 @@
 <template>
   <div class="space-y-8">
     <!-- Export Section -->
-    <UiCard v-motion v-bind="cardEntrance">
-      <UiCardHeader>
-        <UiCardTitle>{{ $t('settings.export') }}</UiCardTitle>
-        <UiCardDescription>{{ $t('settings.exportDesc') }}</UiCardDescription>
+    <UiCard v-motion v-bind="cardEntrance" class="overflow-hidden">
+      <UiCardHeader class="border-b border-border">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center">
+            <component :is="DownloadIcon" class="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <UiCardTitle class="text-base">{{ $t('settings.export') }}</UiCardTitle>
+            <UiCardDescription>{{ $t('settings.exportDesc') }}</UiCardDescription>
+          </div>
+        </div>
       </UiCardHeader>
       <UiCardContent class="space-y-4">
         <UiLabel class="text-sm font-medium">{{ $t('settings.sectionsToExport') }}</UiLabel>
@@ -63,10 +70,17 @@
     </UiCard>
 
     <!-- Import Section -->
-    <UiCard v-motion v-bind="cardEntrance">
-      <UiCardHeader>
-        <UiCardTitle>{{ $t('settings.import') }}</UiCardTitle>
-        <UiCardDescription>{{ $t('settings.importDesc') }}</UiCardDescription>
+    <UiCard v-motion v-bind="cardEntrance" class="overflow-hidden">
+      <UiCardHeader class="border-b border-border">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-green-500 flex items-center justify-center">
+            <component :is="UploadIcon" class="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <UiCardTitle class="text-base">{{ $t('settings.import') }}</UiCardTitle>
+            <UiCardDescription>{{ $t('settings.importDesc') }}</UiCardDescription>
+          </div>
+        </div>
       </UiCardHeader>
       <UiCardContent class="space-y-4">
         <!-- File upload area -->
@@ -182,36 +196,36 @@
             <UiLabel class="text-sm font-medium">{{ $t('settings.importModeLabel') }}</UiLabel>
             <UiRadioGroup v-model="importMode" class="space-y-2">
               <div class="flex items-start gap-3">
-                <UiRadioGroupItem id="mode-append" value="append" />
+                <UiRadioGroupItem id="mode-merge" value="merge" />
                 <div class="grid gap-0.5 leading-none">
-                  <UiLabel for="mode-append" class="cursor-pointer">
-                    {{ $t('settings.importModeAppend') }}
+                  <UiLabel for="mode-merge" class="cursor-pointer">
+                    {{ $t('settings.importModeMerge') }}
                   </UiLabel>
                   <p class="text-xs text-muted-foreground">
-                    {{ $t('settings.importModeAppendDesc') }}
+                    {{ $t('settings.importModeMergeDesc') }}
                   </p>
                 </div>
               </div>
               <div class="flex items-start gap-3">
-                <UiRadioGroupItem id="mode-replace" value="replace" />
+                <UiRadioGroupItem id="mode-sync" value="sync" />
                 <div class="grid gap-0.5 leading-none">
-                  <UiLabel for="mode-replace" class="cursor-pointer text-destructive">
-                    {{ $t('settings.importModeReplace') }}
+                  <UiLabel for="mode-sync" class="cursor-pointer text-destructive">
+                    {{ $t('settings.importModeSync') }}
                   </UiLabel>
                   <p class="text-xs text-muted-foreground">
-                    {{ $t('settings.importModeReplaceDesc') }}
+                    {{ $t('settings.importModeSyncDesc') }}
                   </p>
                 </div>
               </div>
             </UiRadioGroup>
           </div>
 
-          <!-- Replace mode warning -->
-          <UiAlert v-if="importMode === 'replace'" variant="destructive">
+          <!-- Sync mode warning -->
+          <UiAlert v-if="importMode === 'sync'" variant="destructive">
             <component :is="AlertTriangleIcon" class="w-4 h-4" />
             <UiAlertTitle>{{ $t('common.warning') }}</UiAlertTitle>
             <UiAlertDescription>
-              {{ $t('settings.importModeReplaceConfirm') }}
+              {{ $t('settings.importModeSyncConfirm') }}
             </UiAlertDescription>
           </UiAlert>
 
@@ -287,6 +301,20 @@
           </UiAlertDescription>
         </UiAlert>
 
+        <!-- Items deleted in sync mode -->
+        <UiAlert v-if="importResult && importResult.itemsDeleted > 0" variant="default">
+          <component :is="AlertTriangleIcon" class="w-4 h-4" />
+          <UiAlertDescription>
+            {{
+              $t(
+                'settings.importResultItemsDeleted',
+                { count: importResult.itemsDeleted },
+                importResult.itemsDeleted,
+              )
+            }}
+          </UiAlertDescription>
+        </UiAlert>
+
         <!-- Unmatched rules warning -->
         <UiAlert v-if="importResult && importResult.rulesUnmatched > 0" variant="destructive">
           <component :is="AlertTriangleIcon" class="w-4 h-4" />
@@ -300,6 +328,24 @@
             }}
           </UiAlertDescription>
         </UiAlert>
+
+        <!-- Pre-import snapshot download (merge mode — manual link) -->
+        <div
+          v-if="importResult && importResult.preImportSnapshot && !autoDownloadedSnapshot"
+          class="flex items-center gap-2"
+        >
+          <UiButton
+            variant="outline"
+            size="sm"
+            @click="downloadSnapshot(importResult.preImportSnapshot!)"
+          >
+            <component :is="DownloadIcon" class="w-4 h-4" />
+            {{ $t('settings.importDownloadBackup') }}
+          </UiButton>
+          <span class="text-xs text-muted-foreground">
+            {{ $t('settings.importDownloadBackupHint') }}
+          </span>
+        </div>
       </UiCardContent>
     </UiCard>
 
@@ -391,7 +437,8 @@ const parsedPayload = ref<SettingsExportEnvelope | null>(null);
 const importing = ref(false);
 const isDragOver = ref(false);
 const importResult = ref<ImportResult | null>(null);
-const importMode = ref<'append' | 'replace'>('append');
+const importMode = ref<'merge' | 'sync'>('merge');
+const autoDownloadedSnapshot = ref(false);
 
 const importSections = reactive<ImportSections>({
   preferences: false,
@@ -466,7 +513,19 @@ function parseFile(file: File) {
 function clearImport() {
   parsedPayload.value = null;
   importResult.value = null;
-  importMode.value = 'append';
+  importMode.value = 'merge';
+  autoDownloadedSnapshot.value = false;
+}
+
+function downloadSnapshot(snapshot: SettingsExportEnvelope) {
+  const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const date = new Date().toISOString().slice(0, 10);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `capacitarr-pre-import-backup-${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 async function doImport() {
@@ -529,6 +588,14 @@ async function executeImport(overrides?: RuleOverride[]) {
 
     importResult.value = result;
     parsedPayload.value = null;
+
+    // Auto-download safety backup in sync mode
+    if (importMode.value === 'sync' && result.preImportSnapshot) {
+      downloadSnapshot(result.preImportSnapshot);
+      autoDownloadedSnapshot.value = true;
+      addToast(t('settings.importSnapshotDownloaded'), 'info');
+    }
+
     addToast(t('settings.importSuccess'), 'success');
   } catch {
     addToast(t('settings.importError'), 'error');
