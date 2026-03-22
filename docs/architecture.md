@@ -114,13 +114,13 @@ All services accept `*gorm.DB` and `*events.EventBus` in their constructor and a
 | | MetricsService | History, rollup, lifetime stats |
 | | RulesService | Custom rule CRUD, validation, and impact preview |
 | | PreviewService | Scored media preview cache, SSE-driven invalidation |
-| **Analytics** | AnalyticsService | Quality, bloat, and storage sunburst analytics over preview cache |
-| | WatchAnalyticsService | Dead content, stale content analytics |
+| **Analytics** | WatchAnalyticsService | Dead content, stale content analytics |
 | **External** | IntegrationService | CRUD, test connections, sync data, per-integration thresholds |
 | | AuthService | Login, change password, generate API keys |
 | | NotificationChannelService | CRUD for notification channels |
 | | NotificationDispatchService | Two-gate flush, digest, and alerts |
 | | VersionService | Update check via GitLab releases |
+| | MigrationService | 1.x → 2.0 database migration |
 
 ### Service Registry
 
@@ -149,8 +149,8 @@ type Registry struct {
     Metrics              *MetricsService
     Version              *VersionService
     Library              *LibraryService
-    Analytics            *AnalyticsService
     WatchAnalytics       *WatchAnalyticsService
+    Migration            *MigrationService
 }
 ```
 
@@ -268,16 +268,16 @@ flowchart LR
 
 See [notifications.md](notifications.md) for the full user-facing guide.
 
-### Event Types (44 total)
+### Event Types (53 total)
 
 | Category | Events |
 |----------|--------|
-| **Engine** | `engine_start`, `engine_complete`, `engine_error`, `manual_run_triggered` |
+| **Engine** | `engine_start`, `engine_complete`, `engine_error`, `manual_run_triggered`, `enrichment_complete` |
 | **Settings** | `engine_mode_changed`, `settings_changed`, `threshold_changed`, `threshold_breached`, `settings_exported`, `settings_imported` |
 | **Auth** | `login`, `password_changed`, `username_changed`, `api_key_generated` |
-| **Integration** | `integration_added`, `integration_updated`, `integration_removed`, `integration_test`, `integration_test_failed` |
-| **Approval** | `approval_approved`, `approval_rejected`, `approval_unsnoozed`, `approval_bulk_unsnoozed`, `approval_orphans_recovered`, `approval_queue_cleared` |
-| **Deletion** | `deletion_success`, `deletion_failed`, `deletion_dry_run`, `deletion_batch_complete`, `deletion_progress` |
+| **Integration** | `integration_added`, `integration_updated`, `integration_removed`, `integration_test`, `integration_test_failed`, `integration_recovered` |
+| **Approval** | `approval_approved`, `approval_rejected`, `approval_unsnoozed`, `approval_bulk_unsnoozed`, `approval_orphans_recovered`, `approval_queue_cleared`, `approval_dismissed`, `approval_returned_to_pending`, `approval_queue_reconciled` |
+| **Deletion** | `deletion_success`, `deletion_failed`, `deletion_dry_run`, `deletion_batch_complete`, `deletion_progress`, `deletion_queued`, `deletion_cancelled`, `deletion_grace_period` |
 | **Rules** | `rule_created`, `rule_updated`, `rule_deleted` |
 | **Notifications** | `notification_channel_added`, `notification_channel_updated`, `notification_channel_removed`, `notification_sent`, `notification_delivery_failed` |
 | **Preview** | `preview_updated`, `preview_invalidated`, `analytics_updated` |
