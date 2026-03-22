@@ -42,11 +42,24 @@ type ExportSections struct {
 
 // Import mode constants.
 const (
-	// ImportModeAppend adds imported items alongside existing data (default).
+	// ImportModeMerge upserts matching items and creates new ones, leaving
+	// existing unmatched items untouched. This is the default mode.
+	ImportModeMerge = "merge"
+	// ImportModeSync upserts matching items, creates new ones, and deletes
+	// existing items that are not present in the import file — making the
+	// database match the file exactly for the selected sections.
+	ImportModeSync = "sync"
+
+	// Deprecated: Use ImportModeMerge instead. Kept for backward compatibility.
 	ImportModeAppend = "append"
-	// ImportModeReplace deletes existing items before importing.
+	// Deprecated: Use ImportModeSync instead. Kept for backward compatibility.
 	ImportModeReplace = "replace"
 )
+
+// isSyncMode returns true if the mode string indicates sync/replace semantics.
+func isSyncMode(mode string) bool {
+	return mode == ImportModeSync || mode == ImportModeReplace
+}
 
 // ImportSections controls which sections to import from an envelope.
 type ImportSections struct {
@@ -55,17 +68,19 @@ type ImportSections struct {
 	Integrations         bool   `json:"integrations"`
 	DiskGroups           bool   `json:"diskGroups"`
 	NotificationChannels bool   `json:"notificationChannels"`
-	Mode                 string `json:"mode"` // "append" (default) or "replace"
+	Mode                 string `json:"mode"` // "merge" (default) or "sync"
 }
 
 // ImportResult reports what was imported.
 type ImportResult struct {
-	PreferencesImported          bool `json:"preferencesImported"`
-	RulesImported                int  `json:"rulesImported"`
-	RulesUnmatched               int  `json:"rulesUnmatched"`
-	IntegrationsImported         int  `json:"integrationsImported"`
-	DiskGroupsImported           int  `json:"diskGroupsImported"`
-	NotificationChannelsImported int  `json:"notificationChannelsImported"`
+	PreferencesImported          bool                    `json:"preferencesImported"`
+	RulesImported                int                     `json:"rulesImported"`
+	RulesUnmatched               int                     `json:"rulesUnmatched"`
+	IntegrationsImported         int                     `json:"integrationsImported"`
+	DiskGroupsImported           int                     `json:"diskGroupsImported"`
+	NotificationChannelsImported int                     `json:"notificationChannelsImported"`
+	ItemsDeleted                 int                     `json:"itemsDeleted"`
+	PreImportSnapshot            *SettingsExportEnvelope `json:"preImportSnapshot,omitempty"`
 }
 
 // PreferencesExport contains all PreferenceSet fields except ID and UpdatedAt,
@@ -296,13 +311,27 @@ func (s *BackupService) Export(sections ExportSections, appVersion string) (*Set
 // Import restores settings from a SettingsExportEnvelope for the requested sections.
 // All sections are imported within a single database transaction — if any section
 // fails, all changes are rolled back.
+//
+// In merge mode (default), items are upserted alongside existing data.
+// In sync mode, items are upserted and existing items NOT in the import file
+// are deleted — making the DB match the file exactly for selected sections.
 func (s *BackupService) Import(envelope SettingsExportEnvelope, sections ImportSections) (*ImportResult, error) {
 	if envelope.Version != 1 {
 		return nil, fmt.Errorf("%w: got %d, expected 1", ErrUnsupportedVersion, envelope.Version)
 	}
 
-	// Default to append mode if not specified
-	replaceMode := sections.Mode == ImportModeReplace
+	syncMode := isSyncMode(sections.Mode)
+
+	// Capture pre-import snapshot for safety (sync mode always, merge mode optional)
+	var snapshot *SettingsExportEnvelope
+	if syncMode {
+		snap, err := s.Export(sectionsToExportSections(sections), "pre-import-snapshot")
+		if err != nil {
+			slog.Warn("Failed to create pre-import snapshot", "component", "services", "error", err)
+		} else {
+			snapshot = snap
+		}
+	}
 
 	// Begin wrapping transaction for the entire import
 	tx := s.db.Begin()
@@ -311,15 +340,6 @@ func (s *BackupService) Import(envelope SettingsExportEnvelope, sections ImportS
 	}
 
 	result := &ImportResult{}
-
-	// In replace mode, delete existing data for selected sections BEFORE importing.
-	// Order matters: delete rules before integrations to avoid FK issues.
-	if replaceMode {
-		if err := s.deleteForReplace(tx, sections); err != nil {
-			tx.Rollback()
-			return nil, fmt.Errorf("failed to clear existing data for replace: %w", err)
-		}
-	}
 
 	if sections.Preferences && envelope.Preferences != nil {
 		if err := s.importPreferences(tx, envelope.Preferences); err != nil {
@@ -332,31 +352,34 @@ func (s *BackupService) Import(envelope SettingsExportEnvelope, sections ImportS
 	// Import integrations BEFORE rules so that rule auto-match can find
 	// freshly-imported integrations by type+name.
 	if sections.Integrations && len(envelope.Integrations) > 0 {
-		count, err := s.importIntegrations(tx, envelope.Integrations)
+		count, deleted, err := s.importIntegrations(tx, envelope.Integrations, syncMode)
 		if err != nil {
 			tx.Rollback()
 			return nil, fmt.Errorf("failed to import integrations: %w", err)
 		}
 		result.IntegrationsImported = count
+		result.ItemsDeleted += deleted
 	}
 
 	if sections.Rules && len(envelope.Rules) > 0 {
-		count, unmatched, err := s.importRules(tx, envelope.Rules)
+		count, unmatched, deleted, err := s.importRules(tx, envelope.Rules, syncMode)
 		if err != nil {
 			tx.Rollback()
 			return nil, fmt.Errorf("failed to import rules: %w", err)
 		}
 		result.RulesImported = count
 		result.RulesUnmatched = unmatched
+		result.ItemsDeleted += deleted
 	}
 
 	if sections.NotificationChannels && len(envelope.NotificationChannels) > 0 {
-		count, err := s.importNotificationChannels(tx, envelope.NotificationChannels)
+		count, deleted, err := s.importNotificationChannels(tx, envelope.NotificationChannels, syncMode)
 		if err != nil {
 			tx.Rollback()
 			return nil, fmt.Errorf("failed to import notification channels: %w", err)
 		}
 		result.NotificationChannelsImported = count
+		result.ItemsDeleted += deleted
 	}
 
 	if err := tx.Commit().Error; err != nil {
@@ -366,14 +389,16 @@ func (s *BackupService) Import(envelope SettingsExportEnvelope, sections ImportS
 	// Disk groups are imported outside the main transaction because the
 	// DiskGroupService uses its own *gorm.DB handle, which would deadlock
 	// with SQLite's single-writer constraint if called inside a transaction.
-	// Disk groups use upsert-by-mount-path semantics so they're idempotent.
 	if sections.DiskGroups && len(envelope.DiskGroups) > 0 {
-		count, err := s.importDiskGroups(envelope.DiskGroups)
+		count, deleted, err := s.importDiskGroups(envelope.DiskGroups, syncMode)
 		if err != nil {
 			return nil, fmt.Errorf("failed to import disk groups: %w", err)
 		}
 		result.DiskGroupsImported = count
+		result.ItemsDeleted += deleted
 	}
+
+	result.PreImportSnapshot = snapshot
 
 	// Build list of imported section names for the event
 	sectionNames := importedSectionNames(sections)
@@ -386,6 +411,7 @@ func (s *BackupService) Import(envelope SettingsExportEnvelope, sections ImportS
 			"integrationsImported":         result.IntegrationsImported,
 			"diskGroupsImported":           result.DiskGroupsImported,
 			"notificationChannelsImported": result.NotificationChannelsImported,
+			"itemsDeleted":                 result.ItemsDeleted,
 		},
 	})
 
@@ -394,32 +420,15 @@ func (s *BackupService) Import(envelope SettingsExportEnvelope, sections ImportS
 	return result, nil
 }
 
-// deleteForReplace removes existing data for selected sections before import.
-func (s *BackupService) deleteForReplace(tx *gorm.DB, sections ImportSections) error {
-	// Delete rules before integrations to avoid FK constraint issues
-	if sections.Rules {
-		if err := tx.Where("1 = 1").Delete(&db.CustomRule{}).Error; err != nil {
-			return fmt.Errorf("failed to delete existing rules: %w", err)
-		}
+// sectionsToExportSections converts ImportSections to ExportSections for pre-import snapshot.
+func sectionsToExportSections(s ImportSections) ExportSections {
+	return ExportSections{
+		Preferences:          s.Preferences,
+		Rules:                s.Rules,
+		Integrations:         s.Integrations,
+		DiskGroups:           s.DiskGroups,
+		NotificationChannels: s.NotificationChannels,
 	}
-	if sections.Integrations {
-		// Also clear rules that reference integrations to avoid orphans
-		if !sections.Rules {
-			if err := tx.Where("integration_id IS NOT NULL").Delete(&db.CustomRule{}).Error; err != nil {
-				return fmt.Errorf("failed to delete integration-scoped rules: %w", err)
-			}
-		}
-		if err := tx.Where("1 = 1").Delete(&db.IntegrationConfig{}).Error; err != nil {
-			return fmt.Errorf("failed to delete existing integrations: %w", err)
-		}
-	}
-	if sections.NotificationChannels {
-		if err := tx.Where("1 = 1").Delete(&db.NotificationConfig{}).Error; err != nil {
-			return fmt.Errorf("failed to delete existing notification channels: %w", err)
-		}
-	}
-	// DiskGroups and Preferences use upsert semantics, no delete needed
-	return nil
 }
 
 // importPreferences updates the singleton PreferenceSet row and scoring factor weights.
@@ -459,23 +468,24 @@ func (s *BackupService) importPreferences(tx *gorm.DB, p *PreferencesExport) err
 }
 
 // importRules creates rules from the export payload, resolving integration
-// names to IDs via auto-match. Returns (imported count, unmatched count, error).
+// names to IDs via auto-match. Returns (imported count, unmatched count, deleted count, error).
+// In sync mode, existing rules not matched to an import entry are deleted.
 //
 // Match strategy (in order):
 //  1. Exact match: type + name
 //  2. Type-only fallback: type alone, only if exactly one integration of that type exists
 //  3. No match: skip the rule and count as unmatched
-func (s *BackupService) importRules(tx *gorm.DB, rules []RuleExport) (int, int, error) {
+func (s *BackupService) importRules(tx *gorm.DB, rules []RuleExport, syncMode bool) (int, int, int, error) {
 	// Validate all rules before importing any
 	for i, r := range rules {
 		if r.Field == "" || r.Operator == "" || r.Value == "" {
-			return 0, 0, fmt.Errorf("rule %d: field, operator, and value are required", i)
+			return 0, 0, 0, fmt.Errorf("rule %d: field, operator, and value are required", i)
 		}
 		if r.Effect == "" {
-			return 0, 0, fmt.Errorf("rule %d: effect is required", i)
+			return 0, 0, 0, fmt.Errorf("rule %d: effect is required", i)
 		}
 		if !db.ValidEffects[r.Effect] {
-			return 0, 0, fmt.Errorf("rule %d: invalid effect %q", i, r.Effect)
+			return 0, 0, 0, fmt.Errorf("rule %d: invalid effect %q", i, r.Effect)
 		}
 	}
 
@@ -579,9 +589,12 @@ func (s *BackupService) importRules(tx *gorm.DB, rules []RuleExport) (int, int, 
 	var maxOrder int
 	row := tx.Model(&db.CustomRule{}).Select("COALESCE(MAX(sort_order), -1)").Row()
 	if err := row.Scan(&maxOrder); err != nil {
-		return 0, 0, fmt.Errorf("failed to determine rule ordering: %w", err)
+		return 0, 0, 0, fmt.Errorf("failed to determine rule ordering: %w", err)
 	}
 	nextOrder := maxOrder + 1
+
+	// Track IDs of rules created/touched during import for sync-mode cleanup
+	touchedIDs := make([]uint, 0, len(resolved))
 
 	for _, rr := range resolved {
 		newRule := db.CustomRule{
@@ -594,18 +607,39 @@ func (s *BackupService) importRules(tx *gorm.DB, rules []RuleExport) (int, int, 
 			SortOrder:     nextOrder,
 		}
 		if err := tx.Create(&newRule).Error; err != nil {
-			return 0, 0, fmt.Errorf("failed to insert imported rule: %w", err)
+			return 0, 0, 0, fmt.Errorf("failed to insert imported rule: %w", err)
 		}
+		touchedIDs = append(touchedIDs, newRule.ID)
 		// GORM default:true tag ignores false on Create
 		if !rr.rule.Enabled {
 			if err := tx.Model(&newRule).Update("enabled", false).Error; err != nil {
-				return 0, 0, fmt.Errorf("failed to disable imported rule: %w", err)
+				return 0, 0, 0, fmt.Errorf("failed to disable imported rule: %w", err)
 			}
 		}
 		nextOrder++
 	}
 
-	return len(resolved), unmatched, nil
+	// Sync mode: delete rules that were not created during this import
+	deleted := 0
+	if syncMode && len(touchedIDs) > 0 {
+		result := tx.Where("id NOT IN ?", touchedIDs).Delete(&db.CustomRule{})
+		if result.Error != nil {
+			return len(resolved), unmatched, 0, fmt.Errorf("failed to delete orphaned rules: %w", result.Error)
+		}
+		deleted = int(result.RowsAffected)
+		if deleted > 0 {
+			slog.Info("Sync mode: deleted orphaned rules", "component", "services", "count", deleted)
+		}
+	} else if syncMode && len(touchedIDs) == 0 {
+		// All rules unmatched but sync mode — delete everything
+		result := tx.Where("1 = 1").Delete(&db.CustomRule{})
+		if result.Error != nil {
+			return 0, unmatched, 0, fmt.Errorf("failed to delete all rules in sync mode: %w", result.Error)
+		}
+		deleted = int(result.RowsAffected)
+	}
+
+	return len(resolved), unmatched, deleted, nil
 }
 
 // placeholderAPIKey is the sentinel value used for imported integrations
@@ -616,22 +650,29 @@ const placeholderAPIKey = "PLACEHOLDER_REPLACE_ME"
 // Existing integrations have their URL and Enabled state updated but API keys
 // are preserved. New integrations are created with a placeholder API key and
 // disabled until the user configures real credentials.
-func (s *BackupService) importIntegrations(tx *gorm.DB, integrations []IntegrationExport) (int, error) {
+// In sync mode, integrations not in the import file are deleted.
+// Returns (upserted count, deleted count, error).
+func (s *BackupService) importIntegrations(tx *gorm.DB, integrations []IntegrationExport, syncMode bool) (int, int, error) {
 	// Validate all integrations before importing any
 	for i, ie := range integrations {
 		if ie.Name == "" {
-			return 0, fmt.Errorf("integration %d: name is required", i)
+			return 0, 0, fmt.Errorf("integration %d: name is required", i)
 		}
 		if ie.URL == "" {
-			return 0, fmt.Errorf("integration %d (%s): url is required", i, ie.Name)
+			return 0, 0, fmt.Errorf("integration %d (%s): url is required", i, ie.Name)
 		}
 		if !db.ValidIntegrationTypes[ie.Type] {
-			return 0, fmt.Errorf("integration %d (%s): invalid type %q", i, ie.Name, ie.Type)
+			return 0, 0, fmt.Errorf("integration %d (%s): invalid type %q", i, ie.Name, ie.Type)
 		}
 	}
 
+	// Build a set of imported (type, name) for sync-mode orphan detection
+	importedKeys := make(map[string]bool, len(integrations))
+
 	count := 0
 	for _, ie := range integrations {
+		importedKeys[ie.Type+":"+ie.Name] = true
+
 		// Upsert: look up existing by type + name
 		var existing db.IntegrationConfig
 		err := tx.Where("type = ? AND name = ?", ie.Type, ie.Name).First(&existing).Error
@@ -640,7 +681,7 @@ func (s *BackupService) importIntegrations(tx *gorm.DB, integrations []Integrati
 			existing.URL = ie.URL
 			existing.Enabled = ie.Enabled
 			if dbErr := tx.Save(&existing).Error; dbErr != nil {
-				return count, fmt.Errorf("failed to update integration %q: %w", ie.Name, dbErr)
+				return count, 0, fmt.Errorf("failed to update integration %q: %w", ie.Name, dbErr)
 			}
 			count++
 			continue
@@ -655,30 +696,81 @@ func (s *BackupService) importIntegrations(tx *gorm.DB, integrations []Integrati
 			Enabled: true, // GORM default:true workaround — disable below
 		}
 		if dbErr := tx.Create(&ic).Error; dbErr != nil {
-			return count, fmt.Errorf("failed to create integration %q: %w", ie.Name, dbErr)
+			return count, 0, fmt.Errorf("failed to create integration %q: %w", ie.Name, dbErr)
 		}
 		// Force disable new imports with placeholder credentials
 		if dbErr := tx.Model(&ic).Update("enabled", false).Error; dbErr != nil {
-			return count, fmt.Errorf("failed to disable placeholder integration %q: %w", ie.Name, dbErr)
+			return count, 0, fmt.Errorf("failed to disable placeholder integration %q: %w", ie.Name, dbErr)
 		}
 		count++
 	}
-	return count, nil
+
+	// Sync mode: delete integrations not present in the import file
+	deleted := 0
+	if syncMode {
+		var allExisting []db.IntegrationConfig
+		if err := tx.Find(&allExisting).Error; err != nil {
+			return count, 0, fmt.Errorf("failed to list integrations for sync: %w", err)
+		}
+		for _, existing := range allExisting {
+			if !importedKeys[existing.Type+":"+existing.Name] {
+				// Cascade: delete rules referencing this integration
+				if err := tx.Where("integration_id = ?", existing.ID).Delete(&db.CustomRule{}).Error; err != nil {
+					return count, deleted, fmt.Errorf("failed to delete rules for orphaned integration %q: %w", existing.Name, err)
+				}
+				if err := tx.Delete(&existing).Error; err != nil {
+					return count, deleted, fmt.Errorf("failed to delete orphaned integration %q: %w", existing.Name, err)
+				}
+				deleted++
+				slog.Info("Sync mode: deleted orphaned integration",
+					"component", "services", "name", existing.Name, "type", existing.Type)
+			}
+		}
+	}
+
+	return count, deleted, nil
 }
 
 // importDiskGroups creates or updates disk groups by mount path via DiskGroupService.
-func (s *BackupService) importDiskGroups(groups []DiskGroupExport) (int, error) {
+// In sync mode, disk groups not in the import file are deleted.
+// Returns (upserted count, deleted count, error).
+func (s *BackupService) importDiskGroups(groups []DiskGroupExport, syncMode bool) (int, int, error) {
 	if s.diskGroups == nil {
-		return 0, fmt.Errorf("disk group service not available")
+		return 0, 0, fmt.Errorf("disk group service not available")
 	}
+
+	// Build set of imported mount paths for sync-mode orphan detection
+	importedPaths := make(map[string]bool, len(groups))
+
 	count := 0
 	for _, dge := range groups {
+		importedPaths[dge.MountPath] = true
 		if err := s.diskGroups.ImportUpsert(dge.MountPath, dge.ThresholdPct, dge.TargetPct, dge.TotalBytesOverride); err != nil {
-			return count, err
+			return count, 0, err
 		}
 		count++
 	}
-	return count, nil
+
+	// Sync mode: delete disk groups not present in the import file
+	deleted := 0
+	if syncMode {
+		allGroups, err := s.diskGroups.List()
+		if err != nil {
+			return count, 0, fmt.Errorf("failed to list disk groups for sync: %w", err)
+		}
+		for _, g := range allGroups {
+			if !importedPaths[g.MountPath] {
+				if delErr := s.db.Delete(&g).Error; delErr != nil {
+					return count, deleted, fmt.Errorf("failed to delete orphaned disk group %q: %w", g.MountPath, delErr)
+				}
+				deleted++
+				slog.Info("Sync mode: deleted orphaned disk group",
+					"component", "services", "mountPath", g.MountPath)
+			}
+		}
+	}
+
+	return count, deleted, nil
 }
 
 // placeholderWebhookURL is the sentinel value used for imported notification
@@ -689,19 +781,26 @@ const placeholderWebhookURL = "https://placeholder.example.com/replace-me"
 // Existing channels have their subscription flags updated but webhook URLs
 // are preserved. New channels are created with a placeholder webhook URL and
 // disabled until the user configures real credentials.
-func (s *BackupService) importNotificationChannels(tx *gorm.DB, channels []NotificationExport) (int, error) {
+// In sync mode, channels not in the import file are deleted.
+// Returns (upserted count, deleted count, error).
+func (s *BackupService) importNotificationChannels(tx *gorm.DB, channels []NotificationExport, syncMode bool) (int, int, error) {
 	// Validate all channels before importing any
 	for i, ne := range channels {
 		if ne.Name == "" {
-			return 0, fmt.Errorf("notification channel %d: name is required", i)
+			return 0, 0, fmt.Errorf("notification channel %d: name is required", i)
 		}
 		if !db.ValidNotificationChannelTypes[ne.Type] {
-			return 0, fmt.Errorf("notification channel %d (%s): invalid type %q", i, ne.Name, ne.Type)
+			return 0, 0, fmt.Errorf("notification channel %d (%s): invalid type %q", i, ne.Name, ne.Type)
 		}
 	}
 
+	// Build a set of imported (type, name) for sync-mode orphan detection
+	importedKeys := make(map[string]bool, len(channels))
+
 	count := 0
 	for _, ne := range channels {
+		importedKeys[ne.Type+":"+ne.Name] = true
+
 		// Upsert: look up existing by type + name
 		var existing db.NotificationConfig
 		err := tx.Where("type = ? AND name = ?", ne.Type, ne.Name).First(&existing).Error
@@ -717,7 +816,7 @@ func (s *BackupService) importNotificationChannels(tx *gorm.DB, channels []Notif
 			existing.OnUpdateAvailable = ne.OnUpdateAvailable
 			existing.OnApprovalActivity = ne.OnApprovalActivity
 			if dbErr := tx.Save(&existing).Error; dbErr != nil {
-				return count, fmt.Errorf("failed to update notification channel %q: %w", ne.Name, dbErr)
+				return count, 0, fmt.Errorf("failed to update notification channel %q: %w", ne.Name, dbErr)
 			}
 			count++
 			continue
@@ -739,15 +838,35 @@ func (s *BackupService) importNotificationChannels(tx *gorm.DB, channels []Notif
 			OnApprovalActivity: ne.OnApprovalActivity,
 		}
 		if dbErr := tx.Create(&nc).Error; dbErr != nil {
-			return count, fmt.Errorf("failed to create notification channel %q: %w", ne.Name, dbErr)
+			return count, 0, fmt.Errorf("failed to create notification channel %q: %w", ne.Name, dbErr)
 		}
 		// Force disable new imports with placeholder credentials
 		if dbErr := tx.Model(&nc).Update("enabled", false).Error; dbErr != nil {
-			return count, fmt.Errorf("failed to disable placeholder notification channel %q: %w", ne.Name, dbErr)
+			return count, 0, fmt.Errorf("failed to disable placeholder notification channel %q: %w", ne.Name, dbErr)
 		}
 		count++
 	}
-	return count, nil
+
+	// Sync mode: delete notification channels not present in the import file
+	deleted := 0
+	if syncMode {
+		var allExisting []db.NotificationConfig
+		if err := tx.Find(&allExisting).Error; err != nil {
+			return count, 0, fmt.Errorf("failed to list notification channels for sync: %w", err)
+		}
+		for _, existing := range allExisting {
+			if !importedKeys[existing.Type+":"+existing.Name] {
+				if err := tx.Delete(&existing).Error; err != nil {
+					return count, deleted, fmt.Errorf("failed to delete orphaned notification channel %q: %w", existing.Name, err)
+				}
+				deleted++
+				slog.Info("Sync mode: deleted orphaned notification channel",
+					"component", "services", "name", existing.Name, "type", existing.Type)
+			}
+		}
+	}
+
+	return count, deleted, nil
 }
 
 // =============================================================================
@@ -879,7 +998,18 @@ func (s *BackupService) CommitImport(envelope SettingsExportEnvelope, sections I
 		return nil, fmt.Errorf("%w: got %d, expected 1", ErrUnsupportedVersion, envelope.Version)
 	}
 
-	replaceMode := sections.Mode == ImportModeReplace
+	syncMode := isSyncMode(sections.Mode)
+
+	// Capture pre-import snapshot for safety
+	var snapshot *SettingsExportEnvelope
+	if syncMode {
+		snap, err := s.Export(sectionsToExportSections(sections), "pre-import-snapshot")
+		if err != nil {
+			slog.Warn("Failed to create pre-import snapshot", "component", "services", "error", err)
+		} else {
+			snapshot = snap
+		}
+	}
 
 	tx := s.db.Begin()
 	if tx.Error != nil {
@@ -887,13 +1017,6 @@ func (s *BackupService) CommitImport(envelope SettingsExportEnvelope, sections I
 	}
 
 	result := &ImportResult{}
-
-	if replaceMode {
-		if err := s.deleteForReplace(tx, sections); err != nil {
-			tx.Rollback()
-			return nil, fmt.Errorf("failed to clear existing data for replace: %w", err)
-		}
-	}
 
 	if sections.Preferences && envelope.Preferences != nil {
 		if err := s.importPreferences(tx, envelope.Preferences); err != nil {
@@ -904,31 +1027,34 @@ func (s *BackupService) CommitImport(envelope SettingsExportEnvelope, sections I
 	}
 
 	if sections.Integrations && len(envelope.Integrations) > 0 {
-		count, err := s.importIntegrations(tx, envelope.Integrations)
+		count, deleted, err := s.importIntegrations(tx, envelope.Integrations, syncMode)
 		if err != nil {
 			tx.Rollback()
 			return nil, fmt.Errorf("failed to import integrations: %w", err)
 		}
 		result.IntegrationsImported = count
+		result.ItemsDeleted += deleted
 	}
 
 	if sections.Rules && len(envelope.Rules) > 0 {
-		count, unmatched, err := s.importRulesWithOverrides(tx, envelope.Rules, overrides)
+		count, unmatched, deleted, err := s.importRulesWithOverrides(tx, envelope.Rules, overrides, syncMode)
 		if err != nil {
 			tx.Rollback()
 			return nil, fmt.Errorf("failed to import rules: %w", err)
 		}
 		result.RulesImported = count
 		result.RulesUnmatched = unmatched
+		result.ItemsDeleted += deleted
 	}
 
 	if sections.NotificationChannels && len(envelope.NotificationChannels) > 0 {
-		count, err := s.importNotificationChannels(tx, envelope.NotificationChannels)
+		count, deleted, err := s.importNotificationChannels(tx, envelope.NotificationChannels, syncMode)
 		if err != nil {
 			tx.Rollback()
 			return nil, fmt.Errorf("failed to import notification channels: %w", err)
 		}
 		result.NotificationChannelsImported = count
+		result.ItemsDeleted += deleted
 	}
 
 	if err := tx.Commit().Error; err != nil {
@@ -937,12 +1063,15 @@ func (s *BackupService) CommitImport(envelope SettingsExportEnvelope, sections I
 
 	// Disk groups imported outside transaction (see Import() comment)
 	if sections.DiskGroups && len(envelope.DiskGroups) > 0 {
-		count, err := s.importDiskGroups(envelope.DiskGroups)
+		count, deleted, err := s.importDiskGroups(envelope.DiskGroups, syncMode)
 		if err != nil {
 			return nil, fmt.Errorf("failed to import disk groups: %w", err)
 		}
 		result.DiskGroupsImported = count
+		result.ItemsDeleted += deleted
 	}
+
+	result.PreImportSnapshot = snapshot
 
 	sectionNames := importedSectionNames(sections)
 	s.bus.Publish(events.SettingsImportedEvent{
@@ -954,6 +1083,7 @@ func (s *BackupService) CommitImport(envelope SettingsExportEnvelope, sections I
 			"integrationsImported":         result.IntegrationsImported,
 			"diskGroupsImported":           result.DiskGroupsImported,
 			"notificationChannelsImported": result.NotificationChannelsImported,
+			"itemsDeleted":                 result.ItemsDeleted,
 		},
 	})
 
@@ -962,7 +1092,9 @@ func (s *BackupService) CommitImport(envelope SettingsExportEnvelope, sections I
 
 // importRulesWithOverrides creates rules using user-provided integration overrides
 // instead of auto-match for overridden rules. Skipped rules are not imported.
-func (s *BackupService) importRulesWithOverrides(tx *gorm.DB, rules []RuleExport, overrides []RuleOverride) (int, int, error) {
+// In sync mode, existing rules not created by this import are deleted.
+// Returns (imported count, unmatched count, deleted count, error).
+func (s *BackupService) importRulesWithOverrides(tx *gorm.DB, rules []RuleExport, overrides []RuleOverride, syncMode bool) (int, int, int, error) {
 	// Validate all non-skipped rules before importing any
 	overrideMap := make(map[int]RuleOverride, len(overrides))
 	for _, o := range overrides {
@@ -974,13 +1106,13 @@ func (s *BackupService) importRulesWithOverrides(tx *gorm.DB, rules []RuleExport
 			continue
 		}
 		if r.Field == "" || r.Operator == "" || r.Value == "" {
-			return 0, 0, fmt.Errorf("rule %d: field, operator, and value are required", i)
+			return 0, 0, 0, fmt.Errorf("rule %d: field, operator, and value are required", i)
 		}
 		if r.Effect == "" {
-			return 0, 0, fmt.Errorf("rule %d: effect is required", i)
+			return 0, 0, 0, fmt.Errorf("rule %d: effect is required", i)
 		}
 		if !db.ValidEffects[r.Effect] {
-			return 0, 0, fmt.Errorf("rule %d: invalid effect %q", i, r.Effect)
+			return 0, 0, 0, fmt.Errorf("rule %d: invalid effect %q", i, r.Effect)
 		}
 	}
 
@@ -988,12 +1120,13 @@ func (s *BackupService) importRulesWithOverrides(tx *gorm.DB, rules []RuleExport
 	var maxOrder int
 	row := tx.Model(&db.CustomRule{}).Select("COALESCE(MAX(sort_order), -1)").Row()
 	if err := row.Scan(&maxOrder); err != nil {
-		return 0, 0, fmt.Errorf("failed to determine rule ordering: %w", err)
+		return 0, 0, 0, fmt.Errorf("failed to determine rule ordering: %w", err)
 	}
 	nextOrder := maxOrder + 1
 
 	imported := 0
 	unmatched := 0
+	touchedIDs := make([]uint, 0, len(rules))
 
 	for i, r := range rules {
 		// Check if this rule has a user override
@@ -1012,11 +1145,12 @@ func (s *BackupService) importRulesWithOverrides(tx *gorm.DB, rules []RuleExport
 				SortOrder:     nextOrder,
 			}
 			if err := tx.Create(&newRule).Error; err != nil {
-				return 0, 0, fmt.Errorf("failed to insert imported rule %d: %w", i, err)
+				return 0, 0, 0, fmt.Errorf("failed to insert imported rule %d: %w", i, err)
 			}
+			touchedIDs = append(touchedIDs, newRule.ID)
 			if !r.Enabled {
 				if err := tx.Model(&newRule).Update("enabled", false).Error; err != nil {
-					return 0, 0, fmt.Errorf("failed to disable imported rule %d: %w", i, err)
+					return 0, 0, 0, fmt.Errorf("failed to disable imported rule %d: %w", i, err)
 				}
 			}
 			nextOrder++
@@ -1075,18 +1209,35 @@ func (s *BackupService) importRulesWithOverrides(tx *gorm.DB, rules []RuleExport
 			SortOrder:     nextOrder,
 		}
 		if err := tx.Create(&newRule).Error; err != nil {
-			return 0, 0, fmt.Errorf("failed to insert imported rule %d: %w", i, err)
+			return 0, 0, 0, fmt.Errorf("failed to insert imported rule %d: %w", i, err)
 		}
+		touchedIDs = append(touchedIDs, newRule.ID)
 		if !r.Enabled {
 			if err := tx.Model(&newRule).Update("enabled", false).Error; err != nil {
-				return 0, 0, fmt.Errorf("failed to disable imported rule %d: %w", i, err)
+				return 0, 0, 0, fmt.Errorf("failed to disable imported rule %d: %w", i, err)
 			}
 		}
 		nextOrder++
 		imported++
 	}
 
-	return imported, unmatched, nil
+	// Sync mode: delete rules that were not created during this import
+	deleted := 0
+	if syncMode && len(touchedIDs) > 0 {
+		result := tx.Where("id NOT IN ?", touchedIDs).Delete(&db.CustomRule{})
+		if result.Error != nil {
+			return imported, unmatched, 0, fmt.Errorf("failed to delete orphaned rules: %w", result.Error)
+		}
+		deleted = int(result.RowsAffected)
+	} else if syncMode && len(touchedIDs) == 0 {
+		result := tx.Where("1 = 1").Delete(&db.CustomRule{})
+		if result.Error != nil {
+			return 0, unmatched, 0, fmt.Errorf("failed to delete all rules in sync mode: %w", result.Error)
+		}
+		deleted = int(result.RowsAffected)
+	}
+
+	return imported, unmatched, deleted, nil
 }
 
 // matchResult caches the result of an integration lookup for preview.

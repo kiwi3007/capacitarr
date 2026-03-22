@@ -412,7 +412,7 @@ export interface ImportSections {
   integrations: boolean;
   diskGroups: boolean;
   notificationChannels: boolean;
-  mode?: 'append' | 'replace';
+  mode?: 'merge' | 'sync';
 }
 
 export interface ImportResult {
@@ -422,6 +422,8 @@ export interface ImportResult {
   integrationsImported: number;
   diskGroupsImported: number;
   notificationChannelsImported: number;
+  itemsDeleted: number;
+  preImportSnapshot?: SettingsExportEnvelope;
 }
 
 // ---------------------------------------------------------------------------

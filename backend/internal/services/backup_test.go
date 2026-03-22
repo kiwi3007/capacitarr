@@ -1000,3 +1000,341 @@ func TestBackupService_CommitImport_WithOverrides(t *testing.T) {
 		t.Errorf("expected rule integration ID %d, got %d", radarr.ID, *rules[0].IntegrationID)
 	}
 }
+
+// ---------- Sync mode per-item tests ----------
+
+func TestBackupService_Import_SyncMode_DeletesOrphanIntegrations(t *testing.T) {
+	database := setupTestDB(t)
+	bus := newTestBus(t)
+	svc := NewBackupService(database, bus)
+	svc.SetDiskGroupService(NewDiskGroupService(database, bus))
+
+	// Seed 3 integrations
+	database.Create(&db.IntegrationConfig{
+		Type: "sonarr", Name: "Firefly Sonarr", URL: "http://sonarr:8989",
+		APIKey: "key-1", Enabled: true,
+	})
+	database.Create(&db.IntegrationConfig{
+		Type: "radarr", Name: "Serenity Radarr", URL: "http://radarr:7878",
+		APIKey: "key-2", Enabled: true,
+	})
+	database.Create(&db.IntegrationConfig{
+		Type: "lidarr", Name: "Firefly Lidarr", URL: "http://lidarr:8686",
+		APIKey: "key-3", Enabled: true,
+	})
+
+	// Import only 2 integrations in sync mode
+	envelope := SettingsExportEnvelope{
+		Version: 1,
+		Integrations: []IntegrationExport{
+			{Name: "Firefly Sonarr", Type: "sonarr", URL: "http://sonarr:8989", Enabled: true},
+			{Name: "Serenity Radarr", Type: "radarr", URL: "http://radarr-new:7878", Enabled: true},
+		},
+	}
+
+	sections := ImportSections{Integrations: true, Mode: ImportModeSync}
+	result, err := svc.Import(envelope, sections)
+	if err != nil {
+		t.Fatalf("Import returned error: %v", err)
+	}
+
+	if result.IntegrationsImported != 2 {
+		t.Errorf("expected 2 integrations imported, got %d", result.IntegrationsImported)
+	}
+	if result.ItemsDeleted != 1 {
+		t.Errorf("expected 1 item deleted (orphan lidarr), got %d", result.ItemsDeleted)
+	}
+
+	// Verify only 2 remain
+	var integrations []db.IntegrationConfig
+	database.Find(&integrations)
+	if len(integrations) != 2 {
+		t.Fatalf("expected 2 integrations in DB after sync, got %d", len(integrations))
+	}
+}
+
+func TestBackupService_Import_MergeMode_PreservesUnmatchedIntegrations(t *testing.T) {
+	database := setupTestDB(t)
+	bus := newTestBus(t)
+	svc := NewBackupService(database, bus)
+	svc.SetDiskGroupService(NewDiskGroupService(database, bus))
+
+	// Seed 3 integrations
+	database.Create(&db.IntegrationConfig{
+		Type: "sonarr", Name: "Firefly Sonarr", URL: "http://sonarr:8989",
+		APIKey: "key-1", Enabled: true,
+	})
+	database.Create(&db.IntegrationConfig{
+		Type: "radarr", Name: "Serenity Radarr", URL: "http://radarr:7878",
+		APIKey: "key-2", Enabled: true,
+	})
+	database.Create(&db.IntegrationConfig{
+		Type: "lidarr", Name: "Firefly Lidarr", URL: "http://lidarr:8686",
+		APIKey: "key-3", Enabled: true,
+	})
+
+	// Import only 2 integrations in merge mode
+	envelope := SettingsExportEnvelope{
+		Version: 1,
+		Integrations: []IntegrationExport{
+			{Name: "Firefly Sonarr", Type: "sonarr", URL: "http://sonarr:8989", Enabled: true},
+			{Name: "Serenity Radarr", Type: "radarr", URL: "http://radarr:7878", Enabled: true},
+		},
+	}
+
+	sections := ImportSections{Integrations: true, Mode: ImportModeMerge}
+	result, err := svc.Import(envelope, sections)
+	if err != nil {
+		t.Fatalf("Import returned error: %v", err)
+	}
+
+	if result.IntegrationsImported != 2 {
+		t.Errorf("expected 2 integrations imported, got %d", result.IntegrationsImported)
+	}
+	if result.ItemsDeleted != 0 {
+		t.Errorf("expected 0 items deleted in merge mode, got %d", result.ItemsDeleted)
+	}
+
+	// All 3 should remain
+	var integrations []db.IntegrationConfig
+	database.Find(&integrations)
+	if len(integrations) != 3 {
+		t.Fatalf("expected 3 integrations in DB after merge, got %d", len(integrations))
+	}
+}
+
+func TestBackupService_Import_SyncMode_DeletesOrphanRules(t *testing.T) {
+	database := setupTestDB(t)
+	bus := newTestBus(t)
+	svc := NewBackupService(database, bus)
+	svc.SetDiskGroupService(NewDiskGroupService(database, bus))
+
+	// Seed integration
+	intID := seedIntegration(t, database)
+
+	// Seed 3 existing rules
+	database.Create(&db.CustomRule{
+		Field: "tag", Operator: "contains", Value: "anime", Effect: "prefer_keep",
+		Enabled: true, IntegrationID: &intID,
+	})
+	database.Create(&db.CustomRule{
+		Field: "rating", Operator: ">", Value: "8.0", Effect: "always_keep",
+		Enabled: true, IntegrationID: &intID,
+	})
+	database.Create(&db.CustomRule{
+		Field: "monitored", Operator: "==", Value: "false", Effect: "always_remove",
+		Enabled: true, IntegrationID: &intID,
+	})
+
+	sonarrType := "sonarr"
+	sonarrName := "Test Sonarr"
+
+	// Import 1 rule in sync mode
+	envelope := SettingsExportEnvelope{
+		Version: 1,
+		Rules: []RuleExport{
+			{Field: "quality", Operator: "==", Value: "4K", Effect: "always_keep", Enabled: true, IntegrationType: &sonarrType, IntegrationName: &sonarrName},
+		},
+	}
+
+	sections := ImportSections{Rules: true, Mode: ImportModeSync}
+	result, err := svc.Import(envelope, sections)
+	if err != nil {
+		t.Fatalf("Import returned error: %v", err)
+	}
+
+	if result.RulesImported != 1 {
+		t.Errorf("expected 1 rule imported, got %d", result.RulesImported)
+	}
+	if result.ItemsDeleted != 3 {
+		t.Errorf("expected 3 orphaned rules deleted, got %d", result.ItemsDeleted)
+	}
+
+	// Only the imported rule should remain
+	var rules []db.CustomRule
+	database.Find(&rules)
+	if len(rules) != 1 {
+		t.Fatalf("expected 1 rule in DB after sync, got %d", len(rules))
+	}
+	if rules[0].Field != "quality" {
+		t.Errorf("expected imported rule field 'quality', got %q", rules[0].Field)
+	}
+}
+
+func TestBackupService_Import_SyncMode_DeletesOrphanNotifications(t *testing.T) {
+	database := setupTestDB(t)
+	bus := newTestBus(t)
+	svc := NewBackupService(database, bus)
+	svc.SetDiskGroupService(NewDiskGroupService(database, bus))
+
+	// Seed 2 notification channels
+	database.Create(&db.NotificationConfig{
+		Type: "discord", Name: "Firefly Alerts",
+		WebhookURL: "https://discord.com/api/webhooks/1", Enabled: true,
+	})
+	database.Create(&db.NotificationConfig{
+		Type: "apprise", Name: "Serenity Apprise",
+		WebhookURL: "https://apprise.example.com", Enabled: true,
+	})
+
+	// Import only 1 channel in sync mode
+	envelope := SettingsExportEnvelope{
+		Version: 1,
+		NotificationChannels: []NotificationExport{
+			{Name: "Firefly Alerts", Type: "discord", Enabled: true},
+		},
+	}
+
+	sections := ImportSections{NotificationChannels: true, Mode: ImportModeSync}
+	result, err := svc.Import(envelope, sections)
+	if err != nil {
+		t.Fatalf("Import returned error: %v", err)
+	}
+
+	if result.NotificationChannelsImported != 1 {
+		t.Errorf("expected 1 channel imported, got %d", result.NotificationChannelsImported)
+	}
+	if result.ItemsDeleted != 1 {
+		t.Errorf("expected 1 orphaned channel deleted, got %d", result.ItemsDeleted)
+	}
+
+	var channels []db.NotificationConfig
+	database.Find(&channels)
+	if len(channels) != 1 {
+		t.Fatalf("expected 1 channel in DB after sync, got %d", len(channels))
+	}
+	if channels[0].Name != "Firefly Alerts" {
+		t.Errorf("expected remaining channel 'Firefly Alerts', got %q", channels[0].Name)
+	}
+}
+
+func TestBackupService_Import_SyncMode_CascadeDeletesOrphanRules(t *testing.T) {
+	database := setupTestDB(t)
+	bus := newTestBus(t)
+	svc := NewBackupService(database, bus)
+	svc.SetDiskGroupService(NewDiskGroupService(database, bus))
+
+	// Seed 2 integrations
+	database.Create(&db.IntegrationConfig{
+		Type: "sonarr", Name: "Firefly Sonarr", URL: "http://sonarr:8989",
+		APIKey: "key-1", Enabled: true,
+	})
+	database.Create(&db.IntegrationConfig{
+		Type: "radarr", Name: "Serenity Radarr", URL: "http://radarr:7878",
+		APIKey: "key-2", Enabled: true,
+	})
+
+	var radarr db.IntegrationConfig
+	database.Where("type = ?", "radarr").First(&radarr)
+
+	// Seed a rule scoped to the radarr integration that will be deleted
+	database.Create(&db.CustomRule{
+		Field: "quality", Operator: "==", Value: "4K", Effect: "always_keep",
+		Enabled: true, IntegrationID: &radarr.ID,
+	})
+
+	// Import only sonarr in sync mode — radarr and its rules should be deleted
+	envelope := SettingsExportEnvelope{
+		Version: 1,
+		Integrations: []IntegrationExport{
+			{Name: "Firefly Sonarr", Type: "sonarr", URL: "http://sonarr:8989", Enabled: true},
+		},
+	}
+
+	sections := ImportSections{Integrations: true, Mode: ImportModeSync}
+	result, err := svc.Import(envelope, sections)
+	if err != nil {
+		t.Fatalf("Import returned error: %v", err)
+	}
+
+	if result.IntegrationsImported != 1 {
+		t.Errorf("expected 1 integration imported, got %d", result.IntegrationsImported)
+	}
+
+	// Radarr and its rule should be gone
+	var integrations []db.IntegrationConfig
+	database.Find(&integrations)
+	if len(integrations) != 1 {
+		t.Fatalf("expected 1 integration after sync, got %d", len(integrations))
+	}
+
+	var rules []db.CustomRule
+	database.Find(&rules)
+	if len(rules) != 0 {
+		t.Errorf("expected 0 rules after integration cascade delete, got %d", len(rules))
+	}
+}
+
+func TestBackupService_Import_SyncMode_IncludesPreImportSnapshot(t *testing.T) {
+	database := setupTestDB(t)
+	bus := newTestBus(t)
+	svc := NewBackupService(database, bus)
+	svc.SetDiskGroupService(NewDiskGroupService(database, bus))
+
+	// Seed integration
+	database.Create(&db.IntegrationConfig{
+		Type: "sonarr", Name: "Firefly Sonarr", URL: "http://sonarr:8989",
+		APIKey: "key-1", Enabled: true,
+	})
+
+	// Import in sync mode
+	envelope := SettingsExportEnvelope{
+		Version: 1,
+		Integrations: []IntegrationExport{
+			{Name: "Firefly Sonarr", Type: "sonarr", URL: "http://sonarr-new:8989", Enabled: true},
+		},
+	}
+
+	sections := ImportSections{Integrations: true, Mode: ImportModeSync}
+	result, err := svc.Import(envelope, sections)
+	if err != nil {
+		t.Fatalf("Import returned error: %v", err)
+	}
+
+	if result.PreImportSnapshot == nil {
+		t.Fatal("expected pre-import snapshot in sync mode")
+	}
+	if len(result.PreImportSnapshot.Integrations) != 1 {
+		t.Errorf("expected 1 integration in snapshot, got %d", len(result.PreImportSnapshot.Integrations))
+	}
+}
+
+func TestBackupService_Import_LegacyModes(t *testing.T) {
+	database := setupTestDB(t)
+	bus := newTestBus(t)
+	svc := NewBackupService(database, bus)
+	svc.SetDiskGroupService(NewDiskGroupService(database, bus))
+
+	// Verify legacy "append" works like merge (no deletions)
+	database.Create(&db.IntegrationConfig{
+		Type: "sonarr", Name: "Firefly Sonarr", URL: "http://sonarr:8989",
+		APIKey: "key-1", Enabled: true,
+	})
+	database.Create(&db.IntegrationConfig{
+		Type: "radarr", Name: "Serenity Radarr", URL: "http://radarr:7878",
+		APIKey: "key-2", Enabled: true,
+	})
+
+	envelope := SettingsExportEnvelope{
+		Version: 1,
+		Integrations: []IntegrationExport{
+			{Name: "Firefly Sonarr", Type: "sonarr", URL: "http://sonarr:8989", Enabled: true},
+		},
+	}
+
+	// Legacy "append" mode
+	sections := ImportSections{Integrations: true, Mode: ImportModeAppend}
+	result, err := svc.Import(envelope, sections)
+	if err != nil {
+		t.Fatalf("Import with legacy append mode returned error: %v", err)
+	}
+	if result.ItemsDeleted != 0 {
+		t.Errorf("legacy append mode should not delete items, got %d deleted", result.ItemsDeleted)
+	}
+
+	var integrations []db.IntegrationConfig
+	database.Find(&integrations)
+	if len(integrations) != 2 {
+		t.Errorf("expected 2 integrations preserved in append mode, got %d", len(integrations))
+	}
+}
