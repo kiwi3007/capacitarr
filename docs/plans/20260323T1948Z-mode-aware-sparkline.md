@@ -1,6 +1,6 @@
 # Mode-Aware Engine Activity Sparkline
 
-**Status:** 📋 Planned  
+**Status:** ✅ Complete  
 **Branch:** `feature/mode-aware-sparkline`  
 **Scope:** Backend schema + service + poller, Frontend dashboard sparkline
 
