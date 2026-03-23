@@ -9,7 +9,7 @@ hideTitle: true
 
 ## How It Works
 
-1. **Connect your integrations** — Sonarr, Radarr, Lidarr, Readarr, Plex, Jellyfin, Emby, Tautulli, and Overseerr.
+1. **Connect your integrations** — Sonarr, Radarr, Lidarr, Readarr, Plex, Jellyfin, Emby, Tautulli, Jellystat, and Seerr (Overseerr/Jellyseerr).
 2. **Disk groups are auto-detected** — Capacitarr tracks capacity per root folder across your integrations.
 3. **Set a threshold** — choose when cleanup should trigger (e.g., disk ≥ 85%).
 4. **Adjust preference sliders** — tell the engine what you value (watch history, file size, rating, etc.).
@@ -33,11 +33,14 @@ hideTitle: true
 ```yaml
 services:
   capacitarr:
-    image: capacitarr:latest
+    image: ghentstarshadow/capacitarr:stable
+    container_name: capacitarr
     ports:
       - "2187:2187"
     environment:
-      - JWT_SECRET=your-secret-here
+      - PUID=1000
+      - PGID=1000
+      - JWT_SECRET=change-me-to-a-random-string
     volumes:
       - capacitarr-config:/config
     restart: unless-stopped

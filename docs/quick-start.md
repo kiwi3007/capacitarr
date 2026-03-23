@@ -65,15 +65,18 @@ Open `http://localhost:2187` in your browser. On first launch you will be prompt
 4. Enter the URL and API key for your *arr instance
 5. Test the connection and save
 
-## 5. Configure Disk Thresholds
+## 5. Configure Libraries & Thresholds
 
 Capacitarr automatically detects disk groups from the root folders reported by your *arr integrations. No manual setup is needed — disk groups appear on the Dashboard as soon as integrations are connected and the engine runs.
 
 To configure when cleanup triggers:
 
-1. Navigate to the **Rules** page → **Disk Thresholds** section
-2. Set a **threshold** — the disk usage percentage that triggers cleanup evaluation (e.g., 85%)
-3. Set a **target** — the disk usage percentage the engine tries to reach (e.g., 75%)
+1. Navigate to **Settings** → **Libraries**
+2. Create a library (e.g., "Movies", "TV Shows") and assign integrations to it
+3. Set a **threshold** — the disk usage percentage that triggers cleanup evaluation (e.g., 85%)
+4. Set a **target** — the disk usage percentage the engine tries to reach (e.g., 75%)
+
+Each library can have its own threshold and target, allowing independent cleanup triggers per library.
 
 ## 6. Tune Your Weights
 
@@ -85,6 +88,7 @@ Navigate to the **Weights** page and adjust the scoring sliders to tell Capacita
 - **Rating** — Lower rated content scores higher
 - **Time in Library** — Older content scores higher for deletion
 - **Series Status** — Ended shows score higher for deletion than continuing shows
+- **Request Popularity** — Requested content (via Seerr) is protected from deletion
 
 ## 7. Preview & Run
 

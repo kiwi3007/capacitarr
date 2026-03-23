@@ -172,18 +172,18 @@ Libraries group integrations and allow per-library threshold management. They ar
 | `thresholdPct` | Override threshold percentage (overrides disk group default) |
 | `targetPct` | Override target percentage (overrides disk group default) |
 
-## Per-Integration Thresholds
+## Per-Library Thresholds
 
-Each integration can optionally override the default disk group thresholds. This is useful when different *arr instances manage storage differently — for example, an Anime Sonarr on a 2TB SSD should trigger at 90%, while a main Radarr on a 20TB NAS should trigger at 80%.
+Each library can override the default disk group thresholds. This is useful when different libraries have different storage strategies — for example, an Anime library on a 2TB SSD should trigger at 90%, while a Movies library on a 20TB NAS should trigger at 80%.
 
-To configure per-integration thresholds:
+To configure per-library thresholds:
 
-1. Navigate to **Settings → Integrations**
-2. Expand an integration card
-3. Toggle **Override Thresholds**
-4. Set the custom **Threshold %** and **Target %** using the sliders
+1. Navigate to **Settings → Libraries**
+2. Select or create a library
+3. Optionally associate the library with a disk group
+4. Set the custom **Threshold %** and **Target %** to override the disk group defaults
 
-When overrides are set, the evaluation loop uses the per-integration threshold instead of the disk group default. Items from different integrations in the same disk group may have different trigger conditions.
+When library-level overrides are set, the evaluation loop uses the per-library threshold instead of the disk group default.
 
 ## Approval Queue
 
@@ -226,4 +226,7 @@ When running behind a reverse proxy, ensure the proxy does not buffer responses 
 | Activity events | 7 days | Fixed (not configurable) |
 | Audit log entries | Configurable | `auditLogRetentionDays` preference |
 | Engine run stats | Last 1000 rows | Fixed |
-| Metrics time-series | Rolling rollups | Hourly/daily/weekly resolution |
+| Metrics (raw) | 2 hours | Fixed — rolled up to hourly |
+| Metrics (hourly) | 7 days | Fixed — rolled up to daily |
+| Metrics (daily) | 30 days | Fixed — rolled up to weekly |
+| Metrics (weekly) | 1 year | Fixed |
