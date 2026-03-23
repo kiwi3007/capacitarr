@@ -61,6 +61,7 @@ export default defineNuxtConfig({
       ],
       noscript: [{ innerHTML: '<style>#capacitarr-splash{display:none}</style>' }],
       meta: [
+        { name: 'mobile-web-app-capable', content: 'yes' },
         { name: 'apple-mobile-web-app-capable', content: 'yes' },
         {
           name: 'apple-mobile-web-app-status-bar-style',
@@ -101,6 +102,10 @@ export default defineNuxtConfig({
 
   routeRules: {
     '/': { prerender: true },
+  },
+
+  experimental: {
+    payloadExtraction: false,
   },
 
   compatibilityDate: '2025-01-15',
