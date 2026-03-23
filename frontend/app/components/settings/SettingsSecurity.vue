@@ -19,37 +19,41 @@
         </div>
       </div>
     </UiCardHeader>
-    <UiCardContent class="pt-5 space-y-4 max-w-md">
-      <div class="space-y-1.5">
-        <UiLabel for="new-username">
-          {{ $t('settings.newUsername') }}
-        </UiLabel>
-        <UiInput
-          id="new-username"
-          v-model="usernameForm.newUsername"
-          type="text"
-          placeholder="Enter new username"
-        />
-      </div>
-      <div class="space-y-1.5">
-        <UiLabel for="username-password">
-          {{ $t('settings.currentPassword') }}
-        </UiLabel>
-        <UiInput
-          id="username-password"
-          v-model="usernameForm.password"
-          type="password"
-          placeholder="Confirm with current password"
-        />
-      </div>
-      <UiAlert v-if="usernameError" variant="destructive">
-        <UiAlertDescription>{{ usernameError }}</UiAlertDescription>
-      </UiAlert>
-      <div>
-        <UiButton :disabled="savingUsername" @click="changeUsername">
-          {{ savingUsername ? $t('settings.changingUsername') : $t('settings.changeUsername') }}
-        </UiButton>
-      </div>
+    <UiCardContent class="pt-5 max-w-md">
+      <form class="space-y-4" @submit.prevent="changeUsername">
+        <div class="space-y-1.5">
+          <UiLabel for="new-username">
+            {{ $t('settings.newUsername') }}
+          </UiLabel>
+          <UiInput
+            id="new-username"
+            v-model="usernameForm.newUsername"
+            type="text"
+            autocomplete="username"
+            placeholder="Enter new username"
+          />
+        </div>
+        <div class="space-y-1.5">
+          <UiLabel for="username-password">
+            {{ $t('settings.currentPassword') }}
+          </UiLabel>
+          <UiInput
+            id="username-password"
+            v-model="usernameForm.password"
+            type="password"
+            autocomplete="current-password"
+            placeholder="Confirm with current password"
+          />
+        </div>
+        <UiAlert v-if="usernameError" variant="destructive">
+          <UiAlertDescription>{{ usernameError }}</UiAlertDescription>
+        </UiAlert>
+        <div>
+          <UiButton type="submit" :disabled="savingUsername">
+            {{ savingUsername ? $t('settings.changingUsername') : $t('settings.changeUsername') }}
+          </UiButton>
+        </div>
+      </form>
     </UiCardContent>
   </UiCard>
 
@@ -73,48 +77,61 @@
         </div>
       </div>
     </UiCardHeader>
-    <UiCardContent class="pt-5 space-y-4 max-w-md">
-      <div class="space-y-1.5">
-        <UiLabel for="current-password">
-          {{ $t('settings.currentPassword') }}
-        </UiLabel>
-        <UiInput
-          id="current-password"
-          v-model="passwordForm.currentPassword"
-          type="password"
-          placeholder="Enter current password"
+    <UiCardContent class="pt-5 max-w-md">
+      <form class="space-y-4" @submit.prevent="changePassword">
+        <!-- Hidden username field for password-manager association and accessibility -->
+        <input
+          type="text"
+          autocomplete="username"
+          class="sr-only"
+          tabindex="-1"
+          aria-hidden="true"
         />
-      </div>
-      <div class="space-y-1.5">
-        <UiLabel for="new-password">
-          {{ $t('settings.newPassword') }}
-        </UiLabel>
-        <UiInput
-          id="new-password"
-          v-model="passwordForm.newPassword"
-          type="password"
-          placeholder="Enter new password"
-        />
-      </div>
-      <div class="space-y-1.5">
-        <UiLabel for="confirm-password">
-          {{ $t('settings.confirmPassword') }}
-        </UiLabel>
-        <UiInput
-          id="confirm-password"
-          v-model="passwordForm.confirmPassword"
-          type="password"
-          placeholder="Confirm new password"
-        />
-      </div>
-      <UiAlert v-if="passwordError" variant="destructive">
-        <UiAlertDescription>{{ passwordError }}</UiAlertDescription>
-      </UiAlert>
-      <div>
-        <UiButton :disabled="savingPassword" @click="changePassword">
-          {{ savingPassword ? $t('settings.changingPassword') : $t('settings.changePassword') }}
-        </UiButton>
-      </div>
+        <div class="space-y-1.5">
+          <UiLabel for="current-password">
+            {{ $t('settings.currentPassword') }}
+          </UiLabel>
+          <UiInput
+            id="current-password"
+            v-model="passwordForm.currentPassword"
+            type="password"
+            autocomplete="current-password"
+            placeholder="Enter current password"
+          />
+        </div>
+        <div class="space-y-1.5">
+          <UiLabel for="new-password">
+            {{ $t('settings.newPassword') }}
+          </UiLabel>
+          <UiInput
+            id="new-password"
+            v-model="passwordForm.newPassword"
+            type="password"
+            autocomplete="new-password"
+            placeholder="Enter new password"
+          />
+        </div>
+        <div class="space-y-1.5">
+          <UiLabel for="confirm-password">
+            {{ $t('settings.confirmPassword') }}
+          </UiLabel>
+          <UiInput
+            id="confirm-password"
+            v-model="passwordForm.confirmPassword"
+            type="password"
+            autocomplete="new-password"
+            placeholder="Confirm new password"
+          />
+        </div>
+        <UiAlert v-if="passwordError" variant="destructive">
+          <UiAlertDescription>{{ passwordError }}</UiAlertDescription>
+        </UiAlert>
+        <div>
+          <UiButton type="submit" :disabled="savingPassword">
+            {{ savingPassword ? $t('settings.changingPassword') : $t('settings.changePassword') }}
+          </UiButton>
+        </div>
+      </form>
     </UiCardContent>
   </UiCard>
 
