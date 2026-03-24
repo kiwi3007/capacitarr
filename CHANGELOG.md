@@ -1,3 +1,19 @@
+## [2.1.0] - 2026-03-24
+
+### 🚀 Features
+
+- *(sonarr)* Add show-level-only evaluation toggle ([1949a90](https://gitlab.com/starshadow/software/capacitarr/-/commit/1949a90b9a69917b9f307d5e5fafa42d2fa0c06c)) — reported by @tomislavf ([#8](https://gitlab.com/starshadow/software/capacitarr/-/issues/8))
+
+### 🐛 Bug Fixes
+
+- *(deletion)* Clear queue on execution mode change ([bfa5a21](https://gitlab.com/starshadow/software/capacitarr/-/commit/bfa5a2186a2efa304a847902b342d3b69eb98805))
+- *(engine)* Exclude inapplicable scoring factors from evaluation ([420dfc9](https://gitlab.com/starshadow/software/capacitarr/-/commit/420dfc98569dc40128b39e832ea95bd115889f57)) — reported by @tomislavf ([#6](https://gitlab.com/starshadow/software/capacitarr/-/issues/6)) ([#7](https://gitlab.com/starshadow/software/capacitarr/-/issues/7))
+- *(jellystat)* Use x-api-token header instead of Authorization Bearer ([42d9731](https://gitlab.com/starshadow/software/capacitarr/-/commit/42d9731deab4df67b9f06285ef1824aa0ebf6583)) — reported by @tomislavf ([#5](https://gitlab.com/starshadow/software/capacitarr/-/issues/5))
+
+### 🛡️ Security
+
+- *(deps)* Pin all Docker images and eliminate curl-pipe-to-shell ([04ab628](https://gitlab.com/starshadow/software/capacitarr/-/commit/04ab6287fbd1d4dd9ad4e8b31239133193dc52f0))
+- Comprehensive codebase audit ([d07346f](https://gitlab.com/starshadow/software/capacitarr/-/commit/d07346fac23468faf5edef55e8891d21ba3561e9))
 ## [2.0.0] - 2026-03-24
 
 ### 🚀 Features
@@ -94,6 +110,7 @@
 - *(dashboard)* Replace auto-refresh timer with SSE-driven updates ([83080a6](https://gitlab.com/starshadow/software/capacitarr/-/commit/83080a62426d7b5bc8c8391dc7a61a678e6756d1))
 - *(notifications)* Add dry-run digest subscription gate ([dec21f3](https://gitlab.com/starshadow/software/capacitarr/-/commit/dec21f3f29335e4b2ab976b560b57e78add1e602))
 - *(db)* Resolve SQLite 'database is locked' errors with WAL mode ([10ec06f](https://gitlab.com/starshadow/software/capacitarr/-/commit/10ec06f2115932b359febc6b87c7fe81b192694c))
+- *(ci)* Use correct trivy image from ghcr.io ([a574858](https://gitlab.com/starshadow/software/capacitarr/-/commit/a574858b1a1fbbb605df9eae09af8349038f8ab1))
 
 ### 🛡️ Security
 
