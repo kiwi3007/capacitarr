@@ -112,7 +112,7 @@ security:pnpm-audit:
 security:trivy:
   stage: security
   image:
-    name: aquasec/trivy:latest
+    name: ghcr.io/aquasecurity/trivy:latest
     entrypoint: [""]
   interruptible: true
   script:
