@@ -56,7 +56,9 @@ commit_preprocessors = [
     #{ pattern = '\((\w+\s)?#([0-9]+)\)', replace = "([#${2}](<REPO>/issues/${2}))"},
 ]
 # Prevent commits that are breaking from being excluded by commit parsers.
-protect_breaking_commits = false
+# Must be true so that e.g. refactor!: or chore!: still triggers a MAJOR bump
+# even though those types are in the skip list.
+protect_breaking_commits = true
 # An array of regex based parsers for extracting data from the commit message.
 # Assigns commits to groups.
 # Optionally sets the commit's scope and can decide to exclude commits from further processing.
@@ -94,3 +96,9 @@ topo_order_commits = true
 sort_commits = "oldest"
 # Process submodules commits
 recurse_submodules = false
+
+[bump]
+# Ensure feat commits always produce at least a MINOR bump.
+features_always_bump_minor = true
+# Ensure breaking changes (! suffix or BREAKING CHANGE footer) always produce a MAJOR bump.
+breaking_always_bump_major = true
