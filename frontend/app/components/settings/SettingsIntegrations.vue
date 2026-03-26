@@ -290,8 +290,8 @@
               </p>
             </div>
             <UiSwitch
-              :checked="formState.collectionDeletion"
-              @update:checked="
+              :model-value="formState.collectionDeletion"
+              @update:model-value="
                 (val: boolean) => requestCollectionDeletionToggle(null, val, 'modal')
               "
             />
@@ -319,7 +319,7 @@
                 selected for deletion, all seasons and episodes are removed.
               </p>
             </div>
-            <UiSwitch v-model:checked="formState.showLevelOnly" />
+            <UiSwitch v-model="formState.showLevelOnly" />
           </div>
           <NuxtLink
             to="/help#show-level-evaluation"
