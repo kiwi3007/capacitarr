@@ -106,6 +106,21 @@ func (p *Poller) safePoll() {
 		if r := recover(); r != nil {
 			slog.Error("Panic recovered in poll cycle", "component", "poller", "panic", r)
 			p.reg.Engine.SetRunning(false) // ensure the lock is released
+
+			// Publish EngineErrorEvent so subscribers (notifications, SSE) can
+			// report the failure to the user.
+			p.reg.Bus.Publish(events.EngineErrorEvent{
+				Error: fmt.Sprintf("panic: %v", r),
+			})
+
+			// Unblock the notification two-gate flush — without this, the
+			// DeletionBatchCompleteEvent gate never fires after a panic and
+			// the cycle digest notification is silently dropped.
+			p.reg.Deletion.SignalBatchSize(0)
+
+			// Clear potentially stale preview cache so the next successful
+			// cycle rebuilds it from scratch.
+			p.reg.Preview.InvalidatePreviewCache("panic recovery")
 		}
 	}()
 	p.poll()

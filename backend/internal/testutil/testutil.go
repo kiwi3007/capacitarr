@@ -182,19 +182,10 @@ func SetupTestServerWithRegistry(t *testing.T, database *gorm.DB) (*echo.Echo, *
 			h.Set("Cross-Origin-Opener-Policy", "same-origin")
 			h.Set("Cross-Origin-Resource-Policy", "same-origin")
 
-			// Generate a per-request CSP nonce, mirroring main.go behavior.
+			// Content-Security-Policy — single source of truth in routes.BuildCSP().
 			nonce := GenerateTestCSPNonce()
 			c.Set("cspNonce", nonce)
-			h.Set("Content-Security-Policy",
-				"default-src 'self'; "+
-					"script-src 'self' 'nonce-"+nonce+"'; "+
-					"style-src 'self' 'unsafe-inline'; "+
-					"img-src 'self' data: https:; "+
-					"font-src 'self'; "+
-					"connect-src 'self'; "+
-					"frame-ancestors 'none'; "+
-					"base-uri 'self'; "+
-					"form-action 'self'")
+			h.Set("Content-Security-Policy", routes.BuildCSP(nonce))
 			if cfg.SecureCookies {
 				h.Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
 			}

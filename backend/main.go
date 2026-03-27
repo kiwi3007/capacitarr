@@ -384,26 +384,10 @@ func main() {
 			h.Set("Cross-Origin-Opener-Policy", "same-origin")
 			h.Set("Cross-Origin-Resource-Policy", "same-origin")
 
-			// Content-Security-Policy — restrict resource loading to same-origin.
-			// A per-request cryptographic nonce allows the server's own inline
-			// scripts (theme/splash loader, Nuxt runtime config) while blocking
-			// any injected inline scripts. 'unsafe-inline' for style-src is
-			// required by Vue/Nuxt runtime styles. img-src allows data: URIs
-			// (inline SVGs, base64 favicons), https: (poster images from
-			// TMDB/TVDB CDNs), and http: (poster images proxied through local
-			// *arr integrations). connect-src 'self' covers API calls and SSE.
+			// Content-Security-Policy — single source of truth in routes.BuildCSP().
 			nonce := generateCSPNonce()
 			c.Set("cspNonce", nonce)
-			h.Set("Content-Security-Policy",
-				"default-src 'self'; "+
-					"script-src 'self' 'nonce-"+nonce+"'; "+
-					"style-src 'self' 'unsafe-inline'; "+
-					"img-src 'self' data: https: http:; "+
-					"font-src 'self'; "+
-					"connect-src 'self'; "+
-					"frame-ancestors 'none'; "+
-					"base-uri 'self'; "+
-					"form-action 'self'")
+			h.Set("Content-Security-Policy", routes.BuildCSP(nonce))
 
 			// HSTS — only when SECURE_COOKIES is true (implies HTTPS)
 			if cfg.SecureCookies {

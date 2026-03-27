@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"time"
 
 	"capacitarr/internal/db"
 	"capacitarr/internal/events"
@@ -87,8 +88,11 @@ func (s *NotificationDispatchService) SetVersion(v string) {
 }
 
 // Start subscribes to the event bus and begins the background dispatch loop.
+// Uses a larger buffer (512) than the default (256) because notification
+// dispatch processes events quickly but must not drop gate events during
+// high-volume deletion cycles.
 func (s *NotificationDispatchService) Start() {
-	s.ch = s.bus.Subscribe()
+	s.ch = s.bus.SubscribeWithBuffer(512)
 	go s.run()
 }
 
@@ -138,6 +142,15 @@ func (s *NotificationDispatchService) handle(event events.Event) {
 	switch e := event.(type) {
 	case events.EngineStartEvent:
 		s.mu.Lock()
+		// Warn if the previous accumulator exists but neither gate fired —
+		// indicates dropped events from the previous cycle (e.g., panic, timeout).
+		if prev := s.accumulator; prev != nil && !prev.engineComplete && !prev.batchComplete {
+			age := time.Since(prev.createdAt).Round(time.Second)
+			slog.Warn("Stale notification accumulator replaced — previous cycle digest was never flushed",
+				"component", "notification_dispatch",
+				"previousMode", prev.executionMode,
+				"age", age.String())
+		}
 		s.accumulator = newCycleAccumulator(e.ExecutionMode)
 		s.mu.Unlock()
 
@@ -443,6 +456,7 @@ func modeChangedMessage(newMode string) string {
 // =============================================================================
 
 type cycleAccumulator struct {
+	createdAt     time.Time
 	executionMode string
 
 	// Gates
@@ -465,6 +479,7 @@ type cycleAccumulator struct {
 
 func newCycleAccumulator(executionMode string) *cycleAccumulator {
 	return &cycleAccumulator{
+		createdAt:        time.Now(),
 		executionMode:    executionMode,
 		collectionGroups: make(map[string]bool),
 	}
