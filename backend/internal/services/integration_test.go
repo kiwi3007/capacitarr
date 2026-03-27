@@ -7,6 +7,7 @@ import (
 
 	"capacitarr/internal/db"
 	"capacitarr/internal/events"
+	"capacitarr/internal/integrations"
 )
 
 func TestIntegrationService_Create(t *testing.T) {
@@ -561,5 +562,51 @@ func TestIntegrationService_ListEnabled_ShowLevelOnlyFilter(t *testing.T) {
 	}
 	if showLevelCount != 1 {
 		t.Errorf("expected exactly 1 integration with ShowLevelOnly, got %d", showLevelCount)
+	}
+}
+
+// TestMediaTypeOptions_MatchesConstants verifies that mediaTypeOptions stays
+// in sync with the MediaType* constants in integrations/types.go. A drift
+// means the rule editor autocomplete will be missing a valid media type
+// (like the episode bug that was caught during this audit).
+func TestMediaTypeOptions_MatchesConstants(t *testing.T) {
+	// All known MediaType constants
+	allTypes := []integrations.MediaType{
+		integrations.MediaTypeMovie,
+		integrations.MediaTypeShow,
+		integrations.MediaTypeSeason,
+		integrations.MediaTypeEpisode,
+		integrations.MediaTypeArtist,
+		integrations.MediaTypeBook,
+	}
+
+	// Build a set from mediaTypeOptions
+	optionValues := make(map[string]bool, len(mediaTypeOptions))
+	for _, opt := range mediaTypeOptions {
+		optionValues[opt.Value] = true
+	}
+
+	// Every constant must be in the options
+	for _, mt := range allTypes {
+		if !optionValues[string(mt)] {
+			t.Errorf("MediaType constant %q is missing from mediaTypeOptions", mt)
+		}
+	}
+
+	// Every option must correspond to a known constant
+	constantSet := make(map[string]bool, len(allTypes))
+	for _, mt := range allTypes {
+		constantSet[string(mt)] = true
+	}
+	for _, opt := range mediaTypeOptions {
+		if !constantSet[opt.Value] {
+			t.Errorf("mediaTypeOptions contains %q which is not a known MediaType constant", opt.Value)
+		}
+	}
+
+	// Counts must match
+	if len(mediaTypeOptions) != len(allTypes) {
+		t.Errorf("mediaTypeOptions has %d entries but there are %d MediaType constants",
+			len(mediaTypeOptions), len(allTypes))
 	}
 }

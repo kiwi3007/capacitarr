@@ -33,6 +33,47 @@ const (
 	ruleActionCollection = "collection"
 )
 
+// seriesStatusOptions defines the closed set of series status values (from Sonarr API)
+// used for rule autocomplete. Extracted as a package-level variable so updates are
+// made in one place and drift-detection tests can verify consistency.
+var seriesStatusOptions = []integrations.NameValue{
+	{Value: "continuing", Label: "Continuing"},
+	{Value: "ended", Label: "Ended"},
+	{Value: "upcoming", Label: "Upcoming"},
+	{Value: "deleted", Label: "Deleted"},
+}
+
+// mediaTypeOptions defines the closed set of media type values used for rule
+// autocomplete. Must stay in sync with the MediaType* constants in
+// integrations/types.go — drift is caught by TestMediaTypeOptions_MatchesConstants.
+var mediaTypeOptions = []integrations.NameValue{
+	{Value: string(integrations.MediaTypeMovie), Label: "Movie"},
+	{Value: string(integrations.MediaTypeShow), Label: "Show"},
+	{Value: string(integrations.MediaTypeSeason), Label: "Season"},
+	{Value: string(integrations.MediaTypeEpisode), Label: "Episode"},
+	{Value: string(integrations.MediaTypeArtist), Label: "Artist"},
+	{Value: string(integrations.MediaTypeBook), Label: "Book"},
+}
+
+// genreSuggestions defines common genre names used as combobox suggestions for
+// rule creation. This is a convenience list — users can type any genre since the
+// field is a combobox, not a closed select.
+var genreSuggestions = []integrations.NameValue{
+	{Value: "Action", Label: "Action"},
+	{Value: "Adventure", Label: "Adventure"},
+	{Value: "Animation", Label: "Animation"},
+	{Value: "Comedy", Label: "Comedy"},
+	{Value: "Crime", Label: "Crime"},
+	{Value: "Documentary", Label: "Documentary"},
+	{Value: "Drama", Label: "Drama"},
+	{Value: "Fantasy", Label: "Fantasy"},
+	{Value: "Horror", Label: "Horror"},
+	{Value: "Mystery", Label: "Mystery"},
+	{Value: "Romance", Label: "Romance"},
+	{Value: "Sci-Fi", Label: "Sci-Fi"},
+	{Value: "Thriller", Label: "Thriller"},
+}
+
 // DiskGroupManager provides disk group operations needed by IntegrationService.
 // Defined here to avoid import cycles between IntegrationService and DiskGroupService.
 type DiskGroupManager interface {
@@ -233,18 +274,13 @@ func (s *IntegrationService) FetchRuleValues(integrationID uint, action string) 
 	switch action {
 	case ruleFieldSeriesStatus:
 		result := map[string]any{
-			"type": "closed",
-			"options": []integrations.NameValue{
-				{Value: "continuing", Label: "Continuing"},
-				{Value: "ended", Label: "Ended"},
-				{Value: "upcoming", Label: "Upcoming"},
-				{Value: "deleted", Label: "Deleted"},
-			},
+			"type":    "closed",
+			"options": seriesStatusOptions,
 		}
 		s.ruleValueCache.Set(cacheKey, result)
 		return result, nil
 
-	case "monitored", "requested", "incollection", "watchedbyreq":
+	case "monitored", "requested", "incollection", "watchlist", "watchedbyreq":
 		result := map[string]any{
 			"type": "closed",
 			"options": []integrations.NameValue{
@@ -257,14 +293,8 @@ func (s *IntegrationService) FetchRuleValues(integrationID uint, action string) 
 
 	case "type":
 		result := map[string]any{
-			"type": "closed",
-			"options": []integrations.NameValue{
-				{Value: "movie", Label: "Movie"},
-				{Value: "show", Label: "Show"},
-				{Value: "season", Label: "Season"},
-				{Value: "artist", Label: "Artist"},
-				{Value: "book", Label: "Book"},
-			},
+			"type":    "closed",
+			"options": mediaTypeOptions,
 		}
 		s.ruleValueCache.Set(cacheKey, result)
 		return result, nil
@@ -361,22 +391,8 @@ func (s *IntegrationService) FetchRuleValues(integrationID uint, action string) 
 
 	case ruleActionGenre:
 		result = map[string]any{
-			"type": "combobox",
-			"suggestions": []integrations.NameValue{
-				{Value: "Action", Label: "Action"},
-				{Value: "Adventure", Label: "Adventure"},
-				{Value: "Animation", Label: "Animation"},
-				{Value: "Comedy", Label: "Comedy"},
-				{Value: "Crime", Label: "Crime"},
-				{Value: "Documentary", Label: "Documentary"},
-				{Value: "Drama", Label: "Drama"},
-				{Value: "Fantasy", Label: "Fantasy"},
-				{Value: "Horror", Label: "Horror"},
-				{Value: "Mystery", Label: "Mystery"},
-				{Value: "Romance", Label: "Romance"},
-				{Value: "Sci-Fi", Label: "Sci-Fi"},
-				{Value: "Thriller", Label: "Thriller"},
-			},
+			"type":        "combobox",
+			"suggestions": genreSuggestions,
 		}
 
 	case ruleActionLanguage:

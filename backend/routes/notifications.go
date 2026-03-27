@@ -44,7 +44,7 @@ func RegisterNotificationRoutes(g *echo.Group, reg *services.Registry) {
 			return apiError(c, http.StatusBadRequest, "type and name are required")
 		}
 		if !db.ValidNotificationChannelTypes[req.Type] {
-			return apiError(c, http.StatusBadRequest, "type must be discord or apprise")
+			return apiError(c, http.StatusBadRequest, "type must be one of: "+db.FormatValidKeys(db.ValidNotificationChannelTypes))
 		}
 		if (req.Type == notifTypeDiscord || req.Type == notifTypeApprise) && req.WebhookURL == "" {
 			return apiError(c, http.StatusBadRequest, "webhookUrl is required for discord and apprise channels")
@@ -91,7 +91,7 @@ func RegisterNotificationRoutes(g *echo.Group, reg *services.Registry) {
 
 		// Validate type if changed
 		if req.Type != "" && !db.ValidNotificationChannelTypes[req.Type] {
-			return apiError(c, http.StatusBadRequest, "type must be discord or apprise")
+			return apiError(c, http.StatusBadRequest, "type must be one of: "+db.FormatValidKeys(db.ValidNotificationChannelTypes))
 		}
 
 		// Validate webhook URL scheme (must be http or https to prevent SSRF via exotic schemes)

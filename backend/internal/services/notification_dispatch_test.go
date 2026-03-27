@@ -1,6 +1,7 @@
 package services
 
 import (
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -435,6 +436,50 @@ func TestNotificationDispatch_NonApprovalDigestNotAffected(t *testing.T) {
 	}
 	if digests[0].ExecutionMode != db.ModeAuto {
 		t.Errorf("expected execution mode 'auto', got %q", digests[0].ExecutionMode)
+	}
+}
+
+// TestSenderMap_MatchesValidNotificationChannelTypes verifies that the sender
+// map in NewNotificationDispatchService stays in sync with
+// db.ValidNotificationChannelTypes. If a new channel type is added to the
+// validation map but no sender is registered, dispatching will silently skip
+// that channel type.
+func TestSenderMap_MatchesValidNotificationChannelTypes(t *testing.T) {
+	bus := newTestBus(t)
+	svc := NewNotificationDispatchService(bus, &mockChannelProvider{}, nil, "v1.0.0-test")
+
+	// Collect sender map keys
+	senderKeys := make([]string, 0, len(svc.senders))
+	for k := range svc.senders {
+		senderKeys = append(senderKeys, k)
+	}
+	sort.Strings(senderKeys)
+
+	// Collect validation map keys
+	validKeys := make([]string, 0, len(db.ValidNotificationChannelTypes))
+	for k := range db.ValidNotificationChannelTypes {
+		validKeys = append(validKeys, k)
+	}
+	sort.Strings(validKeys)
+
+	// Every valid channel type must have a sender
+	for _, k := range validKeys {
+		if svc.senders[k] == nil {
+			t.Errorf("channel type %q is in db.ValidNotificationChannelTypes but has no sender in the dispatch service", k)
+		}
+	}
+
+	// Every sender key must be a valid channel type
+	for _, k := range senderKeys {
+		if !db.ValidNotificationChannelTypes[k] {
+			t.Errorf("sender key %q is registered in dispatch service but missing from db.ValidNotificationChannelTypes", k)
+		}
+	}
+
+	// Counts must match
+	if len(svc.senders) != len(db.ValidNotificationChannelTypes) {
+		t.Errorf("sender map has %d entries but ValidNotificationChannelTypes has %d",
+			len(svc.senders), len(db.ValidNotificationChannelTypes))
 	}
 }
 

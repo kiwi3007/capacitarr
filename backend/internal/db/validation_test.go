@@ -1,6 +1,7 @@
 package db_test
 
 import (
+	"strings"
 	"testing"
 
 	"capacitarr/internal/db"
@@ -36,5 +37,68 @@ func TestValidIntegrationTypes_MatchesFactoryRegistry(t *testing.T) {
 	// Counts must match (catches duplicates or other anomalies)
 	if len(db.ValidIntegrationTypes) != len(registeredTypes) {
 		t.Errorf("ValidIntegrationTypes has %d entries but factory registry has %d", len(db.ValidIntegrationTypes), len(registeredTypes))
+	}
+}
+
+// TestFormatValidKeys verifies that FormatValidKeys produces a sorted,
+// comma-separated string of map keys. This utility is used in error messages
+// to avoid hardcoding lists of valid values.
+func TestFormatValidKeys(t *testing.T) {
+	tests := []struct {
+		name string
+		m    map[string]bool
+		want string
+	}{
+		{
+			name: "empty map",
+			m:    map[string]bool{},
+			want: "",
+		},
+		{
+			name: "single key",
+			m:    map[string]bool{"alpha": true},
+			want: "alpha",
+		},
+		{
+			name: "multiple keys sorted",
+			m:    map[string]bool{"charlie": true, "alpha": true, "bravo": true},
+			want: "alpha, bravo, charlie",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := db.FormatValidKeys(tc.m)
+			if got != tc.want {
+				t.Errorf("FormatValidKeys() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestFormatValidKeys_RealMaps verifies that FormatValidKeys produces
+// non-empty, reasonable output for each real validation map. This catches
+// accidentally emptying a map.
+func TestFormatValidKeys_RealMaps(t *testing.T) {
+	maps := map[string]map[string]bool{
+		"ValidEffects":                  db.ValidEffects,
+		"ValidExecutionModes":           db.ValidExecutionModes,
+		"ValidTiebreakerMethods":        db.ValidTiebreakerMethods,
+		"ValidLogLevels":                db.ValidLogLevels,
+		"ValidIntegrationTypes":         db.ValidIntegrationTypes,
+		"ValidNotificationChannelTypes": db.ValidNotificationChannelTypes,
+	}
+
+	for name, m := range maps {
+		t.Run(name, func(t *testing.T) {
+			result := db.FormatValidKeys(m)
+			if result == "" {
+				t.Errorf("FormatValidKeys(%s) returned empty string — map has %d entries", name, len(m))
+			}
+			// Result should contain at least one key (no trailing/leading commas)
+			if strings.HasPrefix(result, ",") || strings.HasSuffix(result, ",") {
+				t.Errorf("FormatValidKeys(%s) has leading/trailing comma: %q", name, result)
+			}
+		})
 	}
 }

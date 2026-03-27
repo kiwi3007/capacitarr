@@ -140,6 +140,14 @@ func applyRules(item integrations.MediaItem, rules []db.CustomRule) (bool, float
 					MatchedValue: matchedValue,
 					RuleID:       &ruleID,
 				})
+
+			default:
+				// Defense-in-depth: validation prevents invalid effects from reaching
+				// here, but log a warning if an unrecognized effect slips through
+				// (e.g., after adding a new effect to ValidEffects without updating
+				// this switch).
+				slog.Warn("Unrecognized rule effect, skipping",
+					"component", "engine", "effect", effect, "ruleId", rule.ID)
 			}
 		}
 	}

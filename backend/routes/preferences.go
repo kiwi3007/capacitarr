@@ -35,17 +35,17 @@ func RegisterPreferenceRoutes(protected *echo.Group, reg *services.Registry) {
 			payload.TiebreakerMethod = db.TiebreakerSizeDesc
 		}
 		if !db.ValidTiebreakerMethods[payload.TiebreakerMethod] {
-			return apiError(c, http.StatusBadRequest, "Tiebreaker method must be size_desc, size_asc, name_asc, oldest_first, or newest_first")
+			return apiError(c, http.StatusBadRequest, "Tiebreaker method must be one of: "+db.FormatValidKeys(db.ValidTiebreakerMethods))
 		}
 
 		// Validate execution mode
 		if !db.ValidExecutionModes[payload.ExecutionMode] {
-			return apiError(c, http.StatusBadRequest, "Execution mode must be dry-run, approval, or auto")
+			return apiError(c, http.StatusBadRequest, "Execution mode must be one of: "+db.FormatValidKeys(db.ValidExecutionModes))
 		}
 
 		// Validate log level
 		if !db.ValidLogLevels[payload.LogLevel] {
-			return apiError(c, http.StatusBadRequest, "Log level must be debug, info, warn, or error")
+			return apiError(c, http.StatusBadRequest, "Log level must be one of: "+db.FormatValidKeys(db.ValidLogLevels))
 		}
 
 		// Validate poll interval (minimum 60s, default 300s)

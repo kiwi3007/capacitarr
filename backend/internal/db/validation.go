@@ -1,6 +1,9 @@
 package db
 
-import "strings"
+import (
+	"sort"
+	"strings"
+)
 
 // IsMaskedKey checks if an API key string is a masked version (starts with "•").
 func IsMaskedKey(key string) bool {
@@ -48,4 +51,16 @@ var ValidIntegrationTypes = map[string]bool{
 // ValidNotificationChannelTypes defines the allowed notification channel types.
 var ValidNotificationChannelTypes = map[string]bool{
 	"discord": true, "apprise": true,
+}
+
+// FormatValidKeys returns a sorted, comma-separated string of keys from a
+// validation map. Use this in error messages instead of hardcoding the list
+// of valid values — when the map is updated, the error messages update too.
+func FormatValidKeys(m map[string]bool) string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return strings.Join(keys, ", ")
 }

@@ -101,7 +101,7 @@ func (s *RulesService) validateRule(rule db.CustomRule) error {
 		return fmt.Errorf("%w: effect field is required", ErrRuleValidation)
 	}
 	if !db.ValidEffects[rule.Effect] {
-		return fmt.Errorf("%w: effect must be one of: always_keep, prefer_keep, lean_keep, lean_remove, prefer_remove, always_remove", ErrRuleValidation)
+		return fmt.Errorf("%w: effect must be one of: %s", ErrRuleValidation, db.FormatValidKeys(db.ValidEffects))
 	}
 	return nil
 }
