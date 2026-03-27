@@ -1,6 +1,6 @@
 # Brittleness Hardening Plan
 
-**Status:** 🟡 Planned  
+**Status:** ✅ Complete  
 **Created:** 2026-03-26  
 **Category:** Architecture / Code Quality  
 **Branch:** `refactor/brittleness-hardening`
@@ -227,115 +227,99 @@ The Plex, Jellyfin, and Emby clients already implement `GetCollectionNames()` �
 
 ---
 
-### Phase 5: Notification Restructure (Explicit Cycle Digest)
+### Phase 5: Notification Restructure (Explicit Cycle Digest) — ✅ Complete
 
 Replace the fragile two-gate accumulator with explicit orchestration.
 
-#### Step 5.1 — Add `FlushCycleDigest()` method to `NotificationDispatchService`
+**Commit:** `9da5180` — `refactor(notifications): replace event accumulator with explicit cycle digest`
 
-**Files to modify:**
-- `internal/services/notification_dispatch.go` — add `FlushCycleDigest(digest notifications.CycleDigest)` method that:
-  1. Checks for update info if version checker is available
-  2. Dispatches the digest to all enabled channels with `OnCycleDigest` enabled
-  3. Resets the accumulator
+#### Step 5.1 — Add `FlushCycleDigest()` method to `NotificationDispatchService` ✅
 
-This method is called directly by the poller, not via the event bus.
+**Files modified:**
+- `internal/services/notification_dispatch.go` — added `FlushCycleDigest(digest notifications.CycleDigest)` method that:
+  1. Sets version from the service
+  2. Checks for update info if version checker is available
+  3. Dispatches the digest to all enabled channels via `dispatchDigest()`
 
-#### Step 5.2 — Build cycle digest in the poller
+Called directly by the poller, not via the event bus.
 
-**Files to modify:**
-- `internal/poller/poller.go` — at the end of `poll()`, after `SignalBatchSize()`, build a `notifications.CycleDigest` struct from the poller's own counters and call `reg.NotificationDispatch.FlushCycleDigest(digest)`
+#### Step 5.2 — Build cycle digest in the poller ✅
 
-The poller already has `lastRunEvaluated`, `lastRunCandidates`, `lastRunFreedBytes`, `lastRunProtected`, the execution mode, and the poll duration. No new data plumbing needed.
+**Files modified:**
+- `internal/poller/poller.go` — at the end of `poll()`, after `SignalBatchSize()`, builds a `notifications.CycleDigest` struct from the poller's own atomic counters and calls `reg.NotificationDispatch.FlushCycleDigest(digest)`
+- `internal/poller/poller.go` — added `lastRunCollections int64` atomic counter to Poller struct for tracking collection group expansions
+- `internal/poller/evaluate.go` — added `atomic.AddInt64(&p.lastRunFreedBytes, ...)` for auto mode (was previously only tracked for dry-run/approval) and `atomic.AddInt64(&p.lastRunCollections, 1)` when collections are expanded
+- `internal/poller/poller.go` — removed `SignalBatchSize(0)` from panic recovery (no longer needed — digest is flushed by the poller, not gated by events)
 
-#### Step 5.3 — Remove accumulator logic from event handler
+**Deviation from plan:** The plan stated "No new data plumbing needed" but `lastRunFreedBytes` was not tracked for auto mode and collection groups were not tracked at the poller level. Added both: `lastRunCollections` counter on the Poller struct and `lastRunFreedBytes` accumulation for auto mode in evaluate.go.
 
-**Files to modify:**
-- `internal/services/notification_dispatch.go` — remove the `cycleAccumulator` struct and all accumulation logic from `handle()`:
-  - Remove `EngineStartEvent` → create accumulator
-  - Remove `EngineCompleteEvent` → gate 1
-  - Remove `DeletionSuccessEvent` → accumulate counts
-  - Remove `DeletionDryRunEvent` → accumulate bytes
-  - Remove `DeletionFailedEvent` → accumulate failures
-  - Remove `DeletionBatchCompleteEvent` → gate 2
-  - Remove `tryFlush()` method
+#### Step 5.3 — Remove accumulator logic from event handler ✅
 
-Keep all **immediate alert** handlers unchanged (EngineErrorEvent, EngineModeChangedEvent, ServerStartedEvent, ThresholdBreachedEvent, UpdateAvailableEvent, approval events, integration status events).
+**Files modified:**
+- `internal/services/notification_dispatch.go` — removed the `cycleAccumulator` struct, `newCycleAccumulator()`, `buildDigest()`, and `tryFlush()`. Removed all event handlers from `handle()`: `EngineStartEvent`, `EngineCompleteEvent`, `DeletionSuccessEvent`, `DeletionDryRunEvent`, `DeletionFailedEvent`, `DeletionBatchCompleteEvent`. Also removed the `accumulator` field from the struct, removed the unused `time` import, replaced `SubscribeWithBuffer(512)` with `Subscribe()` (default 256 — sufficient for immediate alerts only), and updated doc comments.
+- `internal/events/types.go` — updated `DeletionBatchCompleteEvent` doc comment (removed "gate 2" reference)
+- `internal/notifications/sender.go` — updated `CycleDigest` and `Alert` doc comments (removed "two-gate flush" and "event accumulation" references)
 
-#### Step 5.4 — Update notification dispatch tests
+All immediate alert handlers unchanged.
 
-**Files to modify:**
-- `internal/services/notification_dispatch_test.go` — update tests to call `FlushCycleDigest()` directly instead of simulating the two-gate event sequence
+#### Step 5.4 — Update notification dispatch tests ✅
 
-#### Step 5.5 — Run `make ci` and verify all tests pass
+**Files modified:**
+- `internal/services/notification_dispatch_test.go` — rewrote all digest tests to call `FlushCycleDigest()` directly instead of simulating the two-gate event sequence. Removed `TestNotificationDispatch_TwoGateFlush` and `TestNotificationDispatch_ReverseGateOrder` (no longer relevant). Added `TestNotificationDispatch_FlushCycleDigest`, `TestNotificationDispatch_FlushCycleDigest_DryRun`, `TestNotificationDispatch_FlushCycleDigest_CollectionGroups`, and `TestNotificationDispatch_VersionPopulated`. All immediate alert tests unchanged.
 
----
+#### Step 5.5 — Run `make ci` and verify all tests pass ✅
 
-### Phase 6: Database Layer Cleanup
-
-#### Step 6.1 — Remove GORM retry callbacks
-
-**Files to modify:**
-- `internal/db/retry.go` — keep the file but remove `RegisterRetryCallbacks()` and `retryOnBusy()`. Keep `isSQLiteBusy()` and `cryptoRandInt64()` as they may be useful for future retry patterns.
-- `internal/db/db.go` — remove the `RegisterRetryCallbacks(database)` call from `Init()`
-- `internal/db/retry_test.go` — update tests to remove callback-specific test cases
-
-**Files to modify:**
-- `internal/db/db.go` — increase `busy_timeout` from 5000 to 10000 in `buildDSN()`:
-  ```go
-  params.Add("_pragma", "busy_timeout(10000)")
-  ```
-
-**Rationale:** With `SetMaxOpenConns(1)`, all operations are serialized through a single connection. `SQLITE_BUSY` can only occur from external processes. The increased busy_timeout (10s) covers backup/migration edge cases. The GORM callback retry is fragile (raw SQL reconstruction) and provides no additional safety over the timeout.
-
-#### Step 6.2 — Add `WithRetry()` utility function
-
-**Files to modify:**
-- `internal/db/retry.go` — add a `WithRetry(fn func() error, maxAttempts int) error` function that wraps any function call with exponential backoff retry on `SQLITE_BUSY`
-
-This provides application-level retry at the *service call* level (where the full context is available) rather than inside GORM's callback pipeline (where only raw SQL is available). Service methods that need retry can opt in:
-
-```go
-err := db.WithRetry(func() error {
-    return s.db.Create(&row).Error
-}, 3)
-```
-
-#### Step 6.3 — Parameterize `hasColumn()` for multiple tables
-
-**Files to modify:**
-- `internal/db/migrate.go` — rename `hasColumn()` to `hasColumnInTable()` with a `tableName` parameter and an `allowedMigrationTables` whitelist for safety
-
-#### Step 6.4 — Run `make ci` and verify all tests pass
+All 15 notification dispatch tests pass. Full CI pipeline (lint, test, security) passes.
 
 ---
 
-### Phase 7: Frontend SSE Cleanup
+### Phase 6: Database Layer Cleanup — ✅ Complete
 
-#### Step 7.1 — Add auto-cleanup scope parameter to SSE `on()` function
+**Commit:** `481a149` — `refactor(db): remove GORM retry callbacks, add WithRetry utility`
 
-**Files to modify:**
-- `frontend/app/composables/useEventStream.ts` — add optional `scope` parameter to `on()` that auto-registers an `onUnmounted` cleanup callback:
+#### Step 6.1 — Remove GORM retry callbacks ✅
 
-```typescript
-function on(
-    eventType: string,
-    handler: (data: unknown) => void,
-    scope?: { onUnmounted: (fn: () => void) => void }
-) {
-    // ... existing registration logic ...
-    if (scope) {
-        scope.onUnmounted(() => off(eventType, handler));
-    }
-}
-```
+**Files modified:**
+- `internal/db/retry.go` — removed `RegisterRetryCallbacks()` and `retryOnBusy()`. Kept `isSQLiteBusy()` and `cryptoRandInt64()` (used by `WithRetry()`).
+- `internal/db/db.go` — removed the `RegisterRetryCallbacks(database)` call and its comment from `Init()`
 
-**Files to modify (consumers):**
-- All components that use `useEventStream().on()` — update to pass `{ onUnmounted }` as the third argument for automatic cleanup
+**Deviation from plan:** The plan called for increasing `busy_timeout` from 5000 to 10000. This was omitted — with `SetMaxOpenConns(1)` serializing all internal access, the 5s timeout is sufficient for the only remaining scenario (external processes holding the lock).
 
-This prevents handler leaks from unmounted components without requiring manual `off()` calls in `onUnmounted` hooks.
+#### Step 6.2 — Add `WithRetry()` utility function ✅
 
-#### Step 7.2 — Run frontend tests (`pnpm test` inside Docker) and verify they pass
+**Files modified:**
+- `internal/db/retry.go` — added `WithRetry(fn func() error, maxAttempts int) error` with exponential backoff and jitter on `SQLITE_BUSY`. When `maxAttempts <= 0`, defaults to 3.
+- `internal/db/retry_test.go` — added 5 tests: `TestWithRetry_SuccessOnFirstAttempt`, `TestWithRetry_NonBusyErrorNotRetried`, `TestWithRetry_BusyRetriedAndSucceeds`, `TestWithRetry_BusyExhausted`, `TestWithRetry_DefaultMaxAttempts`.
+
+#### Step 6.3 — Parameterize `hasColumn()` for multiple tables ✅
+
+**Files modified:**
+- `internal/db/migrate.go` — renamed `hasColumn()` to `hasColumnInTable()` with a `tableName` parameter. Instead of a simple string whitelist with `fmt.Sprintf` (which semgrep correctly flags as SQL injection risk), uses a `tableColumnCheckers` lookup map of pre-built query functions with hardcoded SQL literals. Each table entry is a closure that calls the PRAGMA with the table name baked into the string constant, so no runtime string formatting touches SQL.
+
+#### Step 6.4 — Run `make ci` and verify all tests pass ✅
+
+All db tests pass. Full CI pipeline (lint, test, security) passes with 0 semgrep findings.
+
+---
+
+### Phase 7: Frontend SSE Cleanup — ✅ Complete
+
+**Commit:** `0dac048` — `refactor(frontend): add auto-cleanup scope to SSE event handlers`
+
+#### Step 7.1 — Add auto-cleanup scope parameter to SSE `on()` function ✅
+
+**Files modified:**
+- `frontend/app/composables/useEventStream.ts` — added optional `scope` parameter to `on()` that auto-registers an `onUnmounted` cleanup callback via `scope.onUnmounted(() => off(eventType, handler))`.
+- `frontend/app/app.vue` — updated 3 integration event handlers to pass `{ onUnmounted }` scope; removed manual `onUnmounted` cleanup block and `sseOff` destructure.
+- `frontend/app/pages/index.vue` — updated ~16 event handlers to pass `{ onUnmounted }` scope; removed 25-line manual `onUnmounted` cleanup block and `sseOff` destructure.
+- `frontend/app/composables/usePreview.ts` — updated 6 event handlers to pass `{ onUnmounted }` scope; removed manual `onUnmounted` cleanup block and `off` destructure.
+- `frontend/app/composables/usePreview.test.ts` — updated assertion to expect the third `scope` argument.
+
+Singleton composables (`useEngineControl`, `useApprovalQueue`, `useSnoozedItems`, `useDeletionQueue`) were not modified — their handlers intentionally persist for the app lifetime.
+
+#### Step 7.2 — Run frontend tests and verify they pass ✅
+
+All 111 tests pass (5 test files). Full CI pipeline (lint, test, security) passes.
 
 ---
 
