@@ -170,7 +170,11 @@ describe('usePreview', () => {
     ];
 
     for (const eventName of expectedEvents) {
-      expect(mockSseOn).toHaveBeenCalledWith(eventName, expect.any(Function));
+      expect(mockSseOn).toHaveBeenCalledWith(
+        eventName,
+        expect.any(Function),
+        expect.objectContaining({ onUnmounted: expect.any(Function) }),
+      );
     }
   });
 });

@@ -425,7 +425,7 @@ const {
 } = useEngineControl();
 
 // SSE event stream — subscribe for real-time dashboard updates
-const { on: sseOn, off: sseOff } = useEventStream();
+const { on: sseOn } = useEventStream();
 
 // Approval queue (shown when execution mode is "approval")
 const { isApprovalMode, fetchQueue: fetchApprovalQueue } = useApprovalQueue();
@@ -759,7 +759,9 @@ const activityEventTypes = [
   'server_started',
 ] as const;
 
-// Keep handler refs so we can unsubscribe on unmount
+// Handler refs for activity events — the auto-cleanup scope handles
+// unsubscription, but we keep the map to hold stable references to
+// the closures created by handleActivityEvent().
 const _activityHandlers = new Map<string, (data: unknown) => void>();
 
 // Handler: deletion_progress SSE event — patch last sparkline data point in real-time.
@@ -813,58 +815,34 @@ onMounted(async () => {
   fetchEngineHistory();
   fetchRecentActivity();
 
-  // Subscribe to all activity event types for the real-time feed
+  // Subscribe to all activity event types for the real-time feed.
+  // The { onUnmounted } scope auto-cleans up handlers when the component unmounts.
+  const scope = { onUnmounted };
   for (const eventType of activityEventTypes) {
     const handler = handleActivityEvent(eventType);
     _activityHandlers.set(eventType, handler);
-    sseOn(eventType, handler);
+    sseOn(eventType, handler, scope);
   }
 
   // Subscribe to approval-related events to refresh the queue
-  sseOn('approval_approved', handleApprovalChange);
-  sseOn('approval_rejected', handleApprovalChange);
-  sseOn('approval_unsnoozed', handleApprovalChange);
-  sseOn('approval_bulk_unsnoozed', handleApprovalChange);
-  sseOn('approval_orphans_recovered', handleApprovalChange);
-  sseOn(EVENT_DELETION_SUCCESS, handleApprovalChange);
+  sseOn('approval_approved', handleApprovalChange, scope);
+  sseOn('approval_rejected', handleApprovalChange, scope);
+  sseOn('approval_unsnoozed', handleApprovalChange, scope);
+  sseOn('approval_bulk_unsnoozed', handleApprovalChange, scope);
+  sseOn('approval_orphans_recovered', handleApprovalChange, scope);
+  sseOn(EVENT_DELETION_SUCCESS, handleApprovalChange, scope);
 
   // When a deletion completes, patch the most recent sparkline data point in real-time
-  sseOn(EVENT_DELETION_PROGRESS, handleDeletionProgressSparkline);
+  sseOn(EVENT_DELETION_PROGRESS, handleDeletionProgressSparkline, scope);
 
   // When all deletions for a cycle finish, refresh dashboard stats — the numbers are now final
-  sseOn(EVENT_DELETION_BATCH_COMPLETE, handleDeletionBatchCompleteRefresh);
+  sseOn(EVENT_DELETION_BATCH_COMPLETE, handleDeletionBatchCompleteRefresh, scope);
 
   // SSE-driven data refresh: integration and settings changes
-  sseOn('integration_added', handleIntegrationChange);
-  sseOn('integration_updated', handleIntegrationChange);
-  sseOn('integration_removed', handleIntegrationChange);
-  sseOn('settings_changed', handleSettingsChange);
-});
-
-onUnmounted(() => {
-  // Unsubscribe all activity event handlers
-  for (const [eventType, handler] of _activityHandlers) {
-    sseOff(eventType, handler);
-  }
-  _activityHandlers.clear();
-
-  // Unsubscribe deletion progress handlers
-  sseOff(EVENT_DELETION_PROGRESS, handleDeletionProgressSparkline);
-  sseOff(EVENT_DELETION_BATCH_COMPLETE, handleDeletionBatchCompleteRefresh);
-
-  // Unsubscribe approval handlers
-  sseOff('approval_approved', handleApprovalChange);
-  sseOff('approval_rejected', handleApprovalChange);
-  sseOff('approval_unsnoozed', handleApprovalChange);
-  sseOff('approval_bulk_unsnoozed', handleApprovalChange);
-  sseOff('approval_orphans_recovered', handleApprovalChange);
-  sseOff(EVENT_DELETION_SUCCESS, handleApprovalChange);
-
-  // Unsubscribe SSE-driven data refresh handlers
-  sseOff('integration_added', handleIntegrationChange);
-  sseOff('integration_updated', handleIntegrationChange);
-  sseOff('integration_removed', handleIntegrationChange);
-  sseOff('settings_changed', handleSettingsChange);
+  sseOn('integration_added', handleIntegrationChange, scope);
+  sseOn('integration_updated', handleIntegrationChange, scope);
+  sseOn('integration_removed', handleIntegrationChange, scope);
+  sseOn('settings_changed', handleSettingsChange, scope);
 });
 
 async function fetchDashboardData(silent = false) {

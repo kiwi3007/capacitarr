@@ -121,7 +121,20 @@ function scheduleReconnect() {
 // Handler registration
 // ---------------------------------------------------------------------------
 
-function on(eventType: string, handler: (data: unknown) => void) {
+/**
+ * Register a handler for an SSE event type. If a scope object with an
+ * onUnmounted hook is provided, the handler is automatically removed
+ * when the component unmounts — eliminating the need for manual off()
+ * calls in onUnmounted blocks.
+ *
+ * Singleton composables that register handlers for the app lifetime
+ * should omit the scope parameter.
+ */
+function on(
+  eventType: string,
+  handler: (data: unknown) => void,
+  scope?: { onUnmounted: (fn: () => void) => void },
+) {
   if (!_handlers.has(eventType)) {
     _handlers.set(eventType, new Set());
   }
@@ -130,6 +143,11 @@ function on(eventType: string, handler: (data: unknown) => void) {
   // If the EventSource is already open, register a listener for this type
   if (_eventSource) {
     registerEventListener(_eventSource, eventType);
+  }
+
+  // Auto-cleanup when the component unmounts
+  if (scope) {
+    scope.onUnmounted(() => off(eventType, handler));
   }
 }
 

@@ -17,7 +17,7 @@ import {
  */
 export function usePreview() {
   const api = useApi();
-  const { on, off } = useEventStream();
+  const { on } = useEventStream();
 
   const items = ref<EvaluatedItem[]>([]);
   const diskContext = ref<DiskContext | null>(null);
@@ -116,21 +116,13 @@ export function usePreview() {
   // ---------------------------------------------------------------------------
 
   onMounted(() => {
-    on('preview_updated', handlePreviewUpdated);
-    on('preview_invalidated', handlePreviewInvalidated);
-    on(EVENT_DELETION_SUCCESS, handleDeletionSuccess);
-    on(EVENT_DELETION_DRY_RUN, handleDeletionDryRun);
-    on(EVENT_DELETION_PROGRESS, handleDeletionProgress);
-    on(EVENT_DELETION_BATCH_COMPLETE, handleDeletionBatchComplete);
-  });
-
-  onUnmounted(() => {
-    off('preview_updated', handlePreviewUpdated);
-    off('preview_invalidated', handlePreviewInvalidated);
-    off(EVENT_DELETION_SUCCESS, handleDeletionSuccess);
-    off(EVENT_DELETION_DRY_RUN, handleDeletionDryRun);
-    off(EVENT_DELETION_PROGRESS, handleDeletionProgress);
-    off(EVENT_DELETION_BATCH_COMPLETE, handleDeletionBatchComplete);
+    const scope = { onUnmounted };
+    on('preview_updated', handlePreviewUpdated, scope);
+    on('preview_invalidated', handlePreviewInvalidated, scope);
+    on(EVENT_DELETION_SUCCESS, handleDeletionSuccess, scope);
+    on(EVENT_DELETION_DRY_RUN, handleDeletionDryRun, scope);
+    on(EVENT_DELETION_PROGRESS, handleDeletionProgress, scope);
+    on(EVENT_DELETION_BATCH_COMPLETE, handleDeletionBatchComplete, scope);
   });
 
   return {
