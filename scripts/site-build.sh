@@ -3,28 +3,17 @@
 #
 # Used by:
 #   - Cloudflare Pages (build command: scripts/site-build.sh)
-#   - GitHub Actions pages.yml workflow
 #
-# Output: site/.output/public/ (static HTML/CSS/JS)
-#
-# NOTE: Uses /bin/sh (not bash) for compatibility with Cloudflare's build environment.
+# Output: site/dist/ (static HTML/CSS/JS)
 
 set -eux
 
 echo "=== Site Build ==="
 
-# Ensure pnpm is available. Install via npm if not present.
-# Cloudflare Pages uses asdf shims that exist but fail with exit code 126,
-# so we test with an actual execution and suppress errors.
-PNPM_VER=$(pnpm --version 2>/dev/null) || true
-if [ -z "$PNPM_VER" ]; then
-  echo "pnpm not available, installing via npm..."
-  npm install -g pnpm
-  PNPM_VER=$(pnpm --version)
-fi
-echo "pnpm version: $PNPM_VER"
+# Install pnpm (idempotent — succeeds if already installed)
+npm install -g pnpm
 
-# Install dependencies
+# Install site dependencies
 cd site
 pnpm install --frozen-lockfile
 
@@ -32,9 +21,9 @@ pnpm install --frozen-lockfile
 node scripts/sync-docs.mjs
 
 # Copy favicon from frontend
-cp ../frontend/public/favicon.ico public/favicon.ico 2>/dev/null || true
+cp ../frontend/public/favicon.ico public/favicon.ico
 
 # Generate static site
 pnpm generate
 
-echo "=== Site build complete → site/.output/public/ ==="
+echo "=== Site build complete ==="
