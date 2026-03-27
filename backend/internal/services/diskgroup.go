@@ -32,6 +32,12 @@ func NewDiskGroupService(database *gorm.DB, bus *events.EventBus) *DiskGroupServ
 	return &DiskGroupService{db: database, bus: bus}
 }
 
+// Wired returns true when all lazily-injected dependencies are non-nil.
+// Used by Registry.Validate() to catch missing wiring at startup.
+func (s *DiskGroupService) Wired() bool {
+	return s.engine != nil
+}
+
 // SetEngineService wires the EngineService dependency so that threshold changes
 // can trigger an immediate engine run for queue reconciliation.
 func (s *DiskGroupService) SetEngineService(engine EngineRunTrigger) {

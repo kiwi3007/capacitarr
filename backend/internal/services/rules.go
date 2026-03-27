@@ -52,6 +52,12 @@ func NewRulesService(database *gorm.DB, bus *events.EventBus) *RulesService {
 	return &RulesService{db: database, bus: bus}
 }
 
+// Wired returns true when all lazily-injected dependencies are non-nil.
+// Used by Registry.Validate() to catch missing wiring at startup.
+func (s *RulesService) Wired() bool {
+	return s.preview != nil && s.integrations != nil
+}
+
 // SetPreviewSource sets the preview data source for rule impact calculations.
 func (s *RulesService) SetPreviewSource(preview PreviewDataSource) {
 	s.preview = preview

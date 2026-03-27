@@ -1,7 +1,9 @@
 package services
 
 import (
+	"fmt"
 	"path/filepath"
+	"strings"
 
 	"gorm.io/gorm"
 
@@ -132,7 +134,51 @@ func NewRegistry(database *gorm.DB, bus *events.EventBus, cfg *config.Config) *R
 	// migration triggers an immediate engine run to populate the dashboard
 	reg.Migration.SetEngineService(engineSvc)
 
+	// Validate all lazy wiring before returning — panics with a descriptive
+	// message if any service has unwired dependencies.
+	reg.Validate()
+
 	return reg
+}
+
+// wireable is implemented by services that have lazily-injected dependencies
+// which must be verified at startup.
+type wireable interface {
+	Wired() bool
+}
+
+// Validate checks that all services with lazy dependencies have been fully
+// wired. Panics with a descriptive message listing all unwired services.
+// Called at the end of NewRegistry() to catch wiring mistakes at startup
+// rather than at runtime (e.g., during a 3 AM deletion cycle).
+func (r *Registry) Validate() {
+	checks := []struct {
+		name    string
+		service wireable
+	}{
+		{"Deletion", r.Deletion},
+		{"Settings", r.Settings},
+		{"Integration", r.Integration},
+		{"DiskGroup", r.DiskGroup},
+		{"Backup", r.Backup},
+		{"Metrics", r.Metrics},
+		{"Preview", r.Preview},
+		{"Rules", r.Rules},
+		{"WatchAnalytics", r.WatchAnalytics},
+		{"Data", r.Data},
+		{"Migration", r.Migration},
+	}
+
+	var unwired []string
+	for _, c := range checks {
+		if !c.service.Wired() {
+			unwired = append(unwired, c.name)
+		}
+	}
+
+	if len(unwired) > 0 {
+		panic(fmt.Sprintf("service registry validation failed: unwired services: %s", strings.Join(unwired, ", ")))
+	}
 }
 
 // InitVersion creates and registers the VersionService. Called by main.go

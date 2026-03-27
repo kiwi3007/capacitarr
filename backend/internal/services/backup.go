@@ -157,6 +157,12 @@ func NewBackupService(database *gorm.DB, bus *events.EventBus) *BackupService {
 	return &BackupService{db: database, bus: bus}
 }
 
+// Wired returns true when all lazily-injected dependencies are non-nil.
+// Used by Registry.Validate() to catch missing wiring at startup.
+func (s *BackupService) Wired() bool {
+	return s.diskGroups != nil
+}
+
 // SetDiskGroupService wires the DiskGroupService dependency for disk group
 // export and import. Called by Registry after construction.
 func (s *BackupService) SetDiskGroupService(dg *DiskGroupService) {

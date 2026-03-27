@@ -29,6 +29,12 @@ func NewDataService(database *gorm.DB, bus *events.EventBus) *DataService {
 	return &DataService{db: database, bus: bus}
 }
 
+// Wired returns true when all lazily-injected dependencies are non-nil.
+// Used by Registry.Validate() to catch missing wiring at startup.
+func (s *DataService) Wired() bool {
+	return s.preview != nil
+}
+
 // SetPreviewService wires the preview service dependency for cache clearing.
 // Called by Registry after construction to avoid circular initialization.
 func (s *DataService) SetPreviewService(preview PreviewCacheClearer) {

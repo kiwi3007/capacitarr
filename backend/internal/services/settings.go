@@ -30,6 +30,12 @@ func NewSettingsService(database *gorm.DB, bus *events.EventBus) *SettingsServic
 	return &SettingsService{db: database, bus: bus}
 }
 
+// Wired returns true when all lazily-injected dependencies are non-nil.
+// Used by Registry.Validate() to catch missing wiring at startup.
+func (s *SettingsService) Wired() bool {
+	return s.deletionClearer != nil
+}
+
 // SetDeletionClearer wires the cross-service dependency that allows
 // SettingsService to clear the deletion queue on execution mode changes.
 func (s *SettingsService) SetDeletionClearer(clearer DeletionQueueClearer) {

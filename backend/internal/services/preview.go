@@ -101,6 +101,13 @@ func NewPreviewService(database *gorm.DB, bus *events.EventBus) *PreviewService 
 	}
 }
 
+// Wired returns true when all lazily-injected dependencies are non-nil.
+// Used by Registry.Validate() to catch missing wiring at startup.
+func (s *PreviewService) Wired() bool {
+	return s.integrations != nil && s.preferences != nil && s.rules != nil &&
+		s.diskGroups != nil && s.approvalQueue != nil && s.deletionState != nil
+}
+
 // SetDependencies wires cross-service dependencies that cannot be injected
 // at construction time due to circular initialization in the registry.
 func (s *PreviewService) SetDependencies(integ IntegrationLister, settings SettingsReader, rules RulesProvider, diskGroups DiskGroupLister) {

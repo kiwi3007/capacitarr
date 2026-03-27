@@ -50,6 +50,12 @@ type IntegrationService struct {
 	ruleValueCache *cache.TTLCache
 }
 
+// Wired returns true when all lazily-injected dependencies are non-nil.
+// Used by Registry.Validate() to catch missing wiring at startup.
+func (s *IntegrationService) Wired() bool {
+	return s.diskGroups != nil
+}
+
 // SetDiskGroupService wires the DiskGroupService dependency for disk group operations.
 // Called by Registry after construction to avoid circular initialization.
 func (s *IntegrationService) SetDiskGroupService(dg DiskGroupManager) {

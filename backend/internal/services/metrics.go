@@ -19,6 +19,12 @@ type MetricsService struct {
 	settings SettingsReader
 }
 
+// Wired returns true when all lazily-injected dependencies are non-nil.
+// Used by Registry.Validate() to catch missing wiring at startup.
+func (s *MetricsService) Wired() bool {
+	return s.settings != nil
+}
+
 // SetSettingsService wires the SettingsService dependency for preference reads.
 // Called by Registry after construction to avoid circular initialization.
 func (s *MetricsService) SetSettingsService(settings SettingsReader) {

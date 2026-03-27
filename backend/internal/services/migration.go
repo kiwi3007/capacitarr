@@ -21,6 +21,12 @@ type MigrationService struct {
 	engineSvc *EngineService
 }
 
+// Wired returns true when all lazily-injected dependencies are non-nil.
+// Used by Registry.Validate() to catch missing wiring at startup.
+func (s *MigrationService) Wired() bool {
+	return s.engineSvc != nil
+}
+
 // SetEngineService wires the cross-service dependency on EngineService.
 // Called after construction in NewRegistry to break the initialization cycle.
 // The engine is triggered after a successful migration so the dashboard

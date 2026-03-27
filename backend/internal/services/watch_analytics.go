@@ -37,6 +37,12 @@ func NewWatchAnalyticsService(preview PreviewDataSource) *WatchAnalyticsService 
 	return &WatchAnalyticsService{preview: preview}
 }
 
+// Wired returns true when all lazily-injected dependencies are non-nil.
+// Used by Registry.Validate() to catch missing wiring at startup.
+func (s *WatchAnalyticsService) Wired() bool {
+	return s.rules != nil && s.diskGroups != nil
+}
+
 // SetRulesSource sets the rules source for protected-item filtering.
 // Called by Registry after construction to avoid circular initialization.
 func (s *WatchAnalyticsService) SetRulesSource(rules RulesSource) {

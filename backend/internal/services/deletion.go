@@ -135,6 +135,14 @@ func NewDeletionService(bus *events.EventBus, auditLog *AuditLogService) *Deleti
 	}
 }
 
+// Wired returns true when all lazily-injected dependencies are non-nil.
+// Used by Registry.Validate() to catch missing wiring at startup.
+// Note: approvalReturner is excluded because it is nil-guarded at the call
+// site (processJob) and legitimately optional in tests without approval.
+func (s *DeletionService) Wired() bool {
+	return s.settings != nil && s.engine != nil && s.metrics != nil
+}
+
 // SetDependencies wires cross-service dependencies that cannot be injected
 // at construction time due to circular initialization in the registry.
 func (s *DeletionService) SetDependencies(settings SettingsReader, engine EngineStatsWriter, metrics DeletionStatsWriter, approvalReturner ApprovalReturner) {
@@ -144,8 +152,13 @@ func (s *DeletionService) SetDependencies(settings SettingsReader, engine Engine
 	s.approvalReturner = approvalReturner
 }
 
-// Start begins the background deletion worker.
+// Start begins the background deletion worker. Panics if SetDependencies()
+// has not been called — catches misuse in tests that construct a
+// DeletionService directly without the registry.
 func (s *DeletionService) Start() {
+	if !s.Wired() {
+		panic("DeletionService.Start() called before SetDependencies()")
+	}
 	go s.worker()
 }
 

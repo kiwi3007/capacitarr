@@ -20,7 +20,7 @@ Highest risk reduction, smallest changes. Ensures bugs surface at startup rather
 #### Step 1.1 — Add `Wired()` methods to all services with lazy dependencies
 
 **Files to modify:**
-- `internal/services/deletion.go` — add `Wired() bool` checking `settings`, `engine`, `metrics`, `approvalReturner`
+- `internal/services/deletion.go` — add `Wired() bool` checking `settings`, `engine`, `metrics` (note: `approvalReturner` excluded — it is nil-guarded at the call site and legitimately optional)
 - `internal/services/settings.go` — add `Wired() bool` checking `deletionClearer`
 - `internal/services/integration.go` — add `Wired() bool` checking `diskGroups`
 - `internal/services/diskgroup.go` — add `Wired() bool` checking `engine`
