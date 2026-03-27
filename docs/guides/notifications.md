@@ -31,7 +31,7 @@ Instant alerts fire immediately when their trigger event occurs — they are not
 | **Mode Changed** | The execution mode was switched (e.g., dry-run → auto) |
 | **Server Started** | Capacitarr has started and is ready to accept requests |
 | **Threshold Breached** | Disk usage has exceeded the configured threshold for a disk group |
-| **Update Available** | A newer Capacitarr release was detected on GitLab |
+| **Update Available** | A newer Capacitarr release was detected on GitHub |
 | **Approval Activity** | An item was approved or rejected in the approval queue |
 | **Integration Status** | An integration has failed its connection test or recovered from a previous failure |
 
@@ -132,7 +132,7 @@ Each external notification channel (Discord or Apprise) has independent subscrip
 | **Mode Changed** | Execution mode switch | Fires when switching between dry-run, approval, and auto |
 | **Server Started** | Application startup | Confirms Capacitarr is online after a restart |
 | **Threshold Breach** | Disk usage exceeds threshold | Immediate alert when a disk group exceeds its threshold |
-| **Update Available** | New version detected | Fires when a newer Capacitarr release exists on GitLab |
+| **Update Available** | New version detected | Fires when a newer Capacitarr release exists on GitHub |
 | **Approval Activity** | Items approved or rejected | Fires when approval queue items are approved or rejected |
 | **Integration Status** | Integration failure or recovery | Fires when an integration fails its connection test or recovers |
 

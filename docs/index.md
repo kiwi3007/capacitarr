@@ -33,7 +33,8 @@ hideTitle: true
 ```yaml
 services:
   capacitarr:
-    image: ghentstarshadow/capacitarr:stable
+    image: ghcr.io/ghent/capacitarr:stable
+    # Or use Docker Hub: ghentstarshadow/capacitarr:stable
     container_name: capacitarr
     ports:
       - "2187:2187"

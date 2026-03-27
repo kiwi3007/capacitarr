@@ -48,12 +48,10 @@ git add CHANGELOG.md package.json package-lock.json frontend/package.json
 git commit -m "chore(release): $VERSION"
 git tag "$VERSION"
 
-# 6. Push (two-step to avoid duplicate pipelines)
-git push origin main        # branch pipeline: lint/test/build/security/pages
-git push origin "$VERSION"  # tag pipeline: full release (binaries + Docker + GitLab release)
+# 6. Push
+git push origin main        # CI pipeline: lint/test/build/security
+git push origin "$VERSION"  # Release pipeline: changelog + GoReleaser + Docker + Discord
 ```
-
-> **Why two steps?** Running `git push origin main --tags` in a single command causes GitLab to create **two separate pipelines** — one for the branch push and one for the tag push — which wastes CI minutes. Pushing them separately ensures only one pipeline runs at a time.
 
 ### Convenience Script
 
@@ -123,32 +121,35 @@ The changelog is configured in [`cliff.toml`](../cliff.toml) at the project root
 
 ## CI Pipeline Jobs
 
-### On Every Push and MR
+### On Every Push and PR
 
-| Job | Stage | Image | Purpose |
-|-----|-------|-------|---------|
-| `lint:go` | lint | `golangci/golangci-lint:latest` | Go linting |
-| `lint:frontend` | lint | `node:22-alpine` | ESLint |
-| `test:go` | test | `golang:1.26-alpine` | Go tests with race detector |
-| `test:frontend` | test | `node:22-alpine` | Frontend tests |
-| `build:docker` | build | `docker:latest` | Multi-arch Docker smoke test (no push) |
-| `security:govulncheck` | security | `golang:1.26-alpine` | Go vulnerability check |
-| `security:pnpm-audit` | security | `node:22-alpine` | npm dependency audit |
-| `security:trivy` | security | `aquasec/trivy:latest` | Filesystem CVE scan (Go modules + pnpm) |
-| `security:trivy-image` | security | `docker:latest` | Docker image CVE scan (Alpine + Go binary) |
-| `security:gitleaks` | security | `zricethezav/gitleaks:latest` | Git secrets detection |
-| `security:semgrep` | security | `semgrep/semgrep:latest` | Static analysis (SAST) |
+These jobs are defined in `.github/workflows/ci.yml`. Lint and test jobs run in parallel; build and security jobs run after lint+test pass.
+
+| Job | Group | Tool / Action | Purpose |
+|-----|-------|---------------|---------|
+| `lint-go` | lint | `golangci/golangci-lint-action` (v2.11.4) | Go linting |
+| `lint-frontend` | lint | pnpm + Node.js 22 | ESLint + Prettier + TypeScript typecheck |
+| `test-go` | test | Go 1.26 | Go unit tests |
+| `test-frontend` | test | pnpm + Vitest | Frontend unit tests |
+| `build-docker` | build | `docker/setup-buildx-action` | Multi-arch Docker smoke test (no push) |
+| `security-govulncheck` | security | `govulncheck` | Go vulnerability check |
+| `security-pnpm-audit` | security | `pnpm audit` | npm dependency audit |
+| `security-trivy` | security | `aquasecurity/trivy-action` (v0.69.3) | Filesystem CVE scan (backend + frontend) |
+| `security-trivy-image` | security | `aquasecurity/trivy-action` (v0.69.3) | Docker image CVE scan |
+| `security-gitleaks` | security | `gitleaks/gitleaks-action` | Git secrets detection |
+| `security-semgrep` | security | `semgrep/semgrep:1.155.0` | Static analysis (SAST) |
 
 ### On Tag Push (`v*`)
 
-| Job | Stage | Image | Purpose |
-|-----|-------|-------|---------|
-| `changelog` | release | `orhunp/git-cliff:latest` | Extract release notes for the tagged version |
-| `release:goreleaser` | release | `goreleaser/goreleaser:latest` | Cross-compile binaries, create GitHub release with assets |
-| `release:docker:build` | release | `docker:latest` | Build and push multi-arch Docker images to GHCR |
-| `release:docker:dockerhub` | release | `alpine` + `crane` | Mirror image from GHCR to Docker Hub |
-| `notify:discord` | notify | `alpine` | Send release notification to Discord |
-| `pages` | pages | `node:22-alpine` | Rebuild project site with latest changelog |
+These jobs are defined in `.github/workflows/release.yml`.
+
+| Job | Tool / Action | Purpose |
+|-----|---------------|---------|
+| `changelog` | `orhunp/git-cliff:2.12.0` | Extract release notes for the tagged version |
+| `goreleaser` | `goreleaser/goreleaser-action` (v2.14.1) | Cross-compile binaries, create GitHub Release with assets |
+| `docker-build` | `docker/setup-buildx-action` + GHCR login | Build and push multi-arch Docker images to GHCR |
+| `docker-mirror-dockerhub` | `crane copy` | Mirror from GHCR to Docker Hub (`continue-on-error`) |
+| `discord-notify` | `scripts/discord-release-notify.sh` | Send release notification to Discord (`continue-on-error`) |
 
 ## Release Artifacts
 
@@ -170,7 +171,7 @@ Docker images are published to two registries using a build-then-mirror pipeline
 | GHCR | `ghcr.io/ghent/capacitarr` | Source of truth (built + pushed first) |
 | Docker Hub | `ghentstarshadow/capacitarr` | Mirrored via `crane copy` |
 
-The build job pushes to GHCR. A mirror job then uses [`crane copy`](https://github.com/google/go-containerregistry/tree/main/cmd/crane) to replicate the multi-arch manifest to Docker Hub. The mirror job has `allow_failure: true` — if Docker Hub is down, the pipeline shows a warning but does not fail.
+The build job pushes to GHCR. A mirror job then uses [`crane copy`](https://github.com/google/go-containerregistry/tree/main/cmd/crane) to replicate the multi-arch manifest to Docker Hub. The mirror job has `continue-on-error: true` — if Docker Hub is down, the workflow shows a warning but does not fail.
 
 ### Docker Image Tags
 
@@ -204,6 +205,8 @@ For the release pipeline to work correctly:
 
 | Secret | Purpose |
 |--------|---------|
-| `GHCR_TOKEN` | GitHub PAT with `write:packages` scope (or use `GITHUB_TOKEN` for GHCR) |
-| `DOCKERHUB_USERNAME` | Docker Hub login username |
+| `DOCKERHUB_USERNAME` | Docker Hub login username (for mirroring) |
 | `DOCKERHUB_TOKEN` | Docker Hub access token (Read & Write) |
+| `DISCORD_WEBHOOK_URL` | Discord webhook URL for release notifications |
+
+`GITHUB_TOKEN` is automatically provided by GitHub Actions — it handles GHCR authentication and GoReleaser GitHub Releases. No separate GHCR token is needed.

@@ -121,7 +121,7 @@ All services accept `*gorm.DB` and `*events.EventBus` in their constructor and a
 | | AuthService | Login, change password, generate API keys |
 | | NotificationChannelService | CRUD for notification channels |
 | | NotificationDispatchService | Two-gate flush, digest, and alerts |
-| | VersionService | Update check via GitLab releases |
+| | VersionService | Update check via GitHub releases |
 | | MigrationService | 1.x → 2.0 database migration |
 
 ### Service Registry
