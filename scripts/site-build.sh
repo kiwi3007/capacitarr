@@ -14,10 +14,15 @@ set -eu
 echo "=== Site Build ==="
 
 # Make pnpm available.
-# In Cloudflare Pages, corepack isn't shimmed for asdf-installed Node versions,
-# so we fall back to npm install if corepack fails.
-if ! corepack enable 2>/dev/null; then
-  echo "corepack not available, installing pnpm via npm..."
+# Cloudflare Pages uses asdf for Node version management, which doesn't shim
+# corepack for custom-installed versions (exit code 126). Use npm as the
+# universal fallback that works in all environments.
+if command -v pnpm >/dev/null 2>&1; then
+  echo "pnpm already available"
+elif corepack enable 2>/dev/null; then
+  echo "pnpm enabled via corepack"
+else
+  echo "Installing pnpm via npm..."
   npm install -g pnpm
 fi
 
