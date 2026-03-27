@@ -80,6 +80,9 @@ type plexMetadata struct {
 	Collection []struct {
 		Tag string `json:"tag"`
 	} `json:"Collection"`
+	Label []struct {
+		Tag string `json:"tag"`
+	} `json:"Label"`
 	Media []struct {
 		Part []struct {
 			File string `json:"file"`
@@ -185,6 +188,12 @@ func plexMetadataToMediaItem(m plexMetadata) *MediaItem {
 		collections = append(collections, c.Tag)
 	}
 
+	// Build labels list
+	labels := make([]string, 0, len(m.Label))
+	for _, l := range m.Label {
+		labels = append(labels, l.Tag)
+	}
+
 	// Pick best rating
 	rating := m.AudienceRating
 	if rating == 0 {
@@ -232,6 +241,7 @@ func plexMetadataToMediaItem(m plexMetadata) *MediaItem {
 		LastPlayed:  lastPlayed,
 		AddedAt:     addedAt,
 		Collections: collections,
+		Labels:      labels,
 	}
 
 	// Show/season specifics
@@ -430,9 +440,55 @@ func (p *PlexClient) GetCollectionMemberships() (map[int][]string, error) {
 	return result, nil
 }
 
+// GetLabelMemberships implements LabelDataProvider by scanning all Plex
+// libraries and building a TMDb ID → label names map from metadata.
+// This bridges Plex label data onto *arr items via the LabelEnricher.
+func (p *PlexClient) GetLabelMemberships() (map[int][]string, error) {
+	items, err := p.getMediaItems()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch Plex items for label memberships: %w", err)
+	}
+
+	result := make(map[int][]string)
+	for _, item := range items {
+		if item.TMDbID == 0 || len(item.Labels) == 0 {
+			continue
+		}
+		result[item.TMDbID] = item.Labels
+	}
+	return result, nil
+}
+
+// GetLabelNames returns a sorted, deduplicated list of label names from all
+// Plex libraries. Used by FetchLabelValues() for rule value autocomplete.
+func (p *PlexClient) GetLabelNames() ([]string, error) {
+	items, err := p.getMediaItems()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch Plex items for labels: %w", err)
+	}
+
+	seen := make(map[string]bool)
+	for _, item := range items {
+		for _, lbl := range item.Labels {
+			name := strings.TrimSpace(lbl)
+			if name != "" {
+				seen[name] = true
+			}
+		}
+	}
+
+	names := make([]string, 0, len(seen))
+	for name := range seen {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names, nil
+}
+
 // Verify PlexClient satisfies capability interfaces at compile time.
 // Note: PlexClient intentionally does NOT implement MediaSource — only *arr integrations should.
 var _ Connectable = (*PlexClient)(nil)
 var _ WatchDataProvider = (*PlexClient)(nil)
 var _ WatchlistProvider = (*PlexClient)(nil)
 var _ CollectionDataProvider = (*PlexClient)(nil)
+var _ LabelDataProvider = (*PlexClient)(nil)

@@ -31,6 +31,7 @@ const (
 	ruleActionGenre      = "genre"
 	ruleActionLanguage   = "language"
 	ruleActionCollection = "collection"
+	ruleActionLabel      = "label"
 )
 
 // seriesStatusOptions defines the closed set of series status values (from Sonarr API)
@@ -173,6 +174,61 @@ func (s *IntegrationService) FetchCollectionValues() ([]integrations.NameValue, 
 	return result, nil
 }
 
+// FetchLabelValues returns label/tag names from all enabled media server
+// integrations (Plex, Jellyfin, Emby). Results are cached with the standard TTL.
+// The returned slice is sorted alphabetically and deduplicated across all servers.
+func (s *IntegrationService) FetchLabelValues() ([]integrations.NameValue, error) {
+	const cacheKey = "global:labels"
+
+	if cached, ok := s.ruleValueCache.Get(cacheKey); ok {
+		if nv, ok := cached.([]integrations.NameValue); ok {
+			return nv, nil
+		}
+	}
+
+	configs, err := s.ListEnabled()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list enabled integrations: %w", err)
+	}
+
+	// Collect unique label names across all media server integrations.
+	// Uses the LabelNameFetcher capability interface — new integrations that
+	// implement GetLabelNames() are automatically discovered.
+	seen := make(map[string]bool)
+	for _, cfg := range configs {
+		client := integrations.CreateClient(cfg.Type, cfg.URL, cfg.APIKey)
+		if client == nil {
+			continue
+		}
+
+		fetcher, ok := client.(integrations.LabelNameFetcher)
+		if !ok {
+			continue
+		}
+
+		names, fetchErr := fetcher.GetLabelNames()
+		if fetchErr != nil {
+			slog.Warn("Failed to fetch label names",
+				"component", "integration_service", "integrationId", cfg.ID, "type", cfg.Type, "error", fetchErr)
+			continue
+		}
+		for _, name := range names {
+			seen[name] = true
+		}
+	}
+
+	result := make([]integrations.NameValue, 0, len(seen))
+	for name := range seen {
+		result = append(result, integrations.NameValue{Value: name, Label: name})
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Label < result[j].Label
+	})
+
+	s.ruleValueCache.Set(cacheKey, result)
+	return result, nil
+}
+
 // InvalidateRuleValueCache removes all cached entries for a specific integration.
 func (s *IntegrationService) InvalidateRuleValueCache(integrationID int) {
 	s.ruleValueCache.InvalidatePrefix(strconv.Itoa(integrationID) + ":")
@@ -280,7 +336,7 @@ func (s *IntegrationService) FetchRuleValues(integrationID uint, action string) 
 		s.ruleValueCache.Set(cacheKey, result)
 		return result, nil
 
-	case "monitored", "requested", "incollection", "watchlist", "watchedbyreq":
+	case "monitored", "requested", "incollection", "watchlist", "watchedbyreq", "haslabel":
 		result := map[string]any{
 			"type": "closed",
 			"options": []integrations.NameValue{
@@ -299,13 +355,23 @@ func (s *IntegrationService) FetchRuleValues(integrationID uint, action string) 
 		s.ruleValueCache.Set(cacheKey, result)
 		return result, nil
 
-	// Collection field — aggregates from all enabled Plex integrations (not per-integration)
+	// Collection field — aggregates from all enabled media server integrations
 	case ruleActionCollection:
 		collections, collectErr := s.FetchCollectionValues()
 		if collectErr != nil {
 			return nil, fmt.Errorf("failed to fetch collection values: %w", collectErr)
 		}
 		result := map[string]any{"type": "combobox", "suggestions": collections}
+		s.ruleValueCache.Set(cacheKey, result)
+		return result, nil
+
+	// Label field — aggregates from all enabled media server integrations
+	case ruleActionLabel:
+		labels, labelErr := s.FetchLabelValues()
+		if labelErr != nil {
+			return nil, fmt.Errorf("failed to fetch label values: %w", labelErr)
+		}
+		result := map[string]any{"type": "combobox", "suggestions": labels}
 		s.ruleValueCache.Set(cacheKey, result)
 		return result, nil
 

@@ -12,7 +12,11 @@ import (
 	"capacitarr/internal/integrations"
 )
 
-const boolTrue = "true"
+const (
+	boolTrue     = "true"
+	opContains   = "contains"
+	opNotContain = "!contains"
+)
 
 // ApplyRulesExported is the exported version of applyRules for use by other packages
 // (e.g. RulesService.GetRuleImpact). Returns (isAbsolutelyProtected, scoreModifier, reasonString, ruleFactors).
@@ -175,7 +179,7 @@ func matchesRuleWithValue(item integrations.MediaItem, rule db.CustomRule) (bool
 		return matched, item.SeriesStatus
 	case "tag":
 		// For positive operators (==, contains), find the specific tag that matched
-		if cond == "==" || cond == "contains" {
+		if cond == "==" || cond == opContains {
 			for _, tag := range item.Tags {
 				if stringMatch(strings.ToLower(tag), cond, val) {
 					return true, tag
@@ -311,16 +315,16 @@ func matchesRuleWithValue(item integrations.MediaItem, rule db.CustomRule) (bool
 			return strings.EqualFold(actual, val), actual
 		case "!=":
 			return !strings.EqualFold(actual, val), actual
-		case "contains":
+		case opContains:
 			return strings.Contains(strings.ToLower(actual), strings.ToLower(val)), actual
-		case "!contains":
+		case opNotContain:
 			return !strings.Contains(strings.ToLower(actual), strings.ToLower(val)), actual
 		}
 		return false, actual
 	case "collection":
 		// String field matching against item.Collections []string.
 		// Follows the same array-matching pattern as "tag".
-		if cond == "==" || cond == "contains" {
+		if cond == "==" || cond == opContains {
 			for _, col := range item.Collections {
 				if stringMatch(strings.ToLower(col), cond, val) {
 					return true, col
@@ -342,6 +346,31 @@ func matchesRuleWithValue(item integrations.MediaItem, rule db.CustomRule) (bool
 		inCollection := len(item.Collections) > 0
 		ruleBool := val == boolTrue
 		return inCollection == ruleBool, fmt.Sprintf("%d collections", len(item.Collections))
+	case "label":
+		// String field matching against item.Labels []string.
+		// Follows the same array-matching pattern as "tag" and "collection".
+		if cond == "==" || cond == opContains {
+			for _, lbl := range item.Labels {
+				if stringMatch(strings.ToLower(lbl), cond, val) {
+					return true, lbl
+				}
+			}
+			return false, strings.Join(item.Labels, ", ")
+		}
+		// Negation operators (!=, !contains): all labels must pass
+		for _, lbl := range item.Labels {
+			if !stringMatchNegated(strings.ToLower(lbl), cond, val) {
+				return false, lbl
+			}
+		}
+		if len(item.Labels) == 0 {
+			return true, "(no labels)"
+		}
+		return true, strings.Join(item.Labels, ", ")
+	case "haslabel":
+		hasLabel := len(item.Labels) > 0
+		ruleBool := val == boolTrue
+		return hasLabel == ruleBool, fmt.Sprintf("%d labels", len(item.Labels))
 	case "watchlist":
 		ruleBool := val == boolTrue
 		return item.OnWatchlist == ruleBool, fmt.Sprintf("on watchlist: %v", item.OnWatchlist)
@@ -359,7 +388,7 @@ func stringMatchNegated(actual, cond, expected string) bool {
 	switch cond {
 	case "!=":
 		return actual != expected
-	case "!contains":
+	case opNotContain:
 		return !strings.Contains(actual, expected)
 	}
 	return true
@@ -371,9 +400,9 @@ func stringMatch(actual, cond, expected string) bool {
 		return actual == expected
 	case "!=":
 		return actual != expected
-	case "contains":
+	case opContains:
 		return strings.Contains(actual, expected)
-	case "!contains":
+	case opNotContain:
 		return !strings.Contains(actual, expected)
 	}
 	return false

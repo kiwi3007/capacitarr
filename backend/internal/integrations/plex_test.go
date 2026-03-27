@@ -1099,6 +1099,262 @@ func TestPlexClient_GetTMDbToRatingKeyMap(t *testing.T) {
 	}
 }
 
+func TestPlexClient_GetLabelMemberships_Success(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case testPlexPathSections:
+			resp := plexLibraryResponse{}
+			resp.MediaContainer.Directory = []struct {
+				Key   string `json:"key"`
+				Title string `json:"title"`
+				Type  string `json:"type"`
+			}{
+				{Key: "1", Title: "Movies", Type: "movie"},
+			}
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				t.Fatalf("Failed to encode: %v", err)
+			}
+		case testPlexPathMoviesAll:
+			resp := plexMediaResponse{}
+			resp.MediaContainer.Metadata = []plexMetadata{
+				{
+					RatingKey: "101",
+					Title:     "Serenity",
+					Type:      "movie",
+					GUIDs:     []plexGUID{{ID: "tmdb://16320"}},
+					Label: []struct {
+						Tag string `json:"tag"`
+					}{{Tag: "4K DV"}, {Tag: "Keep"}},
+				},
+				{
+					RatingKey: "102",
+					Title:     "Firefly: The Movie",
+					Type:      "movie",
+					GUIDs:     []plexGUID{{ID: "tmdb://1437"}},
+					Label: []struct {
+						Tag string `json:"tag"`
+					}{{Tag: "Award Winner"}},
+				},
+				{
+					RatingKey: "103",
+					Title:     "No Labels Movie",
+					Type:      "movie",
+					GUIDs:     []plexGUID{{ID: "tmdb://55555"}},
+				},
+			}
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				t.Fatalf("Failed to encode: %v", err)
+			}
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	client := NewPlexClient(srv.URL, "test-token")
+	labelMap, err := client.GetLabelMemberships()
+	if err != nil {
+		t.Fatalf("GetLabelMemberships should succeed: %v", err)
+	}
+
+	if len(labelMap) != 2 {
+		t.Fatalf("Expected 2 entries (items with labels), got %d", len(labelMap))
+	}
+	if labels := labelMap[16320]; len(labels) != 2 || labels[0] != "4K DV" || labels[1] != "Keep" {
+		t.Errorf("Expected labels [4K DV, Keep] for TMDb 16320, got %v", labels)
+	}
+	if labels := labelMap[1437]; len(labels) != 1 || labels[0] != "Award Winner" {
+		t.Errorf("Expected labels [Award Winner] for TMDb 1437, got %v", labels)
+	}
+	if _, ok := labelMap[55555]; ok {
+		t.Error("Item with no labels should not appear in label map")
+	}
+}
+
+func TestPlexClient_GetLabelMemberships_SkipsNoTMDbID(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case testPlexPathSections:
+			resp := plexLibraryResponse{}
+			resp.MediaContainer.Directory = []struct {
+				Key   string `json:"key"`
+				Title string `json:"title"`
+				Type  string `json:"type"`
+			}{
+				{Key: "1", Title: "Movies", Type: "movie"},
+			}
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				t.Fatalf("Failed to encode: %v", err)
+			}
+		case testPlexPathMoviesAll:
+			resp := plexMediaResponse{}
+			resp.MediaContainer.Metadata = []plexMetadata{
+				{
+					RatingKey: "101",
+					Title:     "Serenity",
+					Type:      "movie",
+					// No GUIDs — TMDb ID will be 0
+					Label: []struct {
+						Tag string `json:"tag"`
+					}{{Tag: "4K DV"}},
+				},
+			}
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				t.Fatalf("Failed to encode: %v", err)
+			}
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	client := NewPlexClient(srv.URL, "test-token")
+	labelMap, err := client.GetLabelMemberships()
+	if err != nil {
+		t.Fatalf("GetLabelMemberships should succeed: %v", err)
+	}
+	if len(labelMap) != 0 {
+		t.Errorf("Expected 0 entries (no TMDb IDs), got %d", len(labelMap))
+	}
+}
+
+func TestPlexClient_GetLabelMemberships_Empty(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case testPlexPathSections:
+			_, _ = w.Write([]byte(`{"MediaContainer":{"Directory":[]}}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	client := NewPlexClient(srv.URL, "test-token")
+	labelMap, err := client.GetLabelMemberships()
+	if err != nil {
+		t.Fatalf("GetLabelMemberships should succeed with empty library: %v", err)
+	}
+	if len(labelMap) != 0 {
+		t.Errorf("Expected 0 label entries, got %d", len(labelMap))
+	}
+}
+
+func TestPlexClient_GetLabelNames_Success(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case testPlexPathSections:
+			resp := plexLibraryResponse{}
+			resp.MediaContainer.Directory = []struct {
+				Key   string `json:"key"`
+				Title string `json:"title"`
+				Type  string `json:"type"`
+			}{
+				{Key: "1", Title: "Movies", Type: "movie"},
+			}
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				t.Fatalf("Failed to encode: %v", err)
+			}
+		case testPlexPathMoviesAll:
+			resp := plexMediaResponse{}
+			resp.MediaContainer.Metadata = []plexMetadata{
+				{
+					RatingKey: "101",
+					Title:     "Serenity",
+					Type:      "movie",
+					GUIDs:     []plexGUID{{ID: "tmdb://16320"}},
+					Label: []struct {
+						Tag string `json:"tag"`
+					}{{Tag: "4K DV"}, {Tag: "Keep"}},
+				},
+				{
+					RatingKey: "102",
+					Title:     "Firefly: The Movie",
+					Type:      "movie",
+					GUIDs:     []plexGUID{{ID: "tmdb://1437"}},
+					Label: []struct {
+						Tag string `json:"tag"`
+					}{{Tag: "4K DV"}, {Tag: "Award Winner"}},
+				},
+			}
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				t.Fatalf("Failed to encode: %v", err)
+			}
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	client := NewPlexClient(srv.URL, "test-token")
+	names, err := client.GetLabelNames()
+	if err != nil {
+		t.Fatalf("GetLabelNames should succeed: %v", err)
+	}
+
+	// Should be sorted and deduplicated
+	expected := []string{"4K DV", "Award Winner", "Keep"}
+	if len(names) != len(expected) {
+		t.Fatalf("Expected %d label names, got %d: %v", len(expected), len(names), names)
+	}
+	for i, name := range names {
+		if name != expected[i] {
+			t.Errorf("Expected names[%d]=%q, got %q", i, expected[i], name)
+		}
+	}
+}
+
+func TestPlexClient_GetLabelNames_SkipsBlanks(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case testPlexPathSections:
+			resp := plexLibraryResponse{}
+			resp.MediaContainer.Directory = []struct {
+				Key   string `json:"key"`
+				Title string `json:"title"`
+				Type  string `json:"type"`
+			}{
+				{Key: "1", Title: "Movies", Type: "movie"},
+			}
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				t.Fatalf("Failed to encode: %v", err)
+			}
+		case testPlexPathMoviesAll:
+			resp := plexMediaResponse{}
+			resp.MediaContainer.Metadata = []plexMetadata{
+				{
+					RatingKey: "101",
+					Title:     "Serenity",
+					Type:      "movie",
+					GUIDs:     []plexGUID{{ID: "tmdb://16320"}},
+					Label: []struct {
+						Tag string `json:"tag"`
+					}{{Tag: "Keep"}, {Tag: ""}, {Tag: "   "}},
+				},
+			}
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				t.Fatalf("Failed to encode: %v", err)
+			}
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	client := NewPlexClient(srv.URL, "test-token")
+	names, err := client.GetLabelNames()
+	if err != nil {
+		t.Fatalf("GetLabelNames should succeed: %v", err)
+	}
+	if len(names) != 1 || names[0] != "Keep" {
+		t.Errorf("Expected [Keep] (blanks excluded), got %v", names)
+	}
+}
+
 func TestPlexExtractTMDbID(t *testing.T) {
 	tests := []struct {
 		name  string

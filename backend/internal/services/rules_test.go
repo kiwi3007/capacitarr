@@ -507,6 +507,8 @@ func TestRulesService_GetFieldDefinitions_EnrichmentFields(t *testing.T) {
 		"requested":    false,
 		"incollection": false,
 		"watchedbyreq": false,
+		"haslabel":     false,
+		"label":        false,
 	}
 	for _, f := range fields {
 		if _, ok := expected[f.Field]; ok {

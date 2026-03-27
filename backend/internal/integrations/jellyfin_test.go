@@ -803,6 +803,124 @@ func TestJellyfinClient_GetCollectionNames_APIError(t *testing.T) {
 	}
 }
 
+func TestJellyfinClient_GetLabelMemberships_Success(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/Users":
+			_, _ = w.Write([]byte(`[{"Id":"admin-1","Name":"admin","Policy":{"IsAdministrator":true}}]`))
+		case "/Users/admin-1/Items":
+			_, _ = w.Write([]byte(`{"Items":[
+				{"Id":"1","Name":"Serenity","Type":"Movie","ProviderIds":{"Tmdb":"16320"},"Tags":["4K DV","Keep"]},
+				{"Id":"2","Name":"Firefly","Type":"Series","ProviderIds":{"Tmdb":"1437"},"Tags":["Award Winner"]},
+				{"Id":"3","Name":"No Tags","Type":"Movie","ProviderIds":{"Tmdb":"55555"},"Tags":[]}
+			],"TotalRecordCount":3}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	client := NewJellyfinClient(srv.URL, "test-key")
+	labelMap, err := client.GetLabelMemberships()
+	if err != nil {
+		t.Fatalf("GetLabelMemberships should succeed: %v", err)
+	}
+	if len(labelMap) != 2 {
+		t.Fatalf("Expected 2 entries (items with tags), got %d", len(labelMap))
+	}
+	if labels := labelMap[16320]; len(labels) != 2 || labels[0] != "4K DV" || labels[1] != "Keep" {
+		t.Errorf("Expected tags [4K DV, Keep] for TMDb 16320, got %v", labels)
+	}
+	if labels := labelMap[1437]; len(labels) != 1 || labels[0] != "Award Winner" {
+		t.Errorf("Expected tags [Award Winner] for TMDb 1437, got %v", labels)
+	}
+}
+
+func TestJellyfinClient_GetLabelMemberships_NoTags(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/Users":
+			_, _ = w.Write([]byte(`[{"Id":"admin-1","Name":"admin","Policy":{"IsAdministrator":true}}]`))
+		case "/Users/admin-1/Items":
+			_, _ = w.Write([]byte(`{"Items":[
+				{"Id":"1","Name":"Serenity","Type":"Movie","ProviderIds":{"Tmdb":"16320"},"Tags":[]}
+			],"TotalRecordCount":1}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	client := NewJellyfinClient(srv.URL, "test-key")
+	labelMap, err := client.GetLabelMemberships()
+	if err != nil {
+		t.Fatalf("GetLabelMemberships should succeed: %v", err)
+	}
+	if len(labelMap) != 0 {
+		t.Errorf("Expected 0 entries (no tags), got %d", len(labelMap))
+	}
+}
+
+func TestJellyfinClient_GetLabelNames_Success(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/Users":
+			_, _ = w.Write([]byte(`[{"Id":"admin-1","Name":"admin","Policy":{"IsAdministrator":true}}]`))
+		case "/Users/admin-1/Items":
+			_, _ = w.Write([]byte(`{"Items":[
+				{"Tags":["4K DV","Keep"]},
+				{"Tags":["4K DV","Award Winner"]},
+				{"Tags":[]}
+			],"TotalRecordCount":3}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	client := NewJellyfinClient(srv.URL, "test-key")
+	names, err := client.GetLabelNames()
+	if err != nil {
+		t.Fatalf("GetLabelNames should succeed: %v", err)
+	}
+	expected := []string{"4K DV", "Award Winner", "Keep"}
+	if len(names) != len(expected) {
+		t.Fatalf("Expected %d label names, got %d: %v", len(expected), len(names), names)
+	}
+	for i, name := range names {
+		if name != expected[i] {
+			t.Errorf("Expected names[%d]=%q, got %q", i, expected[i], name)
+		}
+	}
+}
+
+func TestJellyfinClient_GetLabelNames_Empty(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/Users":
+			_, _ = w.Write([]byte(`[{"Id":"admin-1","Name":"admin","Policy":{"IsAdministrator":true}}]`))
+		case "/Users/admin-1/Items":
+			_, _ = w.Write([]byte(`{"Items":[],"TotalRecordCount":0}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	client := NewJellyfinClient(srv.URL, "test-key")
+	names, err := client.GetLabelNames()
+	if err != nil {
+		t.Fatalf("GetLabelNames should succeed: %v", err)
+	}
+	if len(names) != 0 {
+		t.Errorf("Expected 0 label names, got %d", len(names))
+	}
+}
+
 func TestJellyfinClient_GetCollectionNames_SkipsBlankNames(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {

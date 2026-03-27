@@ -2,6 +2,7 @@ package integrations
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -461,6 +462,135 @@ func TestTracearrEnricher_EnrichShows(t *testing.T) {
 		t.Errorf("Expected 2 users for Firefly, got %d", len(items[0].WatchedByUsers))
 	}
 }
+
+// ─── Mock LabelDataProvider ─────────────────────────────────────────────────
+
+type mockLabelDataProvider struct {
+	memberships map[int][]string
+	err         error
+}
+
+func (m *mockLabelDataProvider) GetLabelMemberships() (map[int][]string, error) {
+	return m.memberships, m.err
+}
+
+// ─── LabelEnricher tests ────────────────────────────────────────────────────
+
+func TestLabelEnricher_EnrichSuccess(t *testing.T) {
+	provider := &mockLabelDataProvider{
+		memberships: map[int][]string{
+			16320: {"4K DV", "Keep"},
+			1437:  {"Award Winner"},
+		},
+	}
+	enricher := NewLabelEnricher("test", 55, 42, provider)
+
+	items := []MediaItem{
+		{Title: "Serenity", TMDbID: 16320},
+		{Title: "Firefly", TMDbID: 1437},
+		{Title: "Unrelated", TMDbID: 300},
+	}
+
+	if err := enricher.Enrich(items); err != nil {
+		t.Fatalf("Enrich failed: %v", err)
+	}
+
+	if len(items[0].Labels) != 2 || items[0].Labels[0] != "4K DV" || items[0].Labels[1] != "Keep" {
+		t.Errorf("Expected [4K DV, Keep], got %v", items[0].Labels)
+	}
+	if len(items[1].Labels) != 1 || items[1].Labels[0] != "Award Winner" {
+		t.Errorf("Expected [Award Winner], got %v", items[1].Labels)
+	}
+	if len(items[2].Labels) != 0 {
+		t.Errorf("Expected no labels for unmatched item, got %v", items[2].Labels)
+	}
+}
+
+func TestLabelEnricher_MergesMultipleSources(t *testing.T) {
+	// Simulate first enricher already ran
+	items := []MediaItem{
+		{
+			Title:  "Serenity",
+			TMDbID: 16320,
+			Labels: []string{"4K DV"},
+		},
+	}
+
+	// Second enricher adds overlapping + new labels
+	provider := &mockLabelDataProvider{
+		memberships: map[int][]string{
+			16320: {"4K DV", "Award Winner"},
+		},
+	}
+	enricher := NewLabelEnricher("test2", 55, 99, provider)
+
+	if err := enricher.Enrich(items); err != nil {
+		t.Fatalf("Enrich failed: %v", err)
+	}
+
+	// "4K DV" should be deduplicated
+	if len(items[0].Labels) != 2 {
+		t.Fatalf("Expected 2 labels (deduplicated), got %d: %v", len(items[0].Labels), items[0].Labels)
+	}
+	if items[0].Labels[0] != "4K DV" || items[0].Labels[1] != "Award Winner" {
+		t.Errorf("Expected [4K DV, Award Winner], got %v", items[0].Labels)
+	}
+}
+
+func TestLabelEnricher_SkipsNoTMDbID(t *testing.T) {
+	provider := &mockLabelDataProvider{
+		memberships: map[int][]string{
+			16320: {"Keep"},
+		},
+	}
+	enricher := NewLabelEnricher("test", 55, 42, provider)
+
+	items := []MediaItem{
+		{Title: "Serenity", TMDbID: 0}, // No TMDb ID
+	}
+
+	if err := enricher.Enrich(items); err != nil {
+		t.Fatalf("Enrich failed: %v", err)
+	}
+	if len(items[0].Labels) != 0 {
+		t.Errorf("Expected no labels for item without TMDb ID, got %v", items[0].Labels)
+	}
+}
+
+func TestLabelEnricher_EmptyLabelMap(t *testing.T) {
+	provider := &mockLabelDataProvider{
+		memberships: map[int][]string{},
+	}
+	enricher := NewLabelEnricher("test", 55, 42, provider)
+
+	items := []MediaItem{
+		{Title: "Serenity", TMDbID: 16320},
+	}
+
+	if err := enricher.Enrich(items); err != nil {
+		t.Fatalf("Enrich failed: %v", err)
+	}
+	if len(items[0].Labels) != 0 {
+		t.Errorf("Expected no labels with empty map, got %v", items[0].Labels)
+	}
+}
+
+func TestLabelEnricher_ProviderError(t *testing.T) {
+	provider := &mockLabelDataProvider{
+		err: fmt.Errorf("provider failure"),
+	}
+	enricher := NewLabelEnricher("test", 55, 42, provider)
+
+	items := []MediaItem{
+		{Title: "Serenity", TMDbID: 16320},
+	}
+
+	if err := enricher.Enrich(items); err == nil {
+		t.Fatal("Expected error from provider failure")
+	}
+}
+
+// ─── TracearrEnricher tests (continued) ─────────────────────────────────────
 
 func TestTracearrEnricher_EmptyHistory(t *testing.T) {
 	emptyResp := `{"data": [], "pagination": {"page": 1, "pageSize": 100, "total": 0}}`

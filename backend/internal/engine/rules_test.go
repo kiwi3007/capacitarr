@@ -104,6 +104,7 @@ func TestMatchesRule_AllFieldTypes(t *testing.T) {
 		Year:           1999,
 		Tags:           []string{"anime", "classic"},
 		Collections:    []string{"Sci-Fi Classics", "Serenity Saga"},
+		Labels:         []string{"4K DV", "Keep"},
 		IntegrationID:  1,
 	}
 
@@ -183,6 +184,14 @@ func TestMatchesRule_AllFieldTypes(t *testing.T) {
 		{"collection contains no match", db.CustomRule{Enabled: true, Field: "collection", Operator: "contains", Value: "marvel"}, false},
 		{"collection != match", db.CustomRule{Enabled: true, Field: "collection", Operator: "!=", Value: "marvel"}, true},
 		{"collection !contains match", db.CustomRule{Enabled: true, Field: "collection", Operator: "!contains", Value: "marvel"}, true},
+
+		// Label (string field matching against Labels slice)
+		{"label == match", db.CustomRule{Enabled: true, Field: "label", Operator: "==", Value: "4k dv"}, true},
+		{"label == no match", db.CustomRule{Enabled: true, Field: "label", Operator: "==", Value: "delete"}, false},
+		{"label contains match", db.CustomRule{Enabled: true, Field: "label", Operator: "contains", Value: "4k"}, true},
+		{"label contains no match", db.CustomRule{Enabled: true, Field: "label", Operator: "contains", Value: "delete"}, false},
+		{"label != match", db.CustomRule{Enabled: true, Field: "label", Operator: "!=", Value: "delete"}, true},
+		{"label !contains match", db.CustomRule{Enabled: true, Field: "label", Operator: "!contains", Value: "delete"}, true},
 
 		// Type
 		{"type == match", db.CustomRule{Enabled: true, Field: "type", Operator: "==", Value: "show"}, true},
@@ -708,6 +717,50 @@ func TestMatchesRule_InCollection(t *testing.T) {
 				t.Errorf("incollection == %s = %v, want %v", tc.value, result, tc.matched)
 			}
 		})
+	}
+}
+
+func TestMatchesRule_HasLabel(t *testing.T) {
+	tests := []struct {
+		name    string
+		labels  []string
+		value   string
+		matched bool
+	}{
+		{"true with labels", []string{"4K DV", "Keep"}, "true", true},
+		{"true with no labels", nil, "true", false},
+		{"false with no labels", nil, "false", true},
+		{"false with labels", []string{"4K DV"}, "false", false},
+		{"true with empty slice", []string{}, "true", false},
+		{"false with empty slice", []string{}, "false", true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			item := integrations.MediaItem{Labels: tc.labels}
+			rule := db.CustomRule{Enabled: true, Field: "haslabel", Operator: "==", Value: tc.value}
+			result, _ := matchesRuleWithValue(item, rule)
+			if result != tc.matched {
+				t.Errorf("haslabel == %s = %v, want %v", tc.value, result, tc.matched)
+			}
+		})
+	}
+}
+
+func TestMatchesRule_LabelNoLabels(t *testing.T) {
+	// Item with no labels — positive match fails, negation succeeds
+	item := integrations.MediaItem{Labels: nil}
+
+	posRule := db.CustomRule{Enabled: true, Field: "label", Operator: "contains", Value: "anything"}
+	result, _ := matchesRuleWithValue(item, posRule)
+	if result {
+		t.Error("label contains should be false with no labels")
+	}
+
+	negRule := db.CustomRule{Enabled: true, Field: "label", Operator: "!contains", Value: "anything"}
+	result, _ = matchesRuleWithValue(item, negRule)
+	if !result {
+		t.Error("label !contains should be true with no labels")
 	}
 }
 

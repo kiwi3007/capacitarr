@@ -329,6 +329,8 @@ func appendEnrichmentFieldDefs(fields []FieldDef, p EnrichmentPresence) []FieldD
 			FieldDef{Field: "incollection", Label: "In Collection", Type: "boolean", Operators: []string{"=="}},
 			FieldDef{Field: "watchlist", Label: "On Watchlist", Type: "boolean", Operators: []string{"=="}},
 			FieldDef{Field: "collection", Label: "Collection Name", Type: "string", Operators: []string{"==", "!=", "contains", "!contains"}},
+			FieldDef{Field: "haslabel", Label: "Has Label", Type: "boolean", Operators: []string{"=="}},
+			FieldDef{Field: "label", Label: "Media Server Label", Type: "string", Operators: []string{"==", "!=", "contains", "!contains"}},
 		)
 	}
 	if p.HasSeerr && (p.HasTautulli || p.HasMedia) {

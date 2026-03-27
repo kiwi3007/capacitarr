@@ -440,6 +440,73 @@ func (e *CollectionEnricher) Enrich(items []MediaItem) error {
 // Verify CollectionEnricher satisfies Enricher at compile time.
 var _ Enricher = (*CollectionEnricher)(nil)
 
+// ─── LabelEnricher ──────────────────────────────────────────────────────────
+
+// LabelEnricher enriches *arr items with label/tag data from any
+// LabelDataProvider (Plex Labels, Jellyfin Tags, Emby Tags). Matches items
+// by TMDb ID. Multiple LabelEnrichers can run (one per media server), and
+// labels are merged with deduplication.
+type LabelEnricher struct {
+	name          string
+	priority      int
+	integrationID uint
+	provider      LabelDataProvider
+}
+
+// NewLabelEnricher creates an enricher wrapping a LabelDataProvider.
+// integrationID identifies which integration provides this label data.
+func NewLabelEnricher(name string, priority int, integrationID uint, provider LabelDataProvider) *LabelEnricher {
+	return &LabelEnricher{name: name, priority: priority, integrationID: integrationID, provider: provider}
+}
+
+// Name implements Enricher.
+func (e *LabelEnricher) Name() string { return e.name }
+
+// Priority implements Enricher.
+func (e *LabelEnricher) Priority() int { return e.priority }
+
+// Enrich implements Enricher by fetching label memberships and merging by TMDb ID.
+// Merges labels from this source with any existing labels, deduplicating by name.
+func (e *LabelEnricher) Enrich(items []MediaItem) error {
+	labelMap, err := e.provider.GetLabelMemberships()
+	if err != nil {
+		return err
+	}
+	if len(labelMap) == 0 {
+		return nil
+	}
+	matched := 0
+	for i := range items {
+		item := &items[i]
+		if item.TMDbID == 0 {
+			continue
+		}
+		labels, ok := labelMap[item.TMDbID]
+		if !ok || len(labels) == 0 {
+			continue
+		}
+
+		// Build dedup set from existing labels
+		existing := make(map[string]bool, len(item.Labels))
+		for _, l := range item.Labels {
+			existing[l] = true
+		}
+
+		for _, lbl := range labels {
+			if !existing[lbl] {
+				item.Labels = append(item.Labels, lbl)
+				existing[lbl] = true
+			}
+		}
+		matched++
+	}
+	logEnrichmentResult(e.name, len(items), len(labelMap), matched)
+	return nil
+}
+
+// Verify LabelEnricher satisfies Enricher at compile time.
+var _ Enricher = (*LabelEnricher)(nil)
+
 // ─── CrossReferenceEnricher ─────────────────────────────────────────────────
 
 // CrossReferenceEnricher runs after all other enrichers to reconcile
@@ -508,6 +575,11 @@ func BuildEnrichmentPipeline(registry *IntegrationRegistry) *EnrichmentPipeline 
 	// Collection enrichers (priority 50 — after watch data, before cross-reference)
 	for id, provider := range registry.CollectionDataProviders() {
 		pipeline.Add(NewCollectionEnricher("Collection Data", 50, id, provider))
+	}
+
+	// Label enrichers (priority 55 — after collections, before cross-reference)
+	for id, provider := range registry.LabelDataProviders() {
+		pipeline.Add(NewLabelEnricher("Label Data", 55, id, provider))
 	}
 
 	// Cross-reference enricher always added last (priority 100)

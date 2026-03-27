@@ -22,6 +22,7 @@ type IntegrationRegistry struct {
 	ruleValueFetchers       map[uint]RuleValueFetcher
 	collectionResolvers     map[uint]CollectionResolver
 	collectionDataProviders map[uint]CollectionDataProvider
+	labelDataProviders      map[uint]LabelDataProvider
 }
 
 // NewIntegrationRegistry creates an empty registry.
@@ -37,6 +38,7 @@ func NewIntegrationRegistry() *IntegrationRegistry {
 		ruleValueFetchers:       make(map[uint]RuleValueFetcher),
 		collectionResolvers:     make(map[uint]CollectionResolver),
 		collectionDataProviders: make(map[uint]CollectionDataProvider),
+		labelDataProviders:      make(map[uint]LabelDataProvider),
 	}
 }
 
@@ -96,6 +98,10 @@ func (r *IntegrationRegistry) Register(integrationID uint, client interface{}) {
 	}
 	if c, ok := client.(CollectionDataProvider); ok {
 		r.collectionDataProviders[integrationID] = c
+		registered++
+	}
+	if c, ok := client.(LabelDataProvider); ok {
+		r.labelDataProviders[integrationID] = c
 		registered++
 	}
 
@@ -238,6 +244,17 @@ func (r *IntegrationRegistry) CollectionDataProviders() map[uint]CollectionDataP
 	defer r.mu.RUnlock()
 	out := make(map[uint]CollectionDataProvider, len(r.collectionDataProviders))
 	for k, v := range r.collectionDataProviders {
+		out[k] = v
+	}
+	return out
+}
+
+// LabelDataProviders returns all registered LabelDataProvider implementations with their IDs.
+func (r *IntegrationRegistry) LabelDataProviders() map[uint]LabelDataProvider {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	out := make(map[uint]LabelDataProvider, len(r.labelDataProviders))
+	for k, v := range r.labelDataProviders {
 		out[k] = v
 	}
 	return out

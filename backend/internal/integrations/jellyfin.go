@@ -60,6 +60,7 @@ type jellyfinItem struct {
 	Path         string            `json:"Path"`
 	RunTimeTicks int64             `json:"RunTimeTicks"`
 	ProviderIDs  map[string]string `json:"ProviderIds"` // e.g. {"Tmdb": "12345", "Imdb": "tt1234567"}
+	Tags         []string          `json:"Tags"`        // User-defined tags on items (equivalent to Plex Labels)
 	UserData     struct {
 		PlayCount      int    `json:"PlayCount"`
 		LastPlayedDate string `json:"LastPlayedDate"`
@@ -552,7 +553,113 @@ func (j *JellyfinClient) GetCollectionMemberships() (map[int][]string, error) {
 	return result, nil
 }
 
+// GetLabelMemberships implements LabelDataProvider by fetching all items with
+// their Tags field from Jellyfin. Jellyfin "Tags" on items serve the same
+// purpose as Plex "Labels" — user-defined freeform metadata.
+func (j *JellyfinClient) GetLabelMemberships() (map[int][]string, error) {
+	adminID, err := j.GetAdminUserID()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Jellyfin admin user for label memberships: %w", err)
+	}
+
+	result := make(map[int][]string)
+	startIndex := 0
+	pageSize := 500
+
+	for {
+		endpoint := fmt.Sprintf(
+			"/Users/%s/Items?IncludeItemTypes=Movie,Series&Recursive=true&Fields=Tags,ProviderIds&StartIndex=%d&Limit=%d",
+			adminID, startIndex, pageSize,
+		)
+		body, fetchErr := j.doRequest(endpoint)
+		if fetchErr != nil {
+			return result, fmt.Errorf("failed to fetch Jellyfin items for labels: %w", fetchErr)
+		}
+
+		var resp struct {
+			Items            []jellyfinItem `json:"Items"`
+			TotalRecordCount int            `json:"TotalRecordCount"`
+		}
+		if parseErr := json.Unmarshal(body, &resp); parseErr != nil {
+			return result, fmt.Errorf("failed to parse Jellyfin items for labels: %w", parseErr)
+		}
+
+		for _, item := range resp.Items {
+			if len(item.Tags) == 0 {
+				continue
+			}
+			tmdbID := extractTMDbID(item.ProviderIDs)
+			if tmdbID > 0 {
+				result[tmdbID] = item.Tags
+			}
+		}
+
+		startIndex += len(resp.Items)
+		if startIndex >= resp.TotalRecordCount || len(resp.Items) == 0 {
+			break
+		}
+	}
+
+	return result, nil
+}
+
+// GetLabelNames returns a sorted, deduplicated list of item tag names from
+// Jellyfin. Used by FetchLabelValues() for rule value autocomplete.
+func (j *JellyfinClient) GetLabelNames() ([]string, error) {
+	adminID, err := j.GetAdminUserID()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Jellyfin admin user for label names: %w", err)
+	}
+
+	seen := make(map[string]bool)
+	startIndex := 0
+	pageSize := 500
+
+	for {
+		endpoint := fmt.Sprintf(
+			"/Users/%s/Items?IncludeItemTypes=Movie,Series&Recursive=true&Fields=Tags&StartIndex=%d&Limit=%d",
+			adminID, startIndex, pageSize,
+		)
+		body, fetchErr := j.doRequest(endpoint)
+		if fetchErr != nil {
+			return nil, fmt.Errorf("failed to fetch Jellyfin items for label names: %w", fetchErr)
+		}
+
+		var resp struct {
+			Items []struct {
+				Tags []string `json:"Tags"`
+			} `json:"Items"`
+			TotalRecordCount int `json:"TotalRecordCount"`
+		}
+		if parseErr := json.Unmarshal(body, &resp); parseErr != nil {
+			return nil, fmt.Errorf("failed to parse Jellyfin items for label names: %w", parseErr)
+		}
+
+		for _, item := range resp.Items {
+			for _, tag := range item.Tags {
+				name := strings.TrimSpace(tag)
+				if name != "" {
+					seen[name] = true
+				}
+			}
+		}
+
+		startIndex += len(resp.Items)
+		if startIndex >= resp.TotalRecordCount || len(resp.Items) == 0 {
+			break
+		}
+	}
+
+	names := make([]string, 0, len(seen))
+	for name := range seen {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names, nil
+}
+
 var _ Connectable = (*JellyfinClient)(nil)
 var _ WatchDataProvider = (*JellyfinClient)(nil)
 var _ WatchlistProvider = (*JellyfinClient)(nil)
 var _ CollectionDataProvider = (*JellyfinClient)(nil)
+var _ LabelDataProvider = (*JellyfinClient)(nil)

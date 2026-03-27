@@ -47,10 +47,10 @@ const (
 // MediaDeleter and DiskReporter (i.e., it authoritatively manages content).
 //
 // Sonarr, Radarr, Lidarr, Readarr: Connectable + MediaSource + DiskReporter + MediaDeleter + RuleValueFetcher
-// Plex:                             Connectable + WatchDataProvider + WatchlistProvider + CollectionDataProvider
+// Plex:                             Connectable + WatchDataProvider + WatchlistProvider + CollectionDataProvider + LabelDataProvider
 // Tautulli:                         Connectable (enriches via TautulliEnricher, not WatchDataProvider)
 // Seerr:                            Connectable + RequestProvider
-// Jellyfin, Emby:                   Connectable + WatchDataProvider + WatchlistProvider + CollectionDataProvider
+// Jellyfin, Emby:                   Connectable + WatchDataProvider + WatchlistProvider + CollectionDataProvider + LabelDataProvider
 // Jellystat:                        Connectable (enriches via JellystatEnricher, not WatchDataProvider)
 // Tracearr:                         Connectable (enriches via TracearrEnricher, not WatchDataProvider)
 // ============================================================================
@@ -126,6 +126,22 @@ type CollectionNameFetcher interface {
 	GetCollectionNames() ([]string, error)
 }
 
+// LabelDataProvider is implemented by media server integrations (Plex,
+// Jellyfin, Emby) that can report item-level labels/tags. The returned
+// map keys are TMDb IDs and values are slices of label strings.
+// Plex calls these "Labels"; Jellyfin and Emby call them "Tags".
+// This data feeds the LabelEnricher to bridge media server labels onto *arr items.
+type LabelDataProvider interface {
+	GetLabelMemberships() (map[int][]string, error)
+}
+
+// LabelNameFetcher is implemented by media server integrations that can
+// return a list of label/tag names for use in rule value autocomplete.
+// Satisfied by Plex, Jellyfin, and Emby clients.
+type LabelNameFetcher interface {
+	GetLabelNames() ([]string, error)
+}
+
 // CollectionResolver is implemented by integrations that can resolve which
 // other items share a collection with a given item. When collection deletion
 // is enabled on an integration, the poller calls this to expand a single
@@ -184,6 +200,7 @@ type MediaItem struct {
 	Language           string          `json:"language,omitempty"`       // Original language from *arr
 	Collections        []string        `json:"collections,omitempty"`    // Collection membership (from *arr native + media server enrichment)
 	CollectionSources  map[string]uint `json:"-"`                        // Internal: collection name → source integration ID (not serialized)
+	Labels             []string        `json:"labels,omitempty"`         // Media server labels/tags (from Plex Labels + Jellyfin/Emby Tags)
 	WatchedByUsers     []string        `json:"watchedByUsers,omitempty"` // Users who watched (from Tautulli)
 	WatchedByRequestor bool            `json:"watchedByRequestor"`       // Cross-ref: requestor watched it
 	OnWatchlist        bool            `json:"onWatchlist,omitempty"`    // Item is on a user's watchlist or favorited
