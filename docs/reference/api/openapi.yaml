@@ -59,8 +59,6 @@ tags:
     description: Approval queue management (approve, reject, snooze, clear)
   - name: Deletion Queue
     description: Deletion queue management (list, cancel, snooze, clear, grace period)
-  - name: Libraries
-    description: Library entity CRUD with per-library threshold management
   - name: Analytics
     description: Watch intelligence — dead content, stale content, capacity forecast
   - name: Migration
@@ -1961,116 +1959,6 @@ paths:
           $ref: "#/components/responses/Unauthorized"
 
   # ===========================================================================
-  # Libraries
-  # ===========================================================================
-  /libraries:
-    get:
-      operationId: listLibraries
-      tags: [Libraries]
-      summary: List all libraries
-      responses:
-        "200":
-          description: List of libraries
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Library"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-    post:
-      operationId: createLibrary
-      tags: [Libraries]
-      summary: Create a new library
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/LibraryCreate"
-      responses:
-        "201":
-          description: Library created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Library"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-
-  /libraries/{id}:
-    get:
-      operationId: getLibrary
-      tags: [Libraries]
-      summary: Get a library by ID
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        "200":
-          description: Library details
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Library"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-    put:
-      operationId: updateLibrary
-      tags: [Libraries]
-      summary: Update a library
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/LibraryCreate"
-      responses:
-        "200":
-          description: Library updated
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Library"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-    delete:
-      operationId: deleteLibrary
-      tags: [Libraries]
-      summary: Delete a library
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        "204":
-          description: Library deleted
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-
-  # ===========================================================================
   # Analytics
   # ===========================================================================
   /analytics/dead-content:
@@ -2460,54 +2348,6 @@ components:
           example: 75.0
       required: [thresholdPct, targetPct]
 
-    # ---- Library ----
-    Library:
-      type: object
-      properties:
-        id:
-          type: integer
-          example: 1
-        name:
-          type: string
-          example: "TV Shows"
-        diskGroupId:
-          type: ["integer", "null"]
-          description: FK to DiskGroup (ON DELETE SET NULL)
-          example: 1
-        thresholdPct:
-          type: ["number", "null"]
-          format: double
-          description: Override disk group threshold; null = inherit
-          example: 90.0
-        targetPct:
-          type: ["number", "null"]
-          format: double
-          description: Override disk group target; null = inherit
-          example: 80.0
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-      required: [id, name]
-
-    LibraryCreate:
-      type: object
-      properties:
-        name:
-          type: string
-          example: "Movies"
-        diskGroupId:
-          type: ["integer", "null"]
-        thresholdPct:
-          type: ["number", "null"]
-          format: double
-        targetPct:
-          type: ["number", "null"]
-          format: double
-      required: [name]
-
     # ---- Scoring Factor Weight ----
     ScoringFactorWeight:
       type: object
@@ -2563,10 +2403,6 @@ components:
         enabled:
           type: boolean
           example: true
-        libraryId:
-          type: ["integer", "null"]
-          description: FK to Library (ON DELETE SET NULL)
-          example: 1
         collectionDeletion:
           type: boolean
           description: When enabled, deleting one collection member deletes all

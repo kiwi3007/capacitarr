@@ -83,7 +83,4 @@ func RegisterAPIRoutes(g *echo.Group, reg *services.Registry, appVersion, appCom
 
 	// Analytics routes (watch intelligence: dead content, stale content, forecast)
 	RegisterAnalyticsRoutes(protected, reg)
-
-	// Library management routes (CRUD)
-	RegisterLibraryRoutes(protected, reg)
 }

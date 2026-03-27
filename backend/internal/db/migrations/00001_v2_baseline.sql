@@ -38,18 +38,17 @@ CREATE TABLE disk_groups (
 CREATE UNIQUE INDEX idx_disk_groups_mount_path ON disk_groups(mount_path);
 
 -- ============================================================================
--- Libraries (NEW in 2.0)
--- Groups integrations into a logical library with optional threshold overrides.
--- A library belongs to a disk group. Integrations belong to a library.
--- Threshold hierarchy: integration override → library override → disk group default.
+-- Libraries table (removed in migration 00003)
+-- The CREATE TABLE and indexes below are kept for the baseline record but are
+-- dropped by 00003_remove_library_entity.sql.
 -- ============================================================================
 
 CREATE TABLE libraries (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     name          TEXT    NOT NULL,
     disk_group_id INTEGER REFERENCES disk_groups(id) ON DELETE SET NULL,
-    threshold_pct REAL    DEFAULT NULL,                    -- Override disk group threshold; NULL = inherit
-    target_pct    REAL    DEFAULT NULL,                    -- Override disk group target; NULL = inherit
+    threshold_pct REAL    DEFAULT NULL,
+    target_pct    REAL    DEFAULT NULL,
     created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -66,7 +65,7 @@ CREATE TABLE integration_configs (
     url              TEXT    NOT NULL,
     api_key          TEXT    NOT NULL,                     -- API key or Plex token (plaintext — see security note in models.go)
     enabled          INTEGER NOT NULL DEFAULT 1,
-    library_id       INTEGER REFERENCES libraries(id) ON DELETE SET NULL,  -- Optional library grouping
+    library_id       INTEGER REFERENCES libraries(id) ON DELETE SET NULL,  -- Removed in migration 00003
     media_size_bytes INTEGER NOT NULL DEFAULT 0,
     media_count      INTEGER NOT NULL DEFAULT 0,
     last_sync        DATETIME,
@@ -89,7 +88,8 @@ CREATE TABLE disk_group_integrations (
 );
 
 -- ============================================================================
--- Library History (time-series capacity data)
+-- Library History (time-series capacity data per disk group)
+-- The library_id column is removed in migration 00003.
 -- ============================================================================
 
 CREATE TABLE library_histories (
@@ -99,7 +99,7 @@ CREATE TABLE library_histories (
     used_capacity  INTEGER  NOT NULL,
     resolution     TEXT     NOT NULL,                      -- "raw", "hourly", "daily", "weekly"
     disk_group_id  INTEGER  REFERENCES disk_groups(id) ON DELETE CASCADE,
-    library_id     INTEGER  REFERENCES libraries(id) ON DELETE CASCADE,  -- Optional library-level history
+    library_id     INTEGER  REFERENCES libraries(id) ON DELETE CASCADE,  -- Removed in migration 00003
     created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_library_histories_timestamp ON library_histories(timestamp);
@@ -150,7 +150,7 @@ CREATE TABLE scoring_factor_weights (
 CREATE TABLE custom_rules (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     integration_id INTEGER REFERENCES integration_configs(id) ON DELETE CASCADE,
-    library_id     INTEGER REFERENCES libraries(id) ON DELETE CASCADE,  -- NEW in 2.0: per-library rule scoping
+    library_id     INTEGER REFERENCES libraries(id) ON DELETE CASCADE,  -- Removed in migration 00003
     field          TEXT    NOT NULL,
     operator       TEXT    NOT NULL,
     value          TEXT    NOT NULL,

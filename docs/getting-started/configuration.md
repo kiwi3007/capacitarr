@@ -161,30 +161,6 @@ After importing integrations or notification channels, you will need to re-enter
 
 To back up just your custom rules, select only the **Rules** section during export. This produces a portable JSON file containing all your protection rules that can be imported into another Capacitarr instance. Integration references use human-readable names instead of IDs for cross-instance compatibility.
 
-## Libraries
-
-Libraries group integrations and allow per-library threshold management. They are managed through the **Settings → Libraries** page or the REST API.
-
-| Field | Description |
-|-------|-------------|
-| `name` | Human-readable library name (e.g., "Movies", "TV Shows - Anime") |
-| `diskGroupId` | Optional association with a disk group |
-| `thresholdPct` | Override threshold percentage (overrides disk group default) |
-| `targetPct` | Override target percentage (overrides disk group default) |
-
-## Per-Library Thresholds
-
-Each library can override the default disk group thresholds. This is useful when different libraries have different storage strategies — for example, an Anime library on a 2TB SSD should trigger at 90%, while a Movies library on a 20TB NAS should trigger at 80%.
-
-To configure per-library thresholds:
-
-1. Navigate to **Settings → Libraries**
-2. Select or create a library
-3. Optionally associate the library with a disk group
-4. Set the custom **Threshold %** and **Target %** to override the disk group defaults
-
-When library-level overrides are set, the evaluation loop uses the per-library threshold instead of the disk group default.
-
 ## Approval Queue
 
 When the engine mode is set to **Approval**, items that meet deletion criteria are placed in the `approval_queue` table instead of being deleted automatically. A user must explicitly approve each item before deletion proceeds.

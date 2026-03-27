@@ -109,7 +109,6 @@ All services accept `*gorm.DB` and `*events.EventBus` in their constructor and a
 | | DiskGroupService | Disk group CRUD, threshold management |
 | | EngineService | Trigger runs, get stats |
 | | SettingsService | Update preferences and thresholds |
-| | LibraryService | Library CRUD, per-library threshold management |
 | **Data** | AuditLogService | Create, upsert, dedup audit entries |
 | | BackupService | Database backup, restore, and export/import |
 | | DataService | Data reset operations |

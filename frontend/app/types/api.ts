@@ -288,6 +288,8 @@ export interface LibraryHistoryRow {
   diskGroupId?: number | null;
   createdAt: string;
 }
+// Note: Named "LibraryHistoryRow" for backward compatibility with the
+// library_histories DB table. This tracks disk group capacity history.
 
 export interface MetricsHistoryResponse {
   status: string;

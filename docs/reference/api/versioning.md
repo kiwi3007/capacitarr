@@ -102,7 +102,6 @@ The 2.0.0 release includes the following breaking changes from the pre-release (
 
 | Group | Endpoints | Description |
 |---|---|---|
-| **Libraries** | `GET`, `POST`, `PUT`, `DELETE /api/v1/libraries` | Per-library threshold management |
 | **Analytics** | `GET /api/v1/analytics/dead-content`, `stale-content`, `forecast` | Watch intelligence and capacity forecast |
 | **Factor Weights** | `GET`, `PUT /api/v1/scoring-factor-weights` | Pluggable scoring factor weight registry |
 | **Migration** | `GET /api/v1/migration/status`, `POST /execute`, `/dismiss` | v1→v2 database migration |

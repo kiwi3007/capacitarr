@@ -142,12 +142,11 @@ func (s *RulesService) Update(id uint, rule db.CustomRule) (*db.CustomRule, erro
 
 	// Preserve fields from the existing record that the edit form doesn't send.
 	// The frontend edit form only sends integrationId, field, operator, value,
-	// and effect — it does not send enabled, sortOrder, libraryId, or timestamps.
+	// and effect — it does not send enabled, sortOrder, or timestamps.
 	// Without this, Go's zero values (false for bool, 0 for int) would overwrite
 	// the existing values when db.Save replaces the full record.
 	rule.ID = existing.ID
 	rule.Enabled = existing.Enabled
-	rule.LibraryID = existing.LibraryID
 	rule.CreatedAt = existing.CreatedAt
 	if rule.SortOrder == 0 {
 		rule.SortOrder = existing.SortOrder

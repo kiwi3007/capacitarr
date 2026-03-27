@@ -40,7 +40,6 @@ type Registry struct {
 	Rules                *RulesService
 	Metrics              *MetricsService
 	Version              *VersionService
-	Library              *LibraryService
 	WatchAnalytics       *WatchAnalyticsService
 	Migration            *MigrationService
 }
@@ -85,7 +84,6 @@ func NewRegistry(database *gorm.DB, bus *events.EventBus, cfg *config.Config) *R
 		Data:                 NewDataService(database, bus),
 		Rules:                NewRulesService(database, bus),
 		Metrics:              metricsSvc,
-		Library:              NewLibraryService(database, bus),
 		WatchAnalytics:       NewWatchAnalyticsService(previewSvc),
 		Migration:            NewMigrationService(database, bus, filepath.Dir(cfg.Database)),
 	}

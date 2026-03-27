@@ -1,6 +1,6 @@
 # Capacitarr API
 
-The Capacitarr REST API provides programmatic access to capacity management for media servers such as Sonarr, Radarr, and Plex. Use it to manage disk groups, libraries, integrations, protection rules, and the scoring engine that evaluates media for potential deletion when disk space runs low.
+The Capacitarr REST API provides programmatic access to capacity management for media servers such as Sonarr, Radarr, and Plex. Use it to manage disk groups, integrations, protection rules, and the scoring engine that evaluates media for potential deletion when disk space runs low.
 
 ## Base URL
 
@@ -159,7 +159,6 @@ The SSE endpoint supports reconnection replay via the `Last-Event-ID` header. Se
 |-------|-----------|
 | **Health** | `GET /health`, `GET /version` |
 | **Auth** | `GET /auth/status`, `POST /auth/login`, `PUT /auth/password`, `PUT /auth/username`, `POST /auth/apikey`, `GET /auth/apikey` |
-| **Libraries** | `GET /libraries`, `GET /libraries/:id`, `POST /libraries`, `PUT /libraries/:id`, `DELETE /libraries/:id` |
 | **Disk Groups** | `GET /disk-groups`, `PUT /disk-groups/:id` |
 | **Engine** | `POST /engine/run`, `GET /engine/history` |
 | **Integrations** | `GET /integrations`, `GET /integrations/:id`, `POST /integrations`, `PUT /integrations/:id`, `DELETE /integrations/:id`, `POST /integrations/test`, `POST /integrations/sync` |

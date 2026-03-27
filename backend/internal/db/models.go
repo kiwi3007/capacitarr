@@ -39,18 +39,6 @@ func (g DiskGroup) EffectiveTotalBytes() int64 {
 	return g.TotalBytes
 }
 
-// Library groups integrations into a logical library with optional threshold overrides.
-// Threshold hierarchy: integration override → library override → disk group default.
-type Library struct {
-	ID           uint      `gorm:"primarykey" json:"id"`
-	Name         string    `gorm:"not null" json:"name"`
-	DiskGroupID  *uint     `gorm:"index" json:"diskGroupId,omitempty"` // FK to DiskGroup (ON DELETE SET NULL)
-	ThresholdPct *float64  `json:"thresholdPct,omitempty"`             // Override disk group threshold; nil = inherit
-	TargetPct    *float64  `json:"targetPct,omitempty"`                // Override disk group target; nil = inherit
-	CreatedAt    time.Time `json:"createdAt"`
-	UpdatedAt    time.Time `json:"updatedAt"`
-}
-
 // IntegrationConfig stores a configured service connection.
 //
 // SECURITY NOTE: Integration API keys (e.g. Sonarr, Radarr, Plex tokens) are
@@ -67,9 +55,8 @@ type IntegrationConfig struct {
 	URL                string     `gorm:"not null" json:"url"`
 	APIKey             string     `gorm:"not null" json:"apiKey"` // API key or Plex token
 	Enabled            bool       `gorm:"default:true" json:"enabled"`
-	LibraryID          *uint      `gorm:"index" json:"libraryId,omitempty"` // FK to Library (ON DELETE SET NULL)
-	MediaSizeBytes     int64      `json:"mediaSizeBytes"`                   // Total media file size
-	MediaCount         int        `json:"mediaCount"`                       // Number of media items
+	MediaSizeBytes     int64      `json:"mediaSizeBytes"` // Total media file size
+	MediaCount         int        `json:"mediaCount"`     // Number of media items
 	LastSync           *time.Time `json:"lastSync,omitempty"`
 	LastError          string     `json:"lastError,omitempty"`
 	CollectionDeletion bool       `gorm:"default:false" json:"collectionDeletion"` // When enabled, deleting one collection member deletes all
@@ -85,7 +72,8 @@ type DiskGroupIntegration struct {
 	IntegrationID uint `gorm:"primaryKey" json:"integrationId"`
 }
 
-// LibraryHistory stores historical capacity logs.
+// LibraryHistory stores historical capacity logs per disk group.
+// Named "library_histories" in the database for historical reasons (v2.0 baseline).
 type LibraryHistory struct {
 	ID            uint      `gorm:"primarykey" json:"id"`
 	Timestamp     time.Time `gorm:"index;not null" json:"timestamp"`
@@ -93,7 +81,6 @@ type LibraryHistory struct {
 	UsedCapacity  int64     `gorm:"not null" json:"usedCapacity"`
 	Resolution    string    `gorm:"index;not null" json:"resolution"`   // "raw", "hourly", "daily", "weekly"
 	DiskGroupID   *uint     `gorm:"index" json:"diskGroupId,omitempty"` // FK to DiskGroup (ON DELETE CASCADE)
-	LibraryID     *uint     `gorm:"index" json:"libraryId,omitempty"`   // FK to Library (ON DELETE CASCADE)
 	CreatedAt     time.Time `json:"createdAt"`
 }
 
@@ -136,7 +123,6 @@ func (ScoringFactorWeight) TableName() string {
 type CustomRule struct {
 	ID            uint      `gorm:"primarykey" json:"id"`
 	IntegrationID *uint     `gorm:"index" json:"integrationId"` // FK to IntegrationConfig; required — every rule must belong to an integration
-	LibraryID     *uint     `gorm:"index" json:"libraryId"`     // FK to Library; nil = applies to all libraries in the integration
 	Field         string    `gorm:"not null" json:"field"`      // e.g. "quality", "tag", "rating"
 	Operator      string    `gorm:"not null" json:"operator"`   // e.g. "==", "contains", ">"
 	Value         string    `gorm:"not null" json:"value"`      // e.g. "4K", "anime", "7.5"
