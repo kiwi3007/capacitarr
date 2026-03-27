@@ -208,7 +208,7 @@ When transitive npm dependencies have known vulnerabilities but the upstream par
 - Shipped Docker images contain patched dependency versions, not just silenced findings
 - The security posture is not weakened by `allow_failure` or audit `--ignore` flags
 
-**Current overrides** (as of 2026-03-26):
+**Current overrides** (as of 2026-03-27):
 
 | Package | Override | Advisory | Severity | Upstream Dep |
 |---------|----------|----------|----------|--------------|
@@ -224,6 +224,9 @@ When transitive npm dependencies have known vulnerabilities but the upstream par
 | `unhead` | `>=2.1.11` | [GHSA-g5xx-pwrp-g3fv](https://github.com/advisories/GHSA-g5xx-pwrp-g3fv) | Moderate | `nuxt > @unhead/vue` |
 | `h3` | `>=1.15.9` | SSE injection and path traversal CVEs | High | `nuxt > nitropack > h3` |
 | `yaml` | `>=2.8.3` | [GHSA-48c2-rrv3-qjmp](https://github.com/advisories/GHSA-48c2-rrv3-qjmp) | Moderate | `@nuxt/eslint > @nuxt/devtools-kit > vite > yaml` |
+| `srvx` | `>=0.11.13` | Path traversal CVE | High | `nuxt > nitropack > srvx` |
+| `brace-expansion` | `>=5.0.5` | [GHSA-3pf6-xm7p-cjhr](https://github.com/advisories/GHSA-3pf6-xm7p-cjhr) | High | `nuxt > nitropack > @vercel/nft > glob > brace-expansion` |
+| `node-forge` | `>=1.4.0` | [CVE-2026-33891](https://www.cve.org/CVERecord?id=CVE-2026-33891), [CVE-2026-33894](https://www.cve.org/CVERecord?id=CVE-2026-33894), [CVE-2026-33895](https://www.cve.org/CVERecord?id=CVE-2026-33895), [CVE-2026-33896](https://www.cve.org/CVERecord?id=CVE-2026-33896) | High | `nuxt > @nuxt/cli > listhen > node-forge` |
 
 **When to remove overrides:** After upstream packages release versions that natively depend on the patched versions, `pnpm audit` will pass without overrides. At that point, remove the override entries and verify. Overrides that remain after upstream updates are harmless (they match or are lower than the naturally resolved version) but should be cleaned up for hygiene.
 
