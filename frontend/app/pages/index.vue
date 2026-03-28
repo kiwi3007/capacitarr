@@ -153,7 +153,13 @@
             </span>
           </div>
           <ClientOnly>
-            <VChart :option="sparklineEChartsOption" :autoresize="true" class="h-[120px] w-full" />
+            <!-- Explicit height wrapper: vue-echarts v8 sets height:100% on the
+                 <x-vue-echarts> custom element via adoptedStyleSheets, which
+                 overrides Tailwind utility classes. The wrapper provides the
+                 fixed reference height that 100% resolves against. -->
+            <div class="h-[120px] w-full">
+              <VChart :option="sparklineEChartsOption" :autoresize="true" class="h-full w-full" />
+            </div>
           </ClientOnly>
         </div>
 
@@ -186,11 +192,13 @@
               {{ $t('dashboard.maxDuration', { max: maxDurationMs + 'ms' }) }}
             </div>
             <ClientOnly>
-              <VChart
-                :option="durationSparklineEChartsOption"
-                :autoresize="true"
-                class="h-[70px] w-full"
-              />
+              <div class="h-[70px] w-full">
+                <VChart
+                  :option="durationSparklineEChartsOption"
+                  :autoresize="true"
+                  class="h-full w-full"
+                />
+              </div>
             </ClientOnly>
           </div>
 
