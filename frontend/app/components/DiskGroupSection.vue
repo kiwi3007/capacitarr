@@ -19,14 +19,23 @@
             <h3 class="font-semibold text-sm truncate" :title="group.mountPath">
               {{ group.mountPath }}
             </h3>
-            <UiBadge
-              v-for="integ in group.integrations || []"
-              :key="integ.id"
-              variant="outline"
-              class="text-[10px] px-1.5 py-0"
-            >
-              {{ integ.type }}
-            </UiBadge>
+            <UiTooltipProvider v-for="integ in group.integrations || []" :key="integ.id">
+              <UiTooltip>
+                <UiTooltipTrigger as-child>
+                  <NuxtLink to="/settings?tab=integrations">
+                    <UiBadge
+                      variant="outline"
+                      class="text-[10px] px-1.5 py-0 cursor-pointer hover:bg-accent transition-colors"
+                    >
+                      {{ integ.name }}
+                    </UiBadge>
+                  </NuxtLink>
+                </UiTooltipTrigger>
+                <UiTooltipContent side="bottom" :side-offset="4" class="text-xs">
+                  {{ integ.type }}
+                </UiTooltipContent>
+              </UiTooltip>
+            </UiTooltipProvider>
             <UiBadge :variant="modeBadgeVariant" class="text-[10px] px-1.5 py-0">
               {{ modeBadgeLabel }}
             </UiBadge>

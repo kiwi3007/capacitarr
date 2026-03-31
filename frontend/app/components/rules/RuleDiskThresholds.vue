@@ -44,14 +44,23 @@
                   <span class="text-sm font-medium text-foreground truncate" :title="dg.mountPath">
                     {{ dg.mountPath }}
                   </span>
-                  <UiBadge
-                    v-for="integ in dg.integrations || []"
-                    :key="integ.id"
-                    variant="outline"
-                    class="text-[10px] px-1.5 py-0"
-                  >
-                    {{ integ.type }}
-                  </UiBadge>
+                  <UiTooltipProvider v-for="integ in dg.integrations || []" :key="integ.id">
+                    <UiTooltip>
+                      <UiTooltipTrigger as-child>
+                        <NuxtLink to="/settings?tab=integrations">
+                          <UiBadge
+                            variant="outline"
+                            class="text-[10px] px-1.5 py-0 cursor-pointer hover:bg-accent transition-colors"
+                          >
+                            {{ integ.name }}
+                          </UiBadge>
+                        </NuxtLink>
+                      </UiTooltipTrigger>
+                      <UiTooltipContent side="bottom" :side-offset="4" class="text-xs">
+                        {{ integ.type }}
+                      </UiTooltipContent>
+                    </UiTooltip>
+                  </UiTooltipProvider>
                 </div>
                 <div class="text-xs text-muted-foreground flex items-center gap-1">
                   {{ formatBytes(dg.usedBytes) }} /
