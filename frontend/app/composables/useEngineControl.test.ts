@@ -52,11 +52,20 @@ function mockUseEventStream() {
   };
 }
 
+// useI18n mock — returns key as-is for test assertions
+function mockUseI18n() {
+  return {
+    t: (key: string) => key,
+    locale: ref('en'),
+  };
+}
+
 // Stub global Nuxt auto-imports
 vi.stubGlobal('useState', mockUseState);
 vi.stubGlobal('useApi', mockUseApi);
 vi.stubGlobal('useToast', mockUseToast);
 vi.stubGlobal('useEventStream', mockUseEventStream);
+vi.stubGlobal('useI18n', mockUseI18n);
 
 // Vue reactivity primitives are already available via import, but the composable
 // uses them as auto-imports. Stub them globally so the module resolution works.
@@ -118,11 +127,11 @@ describe('useEngineControl', () => {
   // -------------------------------------------------------------------------
   describe('modeLabel', () => {
     it.each([
-      ['auto', 'Auto'],
-      ['approval', 'Approval'],
-      ['dry-run', 'Dry-Run'],
-      ['unknown', 'Dry-Run'],
-      ['', 'Dry-Run'],
+      ['auto', 'mode.auto'],
+      ['approval', 'mode.approval'],
+      ['dry-run', 'mode.dryRun'],
+      ['unknown', 'mode.dryRun'],
+      ['', 'mode.dryRun'],
     ])('modeLabel("%s") → "%s"', (mode, expected) => {
       const ctrl = useEngineControl();
       expect(ctrl.modeLabel(mode)).toBe(expected);
@@ -203,7 +212,7 @@ describe('useEngineControl', () => {
       }
 
       expect(addToastSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Engine run complete'),
+        expect.stringContaining('engine.runCompleteToast'),
         'success',
       );
     });
@@ -245,7 +254,7 @@ describe('useEngineControl', () => {
         method: 'PUT',
         body: { ...existingPrefs, defaultDiskGroupMode: 'auto' },
       });
-      expect(addToastSpy).toHaveBeenCalledWith('Default disk group mode set to Auto', 'success');
+      expect(addToastSpy).toHaveBeenCalledWith('engine.modeChangedToast', 'success');
       expect(ctrl.changingMode.value).toBe(false);
     });
 
@@ -277,7 +286,7 @@ describe('useEngineControl', () => {
       const ctrl = useEngineControl();
       await ctrl.setMode('auto');
 
-      expect(addToastSpy).toHaveBeenCalledWith('Failed to change default disk group mode', 'error');
+      expect(addToastSpy).toHaveBeenCalledWith('engine.modeChangeFailedToast', 'error');
       expect(ctrl.changingMode.value).toBe(false);
     });
   });
@@ -334,7 +343,7 @@ describe('useEngineControl', () => {
       await ctrl.triggerRunNow();
 
       expect(mockApiFetch).toHaveBeenCalledWith('/api/v1/engine/run', { method: 'POST' });
-      expect(addToastSpy).toHaveBeenCalledWith('Engine run triggered', 'info');
+      expect(addToastSpy).toHaveBeenCalledWith('engine.runTriggeredToast', 'info');
       // runNowLoading stays true on success — the SSE engine_complete handler
       // resets it when the engine finishes. Only resets to false on error.
       expect(ctrl.runNowLoading.value).toBe(true);
@@ -346,7 +355,7 @@ describe('useEngineControl', () => {
       const ctrl = useEngineControl();
       await ctrl.triggerRunNow();
 
-      expect(addToastSpy).toHaveBeenCalledWith('Failed to trigger engine run', 'error');
+      expect(addToastSpy).toHaveBeenCalledWith('engine.runFailedToast', 'error');
       expect(ctrl.runNowLoading.value).toBe(false);
     });
   });

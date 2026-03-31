@@ -5,6 +5,7 @@ import type { SunsetQueueItem } from '~/types/api';
 let _sseRegistered = false;
 
 export function useSunsetQueue() {
+  const { t } = useI18n();
   const api = useApi();
   const { on } = useEventStream();
   const { addToast } = useToast();
@@ -32,10 +33,10 @@ export function useSunsetQueue() {
 
     try {
       await api(`/api/v1/sunset-queue/${id}`, { method: 'DELETE' });
-      addToast('Sunset item cancelled', 'success');
+      addToast(t('sunset.cancelledToast'), 'success');
     } catch {
       sunsetItems.value = prev;
-      addToast('Failed to cancel sunset item', 'error');
+      addToast(t('sunset.cancelFailedToast'), 'error');
     }
   }
 
@@ -55,9 +56,9 @@ export function useSunsetQueue() {
           daysRemaining: result.daysRemaining,
         });
       }
-      addToast(`Rescheduled — leaving in ${result.daysRemaining} days`, 'success');
+      addToast(t('sunset.rescheduledToast', { days: result.daysRemaining }), 'success');
     } catch {
-      addToast('Failed to reschedule sunset item', 'error');
+      addToast(t('sunset.rescheduleFailedToast'), 'error');
     }
   }
 
@@ -67,9 +68,9 @@ export function useSunsetQueue() {
         cancelled: number;
       };
       sunsetItems.value = [];
-      addToast(`Cleared ${result.cancelled} sunset item(s)`, 'success');
+      addToast(t('sunset.clearedToast', { count: result.cancelled }), 'success');
     } catch {
-      addToast('Failed to clear sunset queue', 'error');
+      addToast(t('sunset.clearFailedToast'), 'error');
     }
   }
 

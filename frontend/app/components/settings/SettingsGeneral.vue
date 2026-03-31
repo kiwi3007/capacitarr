@@ -199,186 +199,258 @@
       <UiCardTitle>{{ $t('settings.sunsetSettings') }}</UiCardTitle>
       <UiCardDescription>{{ $t('settings.sunsetSettingsDesc') }}</UiCardDescription>
     </UiCardHeader>
-    <UiCardContent class="space-y-5">
-      <!-- Sunset Days -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-        <div class="space-y-1.5">
-          <div class="flex items-center gap-2">
-            <UiLabel>{{ $t('settings.sunsetDays') }}</UiLabel>
-            <SaveIndicator :status="saveStatus.sunsetDays ?? 'idle'" />
+    <UiCardContent class="space-y-6">
+      <!-- ── Countdown & Labels ───────────────────────────────────── -->
+      <div class="space-y-4">
+        <h4 class="text-sm font-medium text-foreground">
+          {{ $t('settings.sunsetCountdownGroup') }}
+        </h4>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div class="space-y-1.5">
+            <div class="flex items-center gap-2">
+              <UiLabel>{{ $t('settings.sunsetDays') }}</UiLabel>
+              <SaveIndicator :status="saveStatus.sunsetDays ?? 'idle'" />
+            </div>
+            <p class="text-xs text-muted-foreground mb-1">
+              {{ $t('settings.sunsetDaysDesc') }}
+            </p>
+            <UiSelect
+              :model-value="String(sunsetDays)"
+              @update:model-value="
+                (v: AcceptableValue) => {
+                  sunsetDays = Number(v);
+                  patchPreference('sunsetDays', 'sunset', 'sunsetDays', Number(v));
+                }
+              "
+            >
+              <UiSelectTrigger class="w-full">
+                <UiSelectValue placeholder="Select duration" />
+              </UiSelectTrigger>
+              <UiSelectContent>
+                <UiSelectItem value="7">7 days</UiSelectItem>
+                <UiSelectItem value="14">14 days</UiSelectItem>
+                <UiSelectItem value="21">21 days</UiSelectItem>
+                <UiSelectItem value="30">30 days</UiSelectItem>
+                <UiSelectItem value="45">45 days</UiSelectItem>
+                <UiSelectItem value="60">60 days</UiSelectItem>
+                <UiSelectItem value="90">90 days</UiSelectItem>
+              </UiSelectContent>
+            </UiSelect>
           </div>
-          <p class="text-xs text-muted-foreground mb-1">
-            {{ $t('settings.sunsetDaysDesc') }}
-          </p>
-          <UiSelect
-            :model-value="String(sunsetDays)"
-            @update:model-value="
-              (v: AcceptableValue) => {
-                sunsetDays = Number(v);
-                patchPreference('sunsetDays', 'sunset', 'sunsetDays', Number(v));
-              }
-            "
-          >
-            <UiSelectTrigger class="w-full">
-              <UiSelectValue placeholder="Select duration" />
-            </UiSelectTrigger>
-            <UiSelectContent>
-              <UiSelectItem value="7">7 days</UiSelectItem>
-              <UiSelectItem value="14">14 days</UiSelectItem>
-              <UiSelectItem value="21">21 days</UiSelectItem>
-              <UiSelectItem value="30">30 days</UiSelectItem>
-              <UiSelectItem value="45">45 days</UiSelectItem>
-              <UiSelectItem value="60">60 days</UiSelectItem>
-              <UiSelectItem value="90">90 days</UiSelectItem>
-            </UiSelectContent>
-          </UiSelect>
         </div>
-
-        <!-- Sunset Label -->
-        <div class="space-y-1.5">
-          <div class="flex items-center gap-2">
-            <UiLabel>{{ $t('settings.sunsetLabel') }}</UiLabel>
-            <SaveIndicator :status="saveStatus.sunsetLabel ?? 'idle'" />
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div class="space-y-1.5">
+            <div class="flex items-center gap-2">
+              <UiLabel>{{ $t('settings.sunsetLabel') }}</UiLabel>
+              <SaveIndicator :status="saveStatus.sunsetLabel ?? 'idle'" />
+            </div>
+            <p class="text-xs text-muted-foreground mb-1">
+              {{ $t('settings.sunsetLabelDesc') }}
+            </p>
+            <UiInput
+              :model-value="sunsetLabel"
+              placeholder="capacitarr-sunset"
+              @update:model-value="
+                (v: string | number) => {
+                  sunsetLabel = String(v);
+                }
+              "
+              @change="patchPreference('sunsetLabel', 'sunset', 'sunsetLabel', sunsetLabel)"
+            />
           </div>
-          <p class="text-xs text-muted-foreground mb-1">
-            {{ $t('settings.sunsetLabelDesc') }}
-          </p>
-          <UiInput
-            :model-value="sunsetLabel"
-            placeholder="capacitarr-sunset"
-            @update:model-value="
-              (v: string | number) => {
-                sunsetLabel = String(v);
-              }
-            "
-            @change="patchPreference('sunsetLabel', 'sunset', 'sunsetLabel', sunsetLabel)"
-          />
+          <div class="space-y-1.5">
+            <div class="flex items-center gap-2">
+              <UiLabel>{{ $t('settings.savedLabel') }}</UiLabel>
+              <SaveIndicator :status="saveStatus.savedLabel ?? 'idle'" />
+            </div>
+            <p class="text-xs text-muted-foreground mb-1">
+              {{ $t('settings.savedLabelDesc') }}
+            </p>
+            <UiInput
+              :model-value="savedLabel"
+              placeholder="capacitarr-saved"
+              @update:model-value="
+                (v: string | number) => {
+                  savedLabel = String(v);
+                }
+              "
+              @change="patchPreference('savedLabel', 'sunset', 'savedLabel', savedLabel)"
+            />
+          </div>
         </div>
       </div>
 
-      <!-- Poster Overlay Toggle + Restore -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-        <div class="space-y-1.5">
-          <div class="flex items-center gap-2">
-            <UiLabel>{{ $t('settings.posterOverlay') }}</UiLabel>
+      <UiSeparator />
+
+      <!-- ── Poster Overlays ──────────────────────────────────────── -->
+      <div class="space-y-4">
+        <div class="space-y-1">
+          <h4 class="text-sm font-medium text-foreground">
+            {{ $t('settings.posterOverlayGroup') }}
+          </h4>
+          <p class="text-xs text-muted-foreground">
+            {{ $t('settings.posterOverlayGroupDesc') }}
+          </p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div class="space-y-1.5">
+            <div class="flex items-center gap-2">
+              <UiLabel>{{ $t('settings.posterOverlay') }}</UiLabel>
+              <SaveIndicator :status="saveStatus.posterOverlay ?? 'idle'" />
+            </div>
+            <p class="text-xs text-muted-foreground mb-1">
+              {{ $t('settings.posterOverlayDesc') }}
+            </p>
+            <UiSwitch
+              :model-value="posterOverlayEnabled"
+              @update:model-value="
+                (v: boolean) => {
+                  posterOverlayEnabled = v;
+                  patchPreference('posterOverlay', 'sunset', 'posterOverlayEnabled', v);
+                }
+              "
+            />
           </div>
-          <p class="text-xs text-muted-foreground mb-1">
-            {{ $t('settings.posterOverlayDesc') }}
-          </p>
-          <UiSwitch
-            :model-value="posterOverlayEnabled"
-            @update:model-value="
-              (v: boolean) => {
-                posterOverlayEnabled = v;
-                patchPreference('posterOverlay', 'sunset', 'posterOverlayEnabled', v);
-              }
-            "
-          />
-        </div>
-        <div class="space-y-1.5">
-          <UiLabel>{{ $t('settings.refreshPosters') }}</UiLabel>
-          <p class="text-xs text-muted-foreground mb-1">
-            {{ $t('settings.refreshPostersDesc') }}
-          </p>
-          <UiButton variant="outline" size="sm" @click="refreshAllPosters">
-            {{ $t('settings.refreshPosters') }}
-          </UiButton>
-        </div>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-        <div class="space-y-1.5">
-          <UiLabel>{{ $t('settings.restoreAllPosters') }}</UiLabel>
-          <p class="text-xs text-muted-foreground mb-1">
-            {{ $t('settings.restoreAllPostersDesc') }}
-          </p>
-          <UiButton variant="destructive" size="sm" @click="restoreAllPosters">
-            {{ $t('settings.restoreAllPosters') }}
-          </UiButton>
+          <div class="space-y-3">
+            <div class="space-y-1.5">
+              <UiLabel>{{ $t('settings.refreshPosters') }}</UiLabel>
+              <p class="text-xs text-muted-foreground mb-1">
+                {{ $t('settings.refreshPostersDesc') }}
+              </p>
+              <UiButton
+                variant="outline"
+                size="sm"
+                :disabled="refreshingPosters"
+                @click="refreshAllPosters"
+              >
+                <LoaderCircleIcon
+                  v-if="refreshingPosters"
+                  class="w-3.5 h-3.5 mr-1.5 animate-spin"
+                />
+                {{ $t('settings.refreshPosters') }}
+              </UiButton>
+            </div>
+            <div class="space-y-1.5">
+              <UiLabel>{{ $t('settings.restoreAllPosters') }}</UiLabel>
+              <p class="text-xs text-muted-foreground mb-1">
+                {{ $t('settings.restoreAllPostersDesc') }}
+              </p>
+              <UiButton
+                variant="destructive"
+                size="sm"
+                :disabled="restoringPosters"
+                @click="confirmRestorePosters"
+              >
+                <LoaderCircleIcon v-if="restoringPosters" class="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                {{ $t('settings.restoreAllPosters') }}
+              </UiButton>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Daily Score Check (Saved by Popular Demand) -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-        <div class="space-y-1.5">
-          <div class="flex items-center gap-2">
-            <UiLabel>Daily Score Check</UiLabel>
-            <SaveIndicator :status="saveStatus.sunsetRescore ?? 'idle'" />
-          </div>
-          <p class="text-xs text-muted-foreground mb-1">
-            Re-score sunset items daily; save items whose score dropped significantly
+      <UiSeparator />
+
+      <!-- ── Score Protection ─────────────────────────────────────── -->
+      <div class="space-y-4">
+        <div class="space-y-1">
+          <h4 class="text-sm font-medium text-foreground">
+            {{ $t('settings.scoreProtectionGroup') }}
+          </h4>
+          <p class="text-xs text-muted-foreground">
+            {{ $t('settings.scoreProtectionGroupDesc') }}
           </p>
-          <UiSwitch
-            :model-value="sunsetRescoreEnabled"
-            @update:model-value="
-              (v: boolean) => {
-                sunsetRescoreEnabled = v;
-                patchPreference('sunsetRescore', 'sunset', 'sunsetRescoreEnabled', v);
-              }
-            "
-          />
         </div>
-        <div class="space-y-1.5">
-          <div class="flex items-center gap-2">
-            <UiLabel>Saved Duration</UiLabel>
-            <SaveIndicator :status="saveStatus.savedDuration ?? 'idle'" />
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div class="space-y-1.5">
+            <div class="flex items-center gap-2">
+              <UiLabel>{{ $t('settings.dailyScoreCheck') }}</UiLabel>
+              <SaveIndicator :status="saveStatus.sunsetRescore ?? 'idle'" />
+            </div>
+            <p class="text-xs text-muted-foreground mb-1">
+              {{ $t('settings.dailyScoreCheckDesc') }}
+            </p>
+            <UiSwitch
+              :model-value="sunsetRescoreEnabled"
+              @update:model-value="
+                (v: boolean) => {
+                  sunsetRescoreEnabled = v;
+                  patchPreference('sunsetRescore', 'sunset', 'sunsetRescoreEnabled', v);
+                }
+              "
+            />
           </div>
-          <p class="text-xs text-muted-foreground mb-1">
-            How long the "Saved" marker persists before auto-cleanup
-          </p>
-          <UiSelect
-            :model-value="String(savedDurationDays)"
-            @update:model-value="
-              (v: AcceptableValue) => {
-                savedDurationDays = Number(v);
-                patchPreference('savedDuration', 'sunset', 'savedDurationDays', Number(v));
-              }
-            "
-          >
-            <UiSelectTrigger class="w-full">
-              <UiSelectValue placeholder="Select duration" />
-            </UiSelectTrigger>
-            <UiSelectContent>
-              <UiSelectItem value="3">3 days</UiSelectItem>
-              <UiSelectItem value="5">5 days</UiSelectItem>
-              <UiSelectItem value="7">7 days</UiSelectItem>
-              <UiSelectItem value="14">14 days</UiSelectItem>
-              <UiSelectItem value="30">30 days</UiSelectItem>
-            </UiSelectContent>
-          </UiSelect>
-        </div>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-        <div class="space-y-1.5">
-          <div class="flex items-center gap-2">
-            <UiLabel>Saved Label</UiLabel>
-            <SaveIndicator :status="saveStatus.savedLabel ?? 'idle'" />
+          <div class="space-y-1.5">
+            <div class="flex items-center gap-2">
+              <UiLabel>{{ $t('settings.savedDuration') }}</UiLabel>
+              <SaveIndicator :status="saveStatus.savedDuration ?? 'idle'" />
+            </div>
+            <p class="text-xs text-muted-foreground mb-1">
+              {{ $t('settings.savedDurationDesc') }}
+            </p>
+            <UiSelect
+              :model-value="String(savedDurationDays)"
+              @update:model-value="
+                (v: AcceptableValue) => {
+                  savedDurationDays = Number(v);
+                  patchPreference('savedDuration', 'sunset', 'savedDurationDays', Number(v));
+                }
+              "
+            >
+              <UiSelectTrigger class="w-full">
+                <UiSelectValue :placeholder="$t('settings.selectDuration')" />
+              </UiSelectTrigger>
+              <UiSelectContent>
+                <UiSelectItem value="3">{{ $t('settings.nDays', { n: 3 }) }}</UiSelectItem>
+                <UiSelectItem value="5">{{ $t('settings.nDays', { n: 5 }) }}</UiSelectItem>
+                <UiSelectItem value="7">{{ $t('settings.nDays', { n: 7 }) }}</UiSelectItem>
+                <UiSelectItem value="14">{{ $t('settings.nDays', { n: 14 }) }}</UiSelectItem>
+                <UiSelectItem value="30">{{ $t('settings.nDays', { n: 30 }) }}</UiSelectItem>
+              </UiSelectContent>
+            </UiSelect>
           </div>
-          <p class="text-xs text-muted-foreground mb-1">
-            Tag applied to media server items that were saved by activity
-          </p>
-          <UiInput
-            :model-value="savedLabel"
-            placeholder="capacitarr-saved"
-            @update:model-value="
-              (v: string | number) => {
-                savedLabel = String(v);
-              }
-            "
-            @change="patchPreference('savedLabel', 'sunset', 'savedLabel', savedLabel)"
-          />
         </div>
       </div>
     </UiCardContent>
   </UiCard>
+
+  <!-- Restore All Posters Confirmation Dialog -->
+  <UiDialog
+    :open="showRestorePostersDialog"
+    @update:open="
+      (val: boolean) => {
+        showRestorePostersDialog = val;
+      }
+    "
+  >
+    <UiDialogContent class="max-w-md">
+      <UiDialogHeader>
+        <UiDialogTitle>{{ $t('settings.restoreAllPostersDialogTitle') }}</UiDialogTitle>
+        <UiDialogDescription>
+          {{ $t('settings.restoreAllPostersConfirm') }}
+        </UiDialogDescription>
+      </UiDialogHeader>
+      <UiDialogFooter class="flex gap-2 justify-end">
+        <UiButton variant="outline" @click="showRestorePostersDialog = false">
+          {{ $t('common.cancel') }}
+        </UiButton>
+        <UiButton variant="destructive" :disabled="restoringPosters" @click="restoreAllPosters">
+          <LoaderCircleIcon v-if="restoringPosters" class="w-3.5 h-3.5 mr-1.5 animate-spin" />
+          {{ $t('settings.restoreAllPosters') }}
+        </UiButton>
+      </UiDialogFooter>
+    </UiDialogContent>
+  </UiDialog>
 </template>
 
 <script setup lang="ts">
-import { MonitorIcon, CogIcon } from 'lucide-vue-next';
+import { MonitorIcon, CogIcon, LoaderCircleIcon } from 'lucide-vue-next';
 import type { PreferenceSet } from '~/types/api';
 import { TIEBREAKER_SIZE_DESC } from '~/constants';
 import type { AcceptableValue } from 'reka-ui';
 import SaveIndicator from '~/components/settings/SaveIndicator.vue';
 
+const { t } = useI18n();
 const api = useApi();
 const {
   timezone: displayTimezone,
@@ -411,6 +483,11 @@ const sunsetDays = ref(30);
 const sunsetRescoreEnabled = ref(true);
 const savedDurationDays = ref(7);
 const savedLabel = ref('capacitarr-saved');
+
+// Poster action loading states
+const refreshingPosters = ref(false);
+const restoringPosters = ref(false);
+const showRestorePostersDialog = ref(false);
 
 // Watch tiebreaker — immediate save on select change
 watch(engineTiebreakerMethod, (newVal, oldVal) => {
@@ -453,24 +530,35 @@ async function fetchPreferences() {
 }
 
 async function refreshAllPosters() {
+  refreshingPosters.value = true;
   try {
     const result = (await api('/api/v1/sunset-queue/refresh-posters', {
       method: 'POST',
     })) as { updated: number };
-    addToast(`Refreshed ${result.updated} poster(s)`, 'success');
+    addToast(t('settings.refreshPostersSuccess', { count: result.updated }), 'success');
   } catch {
-    addToast('Failed to refresh posters', 'error');
+    addToast(t('settings.refreshPostersError'), 'error');
+  } finally {
+    refreshingPosters.value = false;
   }
 }
 
+function confirmRestorePosters() {
+  showRestorePostersDialog.value = true;
+}
+
 async function restoreAllPosters() {
+  restoringPosters.value = true;
   try {
     const result = (await api('/api/v1/sunset-queue/restore-posters', {
       method: 'POST',
     })) as { restored: number };
-    addToast(`Restored ${result.restored} poster(s)`, 'success');
+    addToast(t('settings.restorePostersSuccess', { count: result.restored }), 'success');
   } catch {
-    addToast('Failed to restore posters', 'error');
+    addToast(t('settings.restorePostersError'), 'error');
+  } finally {
+    restoringPosters.value = false;
+    showRestorePostersDialog.value = false;
   }
 }
 
