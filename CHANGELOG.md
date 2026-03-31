@@ -10,6 +10,7 @@
 - *(integrations)* Handle Tautulli numeric rating_key fields ([2273684](https://github.com/Ghent/capacitarr/commit/227368405b6148477694bf292fbd492e2c7d9a82))
 - *(integrations)* Preserve HTTP method across redirects in *arr API calls ([2cefd57](https://github.com/Ghent/capacitarr/commit/2cefd57c24f9aed76a5dac90d1d0385ca17d6e60))
 - *(integrations)* Handle Tautulli fractional watched_status field ([01047ac](https://github.com/Ghent/capacitarr/commit/01047ac6dbc3ed3cbe6e52a27de98f7fb1b70dd3))
+- *(integrations)* Add flexInt64 type for loose-typed API numeric fields ([87a90c8](https://github.com/Ghent/capacitarr/commit/87a90c8bca9f34e222652e69613cb435a31d3758))
 ## [3.0.0-beta] - 2026-03-31
 
 ### 🚀 Features
