@@ -1,5 +1,9 @@
 ## [3.0.1-beta] - 2026-03-31
 
+### 🚀 Features
+
+- *(ci)* Add rolling :alpha and :beta Docker image tags for pre-release channels ([a1ff4c9](https://github.com/Ghent/capacitarr/commit/a1ff4c95700cfb0f58d91345fecbf4d72b7c2849))
+
 ### 🐛 Bug Fixes
 
 - *(deps)* Add pnpm overrides for site/ transitive dependency vulnerabilities ([d1d95e7](https://github.com/Ghent/capacitarr/commit/d1d95e7107040e5116a6d1f38ea875e274afec3e))
