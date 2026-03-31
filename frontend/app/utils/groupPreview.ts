@@ -74,17 +74,25 @@ export function groupEvaluatedItems(items: EvaluatedItem[]): PreviewGroup[] {
   // must keep them. Detecting this is simple: if no season items exist in the
   // input, every show group is a standalone actionable entry.
   const hasSeasons = items.some((i) => i.item?.type === 'season');
-  return groups
-    .filter((g) => !(hasSeasons && g.entry.item?.type === 'show' && g.seasons.length === 0))
-    .map((g) => {
-      if (g.seasons.length <= 1) return g;
-      // Sort seasons by title with numeric awareness so
-      // "Season 2" sorts before "Season 10"
-      return {
-        ...g,
-        seasons: [...g.seasons].sort((a, b) =>
-          (a.item?.title ?? '').localeCompare(b.item?.title ?? '', undefined, { numeric: true }),
-        ),
-      };
-    });
+  const filtered = groups.filter(
+    (g) => !(hasSeasons && g.entry.item?.type === 'show' && g.seasons.length === 0),
+  );
+
+  // Re-sort by score descending. The two-pass grouping above destroys the
+  // backend's score order because Pass 1 collects all shows before Pass 2
+  // appends movies. Without this sort, items appear grouped by type instead
+  // of by deletion priority.
+  filtered.sort((a, b) => (b.entry.score ?? 0) - (a.entry.score ?? 0));
+
+  return filtered.map((g) => {
+    if (g.seasons.length <= 1) return g;
+    // Sort seasons by title with numeric awareness so
+    // "Season 2" sorts before "Season 10"
+    return {
+      ...g,
+      seasons: [...g.seasons].sort((a, b) =>
+        (a.item?.title ?? '').localeCompare(b.item?.title ?? '', undefined, { numeric: true }),
+      ),
+    };
+  });
 }
