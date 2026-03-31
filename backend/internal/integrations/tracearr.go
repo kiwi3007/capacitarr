@@ -74,12 +74,12 @@ type tracearrHistoryResponse struct {
 // public /history endpoint. Each item is a play session — multiple
 // sessions for the same media title must be aggregated by the enricher.
 type TracearrHistoryItem struct {
-	MediaTitle string `json:"mediaTitle"`
-	ShowTitle  string `json:"showTitle"`  // For episodes: the series name (grandparent_title)
-	MediaType  string `json:"mediaType"`  // "movie", "episode", "track", "live"
-	Year       int    `json:"year"`       // Release year
-	Watched    bool   `json:"watched"`    // Whether session completed
-	DurationMs int64  `json:"durationMs"` // Watch duration in ms
+	MediaTitle string    `json:"mediaTitle"`
+	ShowTitle  string    `json:"showTitle"`  // For episodes: the series name (grandparent_title)
+	MediaType  string    `json:"mediaType"`  // "movie", "episode", "track", "live"
+	Year       flexInt64 `json:"year"`       // Release year
+	Watched    bool      `json:"watched"`    // Whether session completed
+	DurationMs flexInt64 `json:"durationMs"` // Watch duration in ms
 	User       struct {
 		Username string `json:"username"`
 	} `json:"user"`

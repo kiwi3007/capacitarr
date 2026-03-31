@@ -31,6 +31,47 @@ func (f *flexString) UnmarshalJSON(data []byte) error {
 	return fmt.Errorf("flexString: cannot unmarshal %s", strconv.Quote(string(data)))
 }
 
+// flexInt64 is an int64 type that can unmarshal from JSON integers, floats,
+// and string-encoded numbers. APIs with loose typing (Tautulli/Python,
+// Jellystat/Node.js, Tracearr) may return numeric fields as any of these
+// representations; this type handles all of them by truncating to int64.
+type flexInt64 int64
+
+func (f *flexInt64) UnmarshalJSON(data []byte) error {
+	// Use json.Number to handle integers, floats, and scientific notation.
+	var n json.Number
+	if err := json.Unmarshal(data, &n); err == nil {
+		// Try integer first (the common case).
+		if i, err := n.Int64(); err == nil {
+			*f = flexInt64(i)
+			return nil
+		}
+		// Fall back to float (e.g., 1703520000.0) and truncate.
+		if fl, err := n.Float64(); err == nil {
+			*f = flexInt64(int64(fl))
+			return nil
+		}
+	}
+
+	// Fall back to string-encoded number (e.g., "1703520000").
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		i, err := strconv.ParseInt(s, 10, 64)
+		if err == nil {
+			*f = flexInt64(i)
+			return nil
+		}
+		// Try parsing as float string (e.g., "1703520000.0").
+		fl, err := strconv.ParseFloat(s, 64)
+		if err == nil {
+			*f = flexInt64(int64(fl))
+			return nil
+		}
+	}
+
+	return fmt.Errorf("flexInt64: cannot unmarshal %s", strconv.Quote(string(data)))
+}
+
 // TautulliClient provides access to the Tautulli API for enriched watch history.
 // Tautulli supplements Plex's binary watched/unwatched signal with detailed
 // play counts, last played timestamps, watch durations, and per-user history.
@@ -82,10 +123,10 @@ type tautulliHistoryData struct {
 
 // tautulliHistoryEntry represents one play record from Tautulli history.
 type tautulliHistoryEntry struct {
-	Date                 int64      `json:"date"`           // Unix epoch of play start
-	Duration             int64      `json:"duration"`       // Duration of item (seconds)
-	PlayDuration         int64      `json:"play_duration"`  // Actual time played (seconds)
-	PausedCounter        int64      `json:"paused_counter"` // Time spent paused (seconds)
+	Date                 flexInt64  `json:"date"`           // Unix epoch of play start
+	Duration             flexInt64  `json:"duration"`       // Duration of item (seconds)
+	PlayDuration         flexInt64  `json:"play_duration"`  // Actual time played (seconds)
+	PausedCounter        flexInt64  `json:"paused_counter"` // Time spent paused (seconds)
 	WatchedStatus        float64    `json:"watched_status"` // 0=unwatched, 0.5=partial, 1=watched
 	User                 string     `json:"user"`           // Username
 	RatingKey            flexString `json:"rating_key"`     // Plex rating key
@@ -147,7 +188,7 @@ func (t *TautulliClient) GetWatchHistory(ratingKey string) (*TautulliWatchData, 
 
 	for _, entry := range history.Data {
 		// Track total actual watch duration
-		data.TotalDuration += entry.PlayDuration
+		data.TotalDuration += int64(entry.PlayDuration)
 
 		// Track unique users
 		if entry.User != "" {
@@ -155,8 +196,8 @@ func (t *TautulliClient) GetWatchHistory(ratingKey string) (*TautulliWatchData, 
 		}
 
 		// Track most recent play
-		if entry.Date > latestPlay {
-			latestPlay = entry.Date
+		if int64(entry.Date) > latestPlay {
+			latestPlay = int64(entry.Date)
 		}
 	}
 
@@ -202,14 +243,14 @@ func (t *TautulliClient) GetShowWatchHistory(ratingKey string) (*TautulliWatchDa
 	var latestPlay int64
 
 	for _, entry := range history.Data {
-		data.TotalDuration += entry.PlayDuration
+		data.TotalDuration += int64(entry.PlayDuration)
 
 		if entry.User != "" {
 			userSet[entry.User] = true
 		}
 
-		if entry.Date > latestPlay {
-			latestPlay = entry.Date
+		if int64(entry.Date) > latestPlay {
+			latestPlay = int64(entry.Date)
 		}
 	}
 

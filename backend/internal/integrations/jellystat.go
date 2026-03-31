@@ -57,13 +57,13 @@ func (j *JellystatClient) TestConnection() error {
 // jellystatLibraryItem represents a single item from Jellystat's library items endpoint.
 // Jellystat tracks Jellyfin Item IDs, so TMDb resolution requires a lookup map.
 type jellystatLibraryItem struct {
-	ID             string `json:"Id"`               // Jellyfin Item ID
-	Name           string `json:"Name"`             // Title
-	TotalPlayCount int    `json:"total_play_count"` // Total plays across all users
-	TotalPlayed    string `json:"total_played"`     // Last played timestamp (ISO 8601)
+	ID             string    `json:"Id"`               // Jellyfin Item ID
+	Name           string    `json:"Name"`             // Title
+	TotalPlayCount flexInt64 `json:"total_play_count"` // Total plays across all users
+	TotalPlayed    string    `json:"total_played"`     // Last played timestamp (ISO 8601)
 	Users          []struct {
-		UserName  string `json:"UserName"`
-		PlayCount int    `json:"play_count"`
+		UserName  string    `json:"UserName"`
+		PlayCount flexInt64 `json:"play_count"`
 	} `json:"Users"`
 }
 
@@ -98,12 +98,12 @@ func (j *JellystatClient) GetBulkWatchStats(jellyfinIDToTMDbID map[string]int) (
 			continue
 		}
 
-		if item.TotalPlayCount == 0 {
+		if int(item.TotalPlayCount) == 0 {
 			continue // No watch data to enrich with
 		}
 
 		wd := &WatchData{
-			PlayCount: item.TotalPlayCount,
+			PlayCount: int(item.TotalPlayCount),
 		}
 
 		// Parse last played timestamp
@@ -115,7 +115,7 @@ func (j *JellystatClient) GetBulkWatchStats(jellyfinIDToTMDbID map[string]int) (
 
 		// Collect unique users who watched this item
 		for _, u := range item.Users {
-			if u.PlayCount > 0 && u.UserName != "" {
+			if int(u.PlayCount) > 0 && u.UserName != "" {
 				wd.Users = append(wd.Users, u.UserName)
 			}
 		}
