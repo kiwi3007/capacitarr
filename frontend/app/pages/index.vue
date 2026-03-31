@@ -334,8 +334,8 @@
     <!-- Snoozed Items (visible in all modes when snoozed items exist) -->
     <SnoozedItemsCard />
 
-    <!-- Sunset Queue (visible when sunset items exist) -->
-    <SunsetQueueCard />
+    <!-- Sunset Queue (visible when any disk group is in sunset mode or sunset items exist) -->
+    <SunsetQueueCard :has-sunset-mode="diskGroups.some((g) => g.mode === 'sunset')" />
 
     <!-- Approval Queue (only in approval mode) -->
     <ApprovalQueueCard v-if="approvalQueueVisible" />

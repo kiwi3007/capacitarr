@@ -145,12 +145,14 @@ const queueStatusLabel = computed(() => {
   }
 });
 
+const { t } = useI18n();
+
 /** Human-readable sunset countdown for the poster banner */
 const sunsetLabel = computed(() => {
   if (props.sunsetDaysRemaining == null) return '';
-  if (props.sunsetDaysRemaining <= 0) return 'Last day';
-  if (props.sunsetDaysRemaining === 1) return 'Leaving tomorrow';
-  return `Leaving in ${props.sunsetDaysRemaining} days`;
+  if (props.sunsetDaysRemaining <= 0) return t('sunset.lastDay');
+  if (props.sunsetDaysRemaining === 1) return t('sunset.leavingTomorrow');
+  return t('sunset.leavingInDays', { days: props.sunsetDaysRemaining });
 });
 </script>
 

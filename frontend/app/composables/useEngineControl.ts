@@ -55,16 +55,18 @@ export function useEngineControl() {
   const isRunning = computed(() => workerStats.value?.isRunning === true);
   const pollIntervalSeconds = computed(() => workerStats.value?.pollIntervalSeconds || 300);
 
+  const { t } = useI18n();
+
   function modeLabel(mode: string): string {
     switch (mode) {
       case MODE_AUTO:
-        return 'Auto';
+        return t('mode.auto');
       case MODE_APPROVAL:
-        return 'Approval';
+        return t('mode.approval');
       case MODE_SUNSET:
-        return 'Sunset';
+        return t('mode.sunset');
       default:
-        return 'Dry-Run';
+        return t('mode.dryRun');
     }
   }
 
@@ -126,7 +128,10 @@ export function useEngineControl() {
         const evaluated = event.evaluated ?? 0;
         const candidates = event.candidates ?? 0;
         addToast(
-          `Engine run complete — evaluated ${evaluated.toLocaleString()} items, ${candidates.toLocaleString()} candidates`,
+          t('engine.runCompleteToast', {
+            evaluated: evaluated.toLocaleString(),
+            candidates: candidates.toLocaleString(),
+          }),
           'success',
         );
       }
@@ -144,7 +149,7 @@ export function useEngineControl() {
       }
       prevIsRunning.value = false;
       runNowLoading.value = false;
-      addToast(`Engine error: ${event.error || 'Unknown error'}`, 'error');
+      addToast(t('engine.errorToast', { error: event.error || 'Unknown error' }), 'error');
     });
 
     on('engine_mode_changed', (data: unknown) => {
@@ -213,9 +218,9 @@ export function useEngineControl() {
       });
       // Refresh stats to pick up the new mode immediately
       await fetchStats();
-      addToast(`Default disk group mode set to ${modeLabel(mode)}`, 'success');
+      addToast(t('engine.modeChangedToast', { mode: modeLabel(mode) }), 'success');
     } catch {
-      addToast('Failed to change default disk group mode', 'error');
+      addToast(t('engine.modeChangeFailedToast'), 'error');
     } finally {
       changingMode.value = false;
     }
@@ -225,7 +230,7 @@ export function useEngineControl() {
     runNowLoading.value = true;
     try {
       await api('/api/v1/engine/run', { method: 'POST' });
-      addToast('Engine run triggered', 'info');
+      addToast(t('engine.runTriggeredToast'), 'info');
       // No delay or fetchStats needed — SSE engine_start/engine_complete events
       // will update the UI reactively.
       //
@@ -245,7 +250,7 @@ export function useEngineControl() {
         );
       }
     } catch {
-      addToast('Failed to trigger engine run', 'error');
+      addToast(t('engine.runFailedToast'), 'error');
       runNowLoading.value = false;
     }
   }

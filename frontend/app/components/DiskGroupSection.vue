@@ -139,17 +139,19 @@ const modeBadgeVariant = computed(() => {
   }
 });
 
+const { t } = useI18n();
+
 /** Mode badge label — human-readable mode name. */
 const modeBadgeLabel = computed(() => {
   switch (props.group.mode) {
     case MODE_AUTO:
-      return 'Auto';
+      return t('mode.auto');
     case MODE_APPROVAL:
-      return 'Approval';
+      return t('mode.approval');
     case MODE_SUNSET:
-      return 'Sunset';
+      return t('mode.sunset');
     default:
-      return 'Dry-Run';
+      return t('mode.dryRun');
   }
 });
 

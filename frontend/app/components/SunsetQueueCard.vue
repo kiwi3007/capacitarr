@@ -9,6 +9,10 @@ import {
 import { formatBytes } from '~/utils/format';
 import type { SunsetQueueItem } from '~/types/api';
 
+const { hasSunsetMode = false } = defineProps<{
+  hasSunsetMode?: boolean;
+}>();
+
 const { t } = useI18n();
 const { listItem } = useMotionPresets();
 const { viewMode } = useDisplayPrefs();
@@ -36,6 +40,11 @@ function formatDaysRemaining(days: number): string {
   return t('sunset.leavingInDays', { days });
 }
 
+function confirmClearAll() {
+  if (!window.confirm(t('sunset.clearAllConfirm'))) return;
+  clearAll();
+}
+
 /** Reschedule an item by adding days to its current deletion date. */
 function rescheduleByDays(itemId: number, currentDate: string, addDays: number) {
   const date = new Date(currentDate + 'T00:00:00Z');
@@ -47,7 +56,7 @@ function rescheduleByDays(itemId: number, currentDate: string, addDays: number) 
 
 <template>
   <UiCard
-    v-if="sunsetItems.length > 0"
+    v-if="sunsetItems.length > 0 || hasSunsetMode"
     v-motion
     :initial="{ opacity: 0, y: 12 }"
     :enter="{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24 } }"
@@ -74,7 +83,8 @@ function rescheduleByDays(itemId: number, currentDate: string, addDays: number) 
             size="sm"
             class="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
             :title="t('sunset.clearAll')"
-            @click="clearAll()"
+            :aria-label="t('sunset.clearAll')"
+            @click="confirmClearAll()"
           >
             <Trash2Icon class="h-3.5 w-3.5 mr-1" />
             {{ t('sunset.clearAll') }}
@@ -83,6 +93,17 @@ function rescheduleByDays(itemId: number, currentDate: string, addDays: number) 
       </div>
     </UiCardHeader>
     <UiCardContent>
+      <!-- Empty state -->
+      <div
+        v-if="sunsetItems.length === 0"
+        class="rounded-lg border-2 border-dashed border-border p-8 text-center"
+      >
+        <HourglassIcon class="w-8 h-8 text-muted-foreground/40 mx-auto mb-3" />
+        <p class="text-sm text-muted-foreground">
+          {{ t('deletion.emptyInSunset') }}
+        </p>
+      </div>
+
       <!-- Grid / poster view -->
       <div
         v-if="viewMode === 'grid'"
@@ -135,7 +156,7 @@ function rescheduleByDays(itemId: number, currentDate: string, addDays: number) 
                 class="text-xs text-emerald-600 dark:text-emerald-400"
               >
                 <ShieldCheckIcon class="inline h-3 w-3 mr-0.5 -mt-px" />
-                Saved by popular demand
+                {{ t('sunset.savedByPopularDemand') }}
                 <span v-if="item.savedReason" class="ml-1 text-muted-foreground">
                   · {{ item.savedReason }}
                 </span>
@@ -153,7 +174,7 @@ function rescheduleByDays(itemId: number, currentDate: string, addDays: number) 
               v-if="item.status === 'saved'"
               class="shrink-0 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
             >
-              Saved
+              {{ t('sunset.saved') }}
             </UiBadge>
 
             <!-- Actions (only for pending items) -->
@@ -226,7 +247,7 @@ function rescheduleByDays(itemId: number, currentDate: string, addDays: number) 
     :size-bytes="selectedItem.sizeBytes"
     :action="
       selectedItem.status === 'saved'
-        ? 'Saved by popular demand'
+        ? t('sunset.savedByPopularDemand')
         : formatDaysRemaining(selectedItem.daysRemaining)
     "
     :created-at="selectedItem.createdAt"

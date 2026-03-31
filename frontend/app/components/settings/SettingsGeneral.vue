@@ -261,6 +261,7 @@
         <div class="space-y-1.5">
           <div class="flex items-center gap-2">
             <UiLabel>{{ $t('settings.posterOverlay') }}</UiLabel>
+            <SaveIndicator :status="saveStatus.posterOverlay ?? 'idle'" />
           </div>
           <p class="text-xs text-muted-foreground mb-1">
             {{ $t('settings.posterOverlayDesc') }}
@@ -280,7 +281,13 @@
           <p class="text-xs text-muted-foreground mb-1">
             {{ $t('settings.refreshPostersDesc') }}
           </p>
-          <UiButton variant="outline" size="sm" @click="refreshAllPosters">
+          <UiButton
+            variant="outline"
+            size="sm"
+            :disabled="refreshingPosters"
+            @click="refreshAllPosters"
+          >
+            <LoaderCircleIcon v-if="refreshingPosters" class="w-3.5 h-3.5 mr-1.5 animate-spin" />
             {{ $t('settings.refreshPosters') }}
           </UiButton>
         </div>
@@ -291,7 +298,13 @@
           <p class="text-xs text-muted-foreground mb-1">
             {{ $t('settings.restoreAllPostersDesc') }}
           </p>
-          <UiButton variant="destructive" size="sm" @click="restoreAllPosters">
+          <UiButton
+            variant="destructive"
+            size="sm"
+            :disabled="restoringPosters"
+            @click="confirmRestorePosters"
+          >
+            <LoaderCircleIcon v-if="restoringPosters" class="w-3.5 h-3.5 mr-1.5 animate-spin" />
             {{ $t('settings.restoreAllPosters') }}
           </UiButton>
         </div>
@@ -301,11 +314,11 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div class="space-y-1.5">
           <div class="flex items-center gap-2">
-            <UiLabel>Daily Score Check</UiLabel>
+            <UiLabel>{{ $t('settings.dailyScoreCheck') }}</UiLabel>
             <SaveIndicator :status="saveStatus.sunsetRescore ?? 'idle'" />
           </div>
           <p class="text-xs text-muted-foreground mb-1">
-            Re-score sunset items daily; save items whose score dropped significantly
+            {{ $t('settings.dailyScoreCheckDesc') }}
           </p>
           <UiSwitch
             :model-value="sunsetRescoreEnabled"
@@ -319,11 +332,11 @@
         </div>
         <div class="space-y-1.5">
           <div class="flex items-center gap-2">
-            <UiLabel>Saved Duration</UiLabel>
+            <UiLabel>{{ $t('settings.savedDuration') }}</UiLabel>
             <SaveIndicator :status="saveStatus.savedDuration ?? 'idle'" />
           </div>
           <p class="text-xs text-muted-foreground mb-1">
-            How long the "Saved" marker persists before auto-cleanup
+            {{ $t('settings.savedDurationDesc') }}
           </p>
           <UiSelect
             :model-value="String(savedDurationDays)"
@@ -335,14 +348,14 @@
             "
           >
             <UiSelectTrigger class="w-full">
-              <UiSelectValue placeholder="Select duration" />
+              <UiSelectValue :placeholder="$t('settings.selectDuration')" />
             </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem value="3">3 days</UiSelectItem>
-              <UiSelectItem value="5">5 days</UiSelectItem>
-              <UiSelectItem value="7">7 days</UiSelectItem>
-              <UiSelectItem value="14">14 days</UiSelectItem>
-              <UiSelectItem value="30">30 days</UiSelectItem>
+              <UiSelectItem value="3">{{ $t('settings.nDays', { n: 3 }) }}</UiSelectItem>
+              <UiSelectItem value="5">{{ $t('settings.nDays', { n: 5 }) }}</UiSelectItem>
+              <UiSelectItem value="7">{{ $t('settings.nDays', { n: 7 }) }}</UiSelectItem>
+              <UiSelectItem value="14">{{ $t('settings.nDays', { n: 14 }) }}</UiSelectItem>
+              <UiSelectItem value="30">{{ $t('settings.nDays', { n: 30 }) }}</UiSelectItem>
             </UiSelectContent>
           </UiSelect>
         </div>
@@ -350,11 +363,11 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div class="space-y-1.5">
           <div class="flex items-center gap-2">
-            <UiLabel>Saved Label</UiLabel>
+            <UiLabel>{{ $t('settings.savedLabel') }}</UiLabel>
             <SaveIndicator :status="saveStatus.savedLabel ?? 'idle'" />
           </div>
           <p class="text-xs text-muted-foreground mb-1">
-            Tag applied to media server items that were saved by activity
+            {{ $t('settings.savedLabelDesc') }}
           </p>
           <UiInput
             :model-value="savedLabel"
@@ -373,12 +386,13 @@
 </template>
 
 <script setup lang="ts">
-import { MonitorIcon, CogIcon } from 'lucide-vue-next';
+import { MonitorIcon, CogIcon, LoaderCircleIcon } from 'lucide-vue-next';
 import type { PreferenceSet } from '~/types/api';
 import { TIEBREAKER_SIZE_DESC } from '~/constants';
 import type { AcceptableValue } from 'reka-ui';
 import SaveIndicator from '~/components/settings/SaveIndicator.vue';
 
+const { t } = useI18n();
 const api = useApi();
 const {
   timezone: displayTimezone,
@@ -411,6 +425,10 @@ const sunsetDays = ref(30);
 const sunsetRescoreEnabled = ref(true);
 const savedDurationDays = ref(7);
 const savedLabel = ref('capacitarr-saved');
+
+// Poster action loading states
+const refreshingPosters = ref(false);
+const restoringPosters = ref(false);
 
 // Watch tiebreaker — immediate save on select change
 watch(engineTiebreakerMethod, (newVal, oldVal) => {
@@ -453,24 +471,35 @@ async function fetchPreferences() {
 }
 
 async function refreshAllPosters() {
+  refreshingPosters.value = true;
   try {
     const result = (await api('/api/v1/sunset-queue/refresh-posters', {
       method: 'POST',
     })) as { updated: number };
-    addToast(`Refreshed ${result.updated} poster(s)`, 'success');
+    addToast(t('settings.refreshPostersSuccess', { count: result.updated }), 'success');
   } catch {
-    addToast('Failed to refresh posters', 'error');
+    addToast(t('settings.refreshPostersError'), 'error');
+  } finally {
+    refreshingPosters.value = false;
   }
 }
 
+function confirmRestorePosters() {
+  if (!window.confirm(t('settings.restoreAllPostersConfirm'))) return;
+  restoreAllPosters();
+}
+
 async function restoreAllPosters() {
+  restoringPosters.value = true;
   try {
     const result = (await api('/api/v1/sunset-queue/restore-posters', {
       method: 'POST',
     })) as { restored: number };
-    addToast(`Restored ${result.restored} poster(s)`, 'success');
+    addToast(t('settings.restorePostersSuccess', { count: result.restored }), 'success');
   } catch {
-    addToast('Failed to restore posters', 'error');
+    addToast(t('settings.restorePostersError'), 'error');
+  } finally {
+    restoringPosters.value = false;
   }
 }
 
