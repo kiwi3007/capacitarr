@@ -42,9 +42,17 @@ crane copy "${SOURCE}:${VERSION}" "${TARGET}:${VERSION}"
 echo "Copying ${SOURCE}:latest → ${TARGET}:latest"
 crane copy "${SOURCE}:latest" "${TARGET}:latest"
 
-# Stable releases (no hyphen = no pre-release suffix): copy floating tags
+# Pre-release channels and stable floating tags
 case "$VERSION" in
-    *-*) ;; # pre-release, skip floating tags
+    *-alpha*)
+        echo "Copying ${SOURCE}:alpha → ${TARGET}:alpha"
+        crane copy "${SOURCE}:alpha" "${TARGET}:alpha"
+        ;;
+    *-beta*)
+        echo "Copying ${SOURCE}:beta → ${TARGET}:beta"
+        crane copy "${SOURCE}:beta" "${TARGET}:beta"
+        ;;
+    *-*) ;; # other pre-releases (rc, etc.), no floating tag
     *)
         MAJOR="${VERSION%%.*}"
         MINOR="${VERSION%.*}"

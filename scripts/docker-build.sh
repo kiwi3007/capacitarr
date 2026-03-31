@@ -31,9 +31,11 @@ BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 # Every release: exact version + :latest
 TAGS="--tag ${IMAGE}:${VERSION} --tag ${IMAGE}:latest"
 
-# Stable releases (no hyphen = no pre-release suffix): add floating tags
+# Pre-release channels and stable floating tags
 case "$VERSION" in
-    *-*) ;; # pre-release, skip floating tags
+    *-alpha*) TAGS="$TAGS --tag ${IMAGE}:alpha" ;;
+    *-beta*)  TAGS="$TAGS --tag ${IMAGE}:beta" ;;
+    *-*)      ;; # other pre-releases (rc, etc.), no floating tag
     *)
         MAJOR="${VERSION%%.*}"
         MINOR="${VERSION%.*}"

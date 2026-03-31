@@ -175,23 +175,29 @@ The build job pushes to GHCR. A mirror job then uses [`crane copy`](https://gith
 
 ### Docker Image Tags
 
-Every release (including pre-releases) is tagged as `:latest` along with the full version. Stable releases additionally get `:stable`, `:MAJOR`, and `:MINOR` convenience tags:
+Every release is tagged with the exact version and `:latest`. Pre-release channels (alpha, beta) get a rolling channel tag. Stable releases get `:stable`, `:MAJOR`, and `:MINOR` convenience tags:
 
 | Tag | Applied When | Meaning |
 |-----|-------------|---------|
-| `:1.0.0` or `:1.0.0-rc.1` | Every release | Immutable, pinned to exact version |
+| `:1.0.0` or `:1.0.0-beta` | Every release | Immutable, pinned to exact version |
 | `:latest` | Every release | Most recently built image, may include pre-releases |
-| `:stable` | Stable releases only | Most recent non-pre-release version (recommended) |
+| `:alpha` | Alpha releases (`*-alpha*`) | Rolling tag — always the latest alpha build |
+| `:beta` | Beta releases (`*-beta*`) | Rolling tag — always the latest beta build |
+| `:stable` | Stable releases only | Most recent non-pre-release version (recommended for production) |
 | `:1`, `:1.0` | Stable releases only | Floating within stable release line |
+
+Other pre-release suffixes (e.g., `-rc.1`) receive only the exact version and `:latest` tags.
 
 All tags are available on both registries:
 
 ```
 # GHCR (recommended)
 docker pull ghcr.io/ghent/capacitarr:stable
+docker pull ghcr.io/ghent/capacitarr:beta
 
 # Docker Hub (no registry prefix needed)
 docker pull ghentstarshadow/capacitarr:stable
+docker pull ghentstarshadow/capacitarr:beta
 ```
 
 ## Prerequisites
