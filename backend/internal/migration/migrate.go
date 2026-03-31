@@ -309,7 +309,7 @@ func importPreferences(ctx context.Context, srcDB *sql.DB, dest *gorm.DB) error 
 	// deletions against potentially incorrect settings.
 	// Note: scoring factor weights are stored in the separate scoring_factor_weights
 	// table in 2.0, so they are NOT included here — they are persisted below.
-	if err := dest.Model(&db.PreferenceSet{}).Where("id = 1").Updates(map[string]interface{}{
+	if err := dest.Model(&db.PreferenceSet{}).Where("id = 1").Updates(map[string]any{
 		"log_level":                source.LogLevel,
 		"audit_log_retention_days": source.AuditLogRetentionDays,
 		"poll_interval_seconds":    source.PollIntervalSeconds,

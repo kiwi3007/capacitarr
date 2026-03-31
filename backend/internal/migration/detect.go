@@ -56,7 +56,7 @@ func DetectLegacySchema(dbPath string) bool {
 	}
 	defer func() {
 		if closeErr := sqlDB.Close(); closeErr != nil {
-			slog.Error("Failed to close detection database", "error", closeErr)
+			slog.Error("Failed to close detection database", "component", "migration", "error", closeErr)
 		}
 	}()
 

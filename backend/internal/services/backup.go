@@ -147,17 +147,20 @@ type DiskGroupExport struct {
 
 // NotificationExport contains non-sensitive notification channel fields.
 type NotificationExport struct {
-	Name               string `json:"name"`
-	Type               string `json:"type"`
-	Enabled            bool   `json:"enabled"`
-	AppriseTags        string `json:"appriseTags,omitempty"`
-	OnCycleDigest      bool   `json:"onCycleDigest"`
-	OnError            bool   `json:"onError"`
-	OnModeChanged      bool   `json:"onModeChanged"`
-	OnServerStarted    bool   `json:"onServerStarted"`
-	OnThresholdBreach  bool   `json:"onThresholdBreach"`
-	OnUpdateAvailable  bool   `json:"onUpdateAvailable"`
-	OnApprovalActivity bool   `json:"onApprovalActivity"`
+	Name                string `json:"name"`
+	Type                string `json:"type"`
+	Enabled             bool   `json:"enabled"`
+	AppriseTags         string `json:"appriseTags,omitempty"`
+	OnCycleDigest       bool   `json:"onCycleDigest"`
+	OnDryRunDigest      bool   `json:"onDryRunDigest"`
+	OnError             bool   `json:"onError"`
+	OnModeChanged       bool   `json:"onModeChanged"`
+	OnServerStarted     bool   `json:"onServerStarted"`
+	OnThresholdBreach   bool   `json:"onThresholdBreach"`
+	OnUpdateAvailable   bool   `json:"onUpdateAvailable"`
+	OnApprovalActivity  bool   `json:"onApprovalActivity"`
+	OnIntegrationStatus bool   `json:"onIntegrationStatus"`
+	OnSunsetActivity    bool   `json:"onSunsetActivity"`
 }
 
 // =============================================================================
@@ -315,17 +318,20 @@ func (s *BackupService) Export(sections ExportSections, appVersion string) (*Set
 		exported := make([]NotificationExport, 0, len(channels))
 		for _, nc := range channels {
 			exported = append(exported, NotificationExport{
-				Name:               nc.Name,
-				Type:               nc.Type,
-				Enabled:            nc.Enabled,
-				AppriseTags:        nc.AppriseTags,
-				OnCycleDigest:      nc.OnCycleDigest,
-				OnError:            nc.OnError,
-				OnModeChanged:      nc.OnModeChanged,
-				OnServerStarted:    nc.OnServerStarted,
-				OnThresholdBreach:  nc.OnThresholdBreach,
-				OnUpdateAvailable:  nc.OnUpdateAvailable,
-				OnApprovalActivity: nc.OnApprovalActivity,
+				Name:                nc.Name,
+				Type:                nc.Type,
+				Enabled:             nc.Enabled,
+				AppriseTags:         nc.AppriseTags,
+				OnCycleDigest:       nc.OnCycleDigest,
+				OnDryRunDigest:      nc.OnDryRunDigest,
+				OnError:             nc.OnError,
+				OnModeChanged:       nc.OnModeChanged,
+				OnServerStarted:     nc.OnServerStarted,
+				OnThresholdBreach:   nc.OnThresholdBreach,
+				OnUpdateAvailable:   nc.OnUpdateAvailable,
+				OnApprovalActivity:  nc.OnApprovalActivity,
+				OnIntegrationStatus: nc.OnIntegrationStatus,
+				OnSunsetActivity:    nc.OnSunsetActivity,
 			})
 		}
 		envelope.NotificationChannels = exported
@@ -845,12 +851,15 @@ func (s *BackupService) importNotificationChannels(tx *gorm.DB, channels []Notif
 			existing.Enabled = ne.Enabled
 			existing.AppriseTags = ne.AppriseTags
 			existing.OnCycleDigest = ne.OnCycleDigest
+			existing.OnDryRunDigest = ne.OnDryRunDigest
 			existing.OnError = ne.OnError
 			existing.OnModeChanged = ne.OnModeChanged
 			existing.OnServerStarted = ne.OnServerStarted
 			existing.OnThresholdBreach = ne.OnThresholdBreach
 			existing.OnUpdateAvailable = ne.OnUpdateAvailable
 			existing.OnApprovalActivity = ne.OnApprovalActivity
+			existing.OnIntegrationStatus = ne.OnIntegrationStatus
+			existing.OnSunsetActivity = ne.OnSunsetActivity
 			if dbErr := tx.Save(&existing).Error; dbErr != nil {
 				return count, 0, fmt.Errorf("failed to update notification channel %q: %w", ne.Name, dbErr)
 			}
@@ -860,18 +869,21 @@ func (s *BackupService) importNotificationChannels(tx *gorm.DB, channels []Notif
 
 		// Not found — create new with placeholder webhook URL, forced disabled
 		nc := db.NotificationConfig{
-			Name:               ne.Name,
-			Type:               ne.Type,
-			WebhookURL:         placeholderWebhookURL,
-			Enabled:            true, // GORM default:true workaround — disable below
-			AppriseTags:        ne.AppriseTags,
-			OnCycleDigest:      ne.OnCycleDigest,
-			OnError:            ne.OnError,
-			OnModeChanged:      ne.OnModeChanged,
-			OnServerStarted:    ne.OnServerStarted,
-			OnThresholdBreach:  ne.OnThresholdBreach,
-			OnUpdateAvailable:  ne.OnUpdateAvailable,
-			OnApprovalActivity: ne.OnApprovalActivity,
+			Name:                ne.Name,
+			Type:                ne.Type,
+			WebhookURL:          placeholderWebhookURL,
+			Enabled:             true, // GORM default:true workaround — disable below
+			AppriseTags:         ne.AppriseTags,
+			OnCycleDigest:       ne.OnCycleDigest,
+			OnDryRunDigest:      ne.OnDryRunDigest,
+			OnError:             ne.OnError,
+			OnModeChanged:       ne.OnModeChanged,
+			OnServerStarted:     ne.OnServerStarted,
+			OnThresholdBreach:   ne.OnThresholdBreach,
+			OnUpdateAvailable:   ne.OnUpdateAvailable,
+			OnApprovalActivity:  ne.OnApprovalActivity,
+			OnIntegrationStatus: ne.OnIntegrationStatus,
+			OnSunsetActivity:    ne.OnSunsetActivity,
 		}
 		if dbErr := tx.Create(&nc).Error; dbErr != nil {
 			return count, 0, fmt.Errorf("failed to create notification channel %q: %w", ne.Name, dbErr)

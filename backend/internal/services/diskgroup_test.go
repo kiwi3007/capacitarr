@@ -253,7 +253,10 @@ func TestDiskGroupService_ImportUpsert(t *testing.T) {
 		t.Fatalf("ImportUpsert update error: %v", err)
 	}
 
-	group, _ = svc.GetByID(1)
+	group, err = svc.GetByID(1)
+	if err != nil {
+		t.Fatal("GetByID after update:", err)
+	}
 	if group.ThresholdPct != 85.0 {
 		t.Errorf("expected threshold 85.0 after update, got %f", group.ThresholdPct)
 	}

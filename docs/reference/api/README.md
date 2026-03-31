@@ -151,7 +151,7 @@ curl -N -H "X-Api-Key: $CAPACITARR_API_KEY" \
   "$CAPACITARR_URL/events"
 ```
 
-The SSE endpoint supports reconnection replay via the `Last-Event-ID` header. See the [Architecture](../architecture.md) documentation for the complete list of 53 event types.
+The SSE endpoint supports reconnection replay via the `Last-Event-ID` header. See the [Architecture](../architecture.md) documentation for the complete list of 67 event types.
 
 ## Endpoint Overview
 
@@ -178,6 +178,7 @@ The SSE endpoint supports reconnection replay via the `Last-Event-ID` header. Se
 | **Migration** | `GET /migration/status`, `POST /migration/execute`, `POST /migration/dismiss` |
 | **Settings Backup** | `GET /settings/export`, `POST /settings/import`, `POST /settings/import/preview`, `POST /settings/import/commit` |
 | **Version Check** | `GET /version/check`, `POST /version/check` |
+| **Sunset Queue** | `GET /sunset-queue`, `DELETE /sunset-queue/:id`, `PATCH /sunset-queue/:id`, `POST /sunset-queue/clear`, `POST /sunset-queue/refresh-labels`, `POST /sunset-queue/refresh-posters`, `POST /sunset-queue/restore-posters` |
 | **Data** | `DELETE /data/reset` |
 
 ## Further Reading

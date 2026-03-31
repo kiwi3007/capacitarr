@@ -23,6 +23,12 @@ type SunsetService struct {
 	bus *events.EventBus
 }
 
+// PreviewScoreReader provides read access to cached preview scores for
+// sunset re-scoring. Satisfied by PreviewService.
+type PreviewScoreReader interface {
+	GetCachedScoreMap() map[string]float64
+}
+
 // SunsetDeps holds service dependencies for label management and deletion handoff.
 // Follows the same pattern as ExecuteApprovalDeps in approval.go.
 // SettingsReader is the existing interface defined in deletion.go — reuse it.
@@ -31,6 +37,7 @@ type SunsetDeps struct {
 	Deletion      *DeletionService
 	Engine        *EngineService
 	Settings      SettingsReader
+	Preview       PreviewScoreReader    // Optional: provides current scores for rescore comparisons
 	PosterOverlay *PosterOverlayService // Optional: if set, posters are restored on cancel/expire/escalate
 	Mapping       *MappingService       // Persistent TMDb→NativeID mapping; replaces ephemeral BuildMappingMaps()
 }
@@ -245,20 +252,16 @@ func (s *SunsetService) ProcessExpired(deps SunsetDeps) (int, error) {
 	return processed, nil
 }
 
-// RescoreAndSave checks each pending sunset item's current score against the
-// sunset candidate threshold. If an item's score dropped significantly (below
-// 50% of the original score at queue time), it transitions to "saved" status
-// instead of continuing the countdown. Called by the daily cron when
-// SunsetRescoreEnabled is true.
+// RescoreAndSave checks each pending sunset item against the current preview
+// cache scores. If an item's current score dropped below 50% of its original
+// score at queue time, it transitions to "saved" status instead of continuing
+// the countdown — the item has seen enough new activity to warrant keeping.
+// Called by the daily cron when SunsetRescoreEnabled is true.
 //
 // The prefs and weights parameters are passed by the caller (cron job) to avoid
 // interface mismatch — SunsetDeps.Settings is a SettingsReader which may not
-// have GetWeightMap on all implementations.
-//
-// TODO: integrate with engine re-scoring for fresh data. Currently compares
-// against the item's original score using a 50% drop threshold. Full re-scoring
-// from fresh watch/play data should happen when the preview cache is updated
-// each engine cycle.
+// have GetWeightMap on all implementations. The weights parameter is reserved
+// for future full engine re-scoring integration.
 func (s *SunsetService) RescoreAndSave(deps SunsetDeps, prefs db.PreferenceSet, weights map[string]int) (int, error) {
 	// weights will be used for full engine re-scoring in a future iteration.
 	_ = weights
@@ -272,21 +275,30 @@ func (s *SunsetService) RescoreAndSave(deps SunsetDeps, prefs db.PreferenceSet, 
 		return 0, nil
 	}
 
+	// Look up the current preview cache to obtain fresh scores.
+	// If the preview cache is unavailable (nil PreviewDataSource or empty
+	// cache), we skip re-scoring for this cycle rather than producing
+	// incorrect results.
+	currentScores := s.buildScoreLookup(deps)
+
 	saved := 0
 	for _, item := range items {
-		// TODO: Re-score this item via the engine using fresh watch data.
-		// For now, use the original score as the baseline — the real rescore
-		// will happen when the preview cache is refreshed each engine cycle.
-		// The 50% threshold means the item must have seen significant new
-		// activity to be saved.
-		newScore := item.Score * 0.8 // Placeholder: simulate a modest score drop
+		// Look up the item's current score from the preview cache. If the
+		// item is no longer in the cache (e.g., already removed from the
+		// *arr integration), keep the original score unchanged.
+		key := item.MediaName + "|" + item.MediaType
+		newScore, found := currentScores[key]
+		if !found {
+			continue // Item not in current preview — skip this cycle
+		}
 
-		// If score dropped below 50% of original, save it
+		// If the current score dropped below 50% of the original score at
+		// queue time, the item has seen enough new activity to warrant saving.
 		if newScore < item.Score*0.5 {
 			now := time.Now().UTC()
 			reason := fmt.Sprintf("Score dropped from %.1f to %.1f due to recent activity", item.Score, newScore)
 
-			s.db.Model(&item).Updates(map[string]interface{}{
+			s.db.Model(&item).Updates(map[string]any{
 				"status":       db.SunsetStatusSaved,
 				"saved_at":     now,
 				"saved_score":  newScore,
@@ -325,6 +337,15 @@ func (s *SunsetService) RescoreAndSave(deps SunsetDeps, prefs db.PreferenceSet, 
 	}
 
 	return saved, nil
+}
+
+// buildScoreLookup returns a map of "MediaName|MediaType" → current score
+// from the preview cache. Returns an empty map if no preview data is available.
+func (s *SunsetService) buildScoreLookup(deps SunsetDeps) map[string]float64 {
+	if deps.Preview == nil {
+		return map[string]float64{}
+	}
+	return deps.Preview.GetCachedScoreMap()
 }
 
 // CleanupSaved removes saved items whose saved marker duration has expired.

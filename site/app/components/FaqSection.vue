@@ -19,7 +19,7 @@ const faqs: FaqItem[] = [
   },
   {
     question: 'How is deletion priority calculated?',
-    answer: 'Capacitarr uses a weighted scoring engine with 6 dimensions: age, file size, popularity, recency, rating, and series status. You control the weight of each factor. Items with the highest cleanup scores are removed first.',
+    answer: 'Capacitarr uses a weighted scoring engine with 7 dimensions: age, file size, popularity, recency, rating, request popularity, and series status. You control the weight of each factor. Items with the highest cleanup scores are removed first.',
   },
   {
     question: 'Does it work with multiple disk groups?',

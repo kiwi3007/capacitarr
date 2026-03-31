@@ -66,6 +66,8 @@ export interface PreferenceSet {
   snoozeDurationHours: number;
   deletionQueueDelaySeconds: number;
   checkForUpdates: boolean;
+  deadContentMinDays: number;
+  staleContentDays: number;
   sunsetDays: number;
   sunsetLabel: string;
   posterOverlayEnabled: boolean;
@@ -126,6 +128,7 @@ export interface AuditLogEntry {
   trigger: string;
   dryRunReason: string;
   integrationId?: number;
+  diskGroupId?: number;
   collectionGroup?: string;
   createdAt: string;
 }
@@ -147,6 +150,7 @@ export interface ApprovalQueueItem {
   posterUrl?: string;
   integrationId: number;
   externalId: string;
+  diskGroupId?: number;
   status: 'pending' | 'approved' | 'rejected';
   trigger: string;
   userInitiated?: boolean;
@@ -358,20 +362,15 @@ export interface PreferencesExport {
   logLevel: string;
   auditLogRetentionDays: number;
   pollIntervalSeconds: number;
-  watchHistoryWeight: number;
-  lastWatchedWeight: number;
-  fileSizeWeight: number;
-  ratingWeight: number;
-  timeInLibraryWeight: number;
-  seriesStatusWeight: number;
   defaultDiskGroupMode: string;
   tiebreakerMethod: string;
   deletionsEnabled: boolean;
   snoozeDurationHours: number;
   checkForUpdates: boolean;
-  sunsetDays?: number;
-  sunsetLabel?: string;
-  posterOverlayEnabled?: boolean;
+  sunsetDays: number;
+  sunsetLabel: string;
+  posterOverlayEnabled: boolean;
+  factorWeights: Record<string, number>;
 }
 
 // ---------------------------------------------------------------------------
@@ -439,6 +438,7 @@ export interface NotificationExport {
   enabled: boolean;
   appriseTags?: string;
   onCycleDigest: boolean;
+  onDryRunDigest: boolean;
   onError: boolean;
   onModeChanged: boolean;
   onServerStarted: boolean;
@@ -446,6 +446,7 @@ export interface NotificationExport {
   onUpdateAvailable: boolean;
   onApprovalActivity: boolean;
   onIntegrationStatus: boolean;
+  onSunsetActivity: boolean;
 }
 
 export interface SettingsExportEnvelope {
@@ -566,6 +567,7 @@ export interface NotificationChannel {
   onUpdateAvailable: boolean;
   onApprovalActivity: boolean;
   onIntegrationStatus: boolean;
+  onSunsetActivity: boolean;
   createdAt: string;
   updatedAt: string;
 }

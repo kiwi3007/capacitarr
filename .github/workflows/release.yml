@@ -116,9 +116,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install crane
+        env:
+          CRANE_VERSION: v0.21.3
         run: |
-          curl -sSL "https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_Linux_x86_64.tar.gz" \
-            | sudo tar xzf - -C /usr/local/bin/ crane
+          TARBALL="$(mktemp)"
+          curl -sSfL "https://github.com/google/go-containerregistry/releases/download/${CRANE_VERSION}/go-containerregistry_Linux_x86_64.tar.gz" \
+            -o "$TARBALL"
+          sudo tar xzf "$TARBALL" -C /usr/local/bin/ crane
+          rm -f "$TARBALL"
+          crane version
       - name: Login to GHCR (source)
         run: crane auth login ghcr.io -u "${{ github.actor }}" -p "${{ secrets.GITHUB_TOKEN }}"
       - name: Login to Docker Hub (target)

@@ -91,7 +91,7 @@ Every push and pull request is scanned by 7 static security tools. **All are blo
 | **Trivy (FS)** | SCA (multi-lang) | Filesystem scan for Go module + Node.js dependency CVEs (HIGH/CRITICAL) | `security:trivy` | ✅ Yes |
 | **Trivy (image)** | Container scan | Alpine OS packages + binary CVEs in the Docker image | `security:trivy-image` | ✅ Yes |
 | **Gitleaks** | Secret scanning | Accidentally committed API keys, passwords, tokens in git history | `security:gitleaks` | ✅ Yes |
-| **Semgrep** | SAST (multi-lang) | 338 rules across Go, TypeScript, Vue, YAML, Dockerfile, Bash | `security:semgrep` | ✅ Yes |
+| **Semgrep** | SAST (multi-lang) | The auto config rule set across all Go and Vue/TypeScript source files, plus YAML, Dockerfile, and Bash | `security:semgrep` | ✅ Yes |
 
 #### Gitleaks Configuration (`.gitleaks.toml`)
 
@@ -107,7 +107,7 @@ Gitleaks scans the entire git history for accidentally committed secrets. The fo
 
 #### Semgrep Configuration (`.semgrepignore` and `nosemgrep`)
 
-Semgrep scans **614 files** (every file tracked by git except the marketing site). Test files, utility files, and all production code are scanned.
+Semgrep scans all Go and Vue/TypeScript source files (every file tracked by git except the marketing site). Test files, utility files, and all production code are scanned.
 
 **`.semgrepignore` exclusion — 1 directory:**
 
@@ -144,9 +144,11 @@ Semgrep scans **614 files** (every file tracked by git except the marketing site
 | `backend/internal/engine/score_test.go` | 29 | unparam | `value` is always 10 in tests but the parameter documents intent for the helper function |
 | `backend/internal/events/sse_broadcaster.go` | 262 | errcheck | `json.Marshal` of a `string` value cannot fail |
 | `backend/internal/integrations/arr_helpers.go` | 246 | gosec G704 | URL is from admin-configured integration settings, not user-tainted |
-| `backend/internal/integrations/httpclient.go` | 43 | gosec G704 | URL is from admin-configured integration settings, not user-tainted |
-| `backend/internal/integrations/httpclient.go` | 51 | gosec G706 | Sanitized URL, HTTP status code, and duration are safe to log |
-| `backend/internal/integrations/httpclient.go` | 99 | gosec G704 | URL is from admin-configured integration settings, not user-tainted |
+| `backend/internal/integrations/httpclient.go` | 44 | gosec G704 | URL is from admin-configured integration settings, not user-tainted |
+| `backend/internal/integrations/httpclient.go` | 52 | gosec G706 | Sanitized URL, HTTP status code, and duration are safe to log |
+| `backend/internal/integrations/httpclient.go` | 100 | gosec G704 | URL is from admin-configured integration settings, not user-tainted |
+| `backend/internal/integrations/httpclient.go` | 151 | gosec G704 | URL is from admin-configured integration settings, not user-tainted |
+| `backend/internal/integrations/httpclient.go` | 196 | gosec G704 | URL is from admin-configured integration settings, not user-tainted |
 | `backend/internal/integrations/jellystat_test.go` | 11 | gosec G101 | `testJellystatAPIKey` is a test fixture constant, not a real credential |
 | `backend/internal/integrations/plex.go` | 218 | exhaustive | Plex API only returns `movie`, `show`, `season`, and `episode` media types |
 | `backend/internal/integrations/sonarr.go` | 164 | exhaustive | Sonarr integration only handles `show` and `season` types |
@@ -155,8 +157,8 @@ Semgrep scans **614 files** (every file tracked by git except the marketing site
 | `backend/internal/services/auth.go` | 213 | gosec G706 | Username is from a trusted reverse proxy header, not user-supplied |
 | `backend/internal/services/notification_dispatch_test.go` | 325 | dupl | Test structure intentionally similar to related dispatch tests |
 | `backend/internal/services/notification_dispatch_test.go` | 354 | dupl | Test structure intentionally similar to related dispatch tests |
+| `backend/internal/services/poster_overlay.go` | 407 | gosec G107 | URL is from *arr metadata (PosterURL → TMDb CDN), not user input |
 | `backend/internal/services/version.go` | 153 | gosec | URL is set at construction time (`DefaultGitHubReleasesURL`), not user-tainted |
-| `backend/internal/services/version.go` | 165 | gosec G706 | Status code is a server-side integer, not user-tainted input |
 | `backend/routes/auth.go` | 92 | gosec | `Secure` flag conditionally set via `cfg.SecureCookies` — not all self-hosted environments use HTTPS. Also suppresses Semgrep (see nosemgrep table above) |
 | `backend/routes/auth.go` | 106 | gosec | `HttpOnly` intentionally `false`: cookie contains no secrets (just `"true"`), allows SPA auth state detection. `Secure` conditional as above. Also suppresses Semgrep (see nosemgrep table above) |
 | `backend/routes/security_test.go` | 194 | gosec G101 | Test fixture API key in integration creation request body, not a real credential |
@@ -287,7 +289,7 @@ All Docker images used in CI pipelines and local `Makefile` targets are **pinned
 
 - **No `:latest` tags:** Every Docker image reference in CI workflows and `Makefile` must use a specific version tag (e.g., `:0.69.3`, `:v2.11.4`, `:3.21`)
 - **No curl-pipe-to-shell:** CI jobs must not download and execute scripts from external URLs at runtime. All tools must be consumed via their official Docker images
-- **Makefile ↔ CI parity:** Every image version in CI workflows must match the corresponding image in the `Makefile`. Both files are updated together
+- **Makefile ↔ CI parity:** Every tool version in CI workflows must match the corresponding version in the `Makefile`. Both files are updated together. Note: CI uses GitHub Actions (which install tool binaries directly), while the Makefile uses Docker images. Tool versions are kept in sync even though the delivery mechanism differs
 - **Digest pinning for runtime image:** The production Dockerfile runtime base image (`alpine`) is pinned to a specific SHA-256 digest for reproducible, auditable builds
 
 #### Regular Re-evaluation
@@ -309,7 +311,8 @@ Pinned Docker image versions are **re-evaluated on a regular basis** to pick up 
 | `zricethezav/gitleaks` | `v8.30.1` | Secret scanning in git history |
 | `semgrep/semgrep` | `1.155.0` | Multi-language SAST scanning |
 | `orhunp/git-cliff` | `2.12.0` | Changelog generation from commits |
-| `goreleaser/goreleaser` | `v2.14.1` | Cross-compiled release binary builds |
+| `goreleaser/goreleaser-action@v6` | `version: v2.14.1` | Cross-compiled release binary builds (consumed via GitHub Action, not Docker image) |
+| `google/go-containerregistry` (crane) | `v0.21.3` | Docker image mirroring (GHCR → Docker Hub) |
 | `ghcr.io/zaproxy/zaproxy` | `stable` | OWASP ZAP DAST scanning (see note below) |
 | `alpine` | `3.21` | Production runtime base image (digest-pinned in Dockerfile) |
 | `node` | `24-alpine` | Frontend build and test |
@@ -317,6 +320,8 @@ Pinned Docker image versions are **re-evaluated on a regular basis** to pick up 
 | `pnpm` (CLI) | `10.32.1` | Node.js package manager (pinned in Makefile and Dockerfile) |
 
 > **Note on ZAP `:stable` tag:** The OWASP ZAP proxy image (`ghcr.io/zaproxy/zaproxy`) uses the `:stable` tag because ZAP does not publish individually versioned image tags. The `:stable` tag tracks the latest stable release. This is an accepted exception to the pinning policy — ZAP is used only for local DAST scanning (`make security:zap`), not in CI pipelines, so a compromised image cannot affect builds or releases.
+
+> **Note on `crane`:** The `crane` CLI tool (from `google/go-containerregistry`) is used in the release pipeline to mirror multi-arch Docker images from GHCR to Docker Hub. It is currently installed via curl-pipe-to-shell in the GitHub Actions workflow (`release.yml`), which is a known deviation from the "no curl-pipe-to-shell" policy. This is being tracked for remediation (e.g., switching to a pre-built Docker image or a pinned GitHub Action).
 
 **Next reassessment date:** 2026-04-27
 

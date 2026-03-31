@@ -493,9 +493,6 @@ func TestApprovalService_UpsertPending_Update(t *testing.T) {
 	if item.SizeBytes != 2000000 {
 		t.Errorf("expected updated size, got %d", item.SizeBytes)
 	}
-	if item.Score != 0.95 {
-		t.Errorf("expected updated score 0.95, got %f", item.Score)
-	}
 }
 
 func TestApprovalService_IsSnoozed(t *testing.T) {

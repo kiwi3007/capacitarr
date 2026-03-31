@@ -25,7 +25,7 @@ const features = [
   {
     icon: 'i-lucide-puzzle',
     title: 'Deep Integrations',
-    description: 'Native support for 9+ services. Pull data from your *arr apps, media servers, and request managers into a single unified view.',
+    description: 'Native support for 11 services. Pull data from your *arr apps, media servers, and request managers into a single unified view.',
     color: 'blue',
   },
   {
@@ -43,7 +43,7 @@ const features = [
   {
     icon: 'i-lucide-radio',
     title: 'Real-Time Updates',
-    description: 'Server-Sent Events push engine state, deletions, and activity to the browser instantly — no polling. 39 typed event types keep you informed.',
+    description: 'Server-Sent Events push engine state, deletions, and activity to the browser instantly — no polling. 67 typed event types keep you informed.',
     color: 'rose',
   },
   {

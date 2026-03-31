@@ -146,7 +146,7 @@ func (s *SettingsService) PatchEnginePreferences(patch EnginePreferencePatch) (d
 	var oldPrefs db.PreferenceSet
 	s.db.FirstOrCreate(&oldPrefs, db.PreferenceSet{ID: 1})
 
-	updates := make(map[string]interface{})
+	updates := make(map[string]any)
 	if patch.DefaultDiskGroupMode != nil {
 		updates["default_disk_group_mode"] = *patch.DefaultDiskGroupMode
 	}
@@ -207,7 +207,7 @@ func (s *SettingsService) PatchEnginePreferences(patch EnginePreferencePatch) (d
 
 // PatchSunsetPreferences updates only the provided sunset behavior fields.
 func (s *SettingsService) PatchSunsetPreferences(patch SunsetPreferencePatch) (db.PreferenceSet, error) {
-	updates := make(map[string]interface{})
+	updates := make(map[string]any)
 	if patch.SunsetDays != nil {
 		updates["sunset_days"] = *patch.SunsetDays
 	}
@@ -246,7 +246,7 @@ func (s *SettingsService) PatchSunsetPreferences(patch SunsetPreferencePatch) (d
 
 // PatchContentPreferences updates only the provided content analytics fields.
 func (s *SettingsService) PatchContentPreferences(patch ContentPreferencePatch) (db.PreferenceSet, error) {
-	updates := make(map[string]interface{})
+	updates := make(map[string]any)
 	if patch.DeadContentMinDays != nil {
 		updates["dead_content_min_days"] = *patch.DeadContentMinDays
 	}
@@ -273,7 +273,7 @@ func (s *SettingsService) PatchContentPreferences(patch ContentPreferencePatch) 
 
 // PatchAdvancedPreferences updates only the provided advanced settings fields.
 func (s *SettingsService) PatchAdvancedPreferences(patch AdvancedPreferencePatch) (db.PreferenceSet, error) {
-	updates := make(map[string]interface{})
+	updates := make(map[string]any)
 	if patch.LogLevel != nil {
 		updates["log_level"] = *patch.LogLevel
 	}

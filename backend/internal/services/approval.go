@@ -524,7 +524,7 @@ func (s *ApprovalService) ExecuteApproval(entryID uint, deps ExecuteApprovalDeps
 	var factors []engine.ScoreFactor
 	if approved.ScoreDetails != "" {
 		if jsonErr := json.Unmarshal([]byte(approved.ScoreDetails), &factors); jsonErr != nil {
-			slog.Error("Failed to parse score details for approval", "id", approved.ID, "error", jsonErr)
+			slog.Error("Failed to parse score details for approval", "component", "services", "id", approved.ID, "error", jsonErr)
 		}
 	}
 

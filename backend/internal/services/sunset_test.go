@@ -314,7 +314,7 @@ func TestEscalate_OrderAndTargetBytes(t *testing.T) {
 		time.Now().UTC().AddDate(0, 0, -2))
 
 	database.Create(&db.SunsetQueueItem{
-		MediaName: "Castle", MediaType: "show", IntegrationID: 1,
+		MediaName: "Firefly", MediaType: "show", IntegrationID: 1,
 		SizeBytes: 1000000000, DiskGroupID: 1, Trigger: db.TriggerEngine,
 		DeletionDate: time.Now().UTC().AddDate(0, 0, 25), // Future, newest
 	})
@@ -355,7 +355,7 @@ func TestEscalate_PreservesQueueBelowTarget(t *testing.T) {
 		DeletionDate: time.Now().UTC().AddDate(0, 0, 20),
 	})
 	database.Create(&db.SunsetQueueItem{
-		MediaName: "Castle", MediaType: "show", IntegrationID: 1,
+		MediaName: "Firefly", MediaType: "show", IntegrationID: 1,
 		SizeBytes: 4000000000, DiskGroupID: 1, Trigger: db.TriggerEngine,
 		DeletionDate: time.Now().UTC().AddDate(0, 0, 25),
 	})

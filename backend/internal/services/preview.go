@@ -211,6 +211,23 @@ func (s *PreviewService) GetCachedItems() []integrations.MediaItem {
 	return items
 }
 
+// GetCachedScoreMap returns a map of "MediaName|MediaType" → score for all
+// items in the preview cache. Returns an empty map if the cache is empty.
+// Implements PreviewScoreReader for sunset re-scoring.
+func (s *PreviewService) GetCachedScoreMap() map[string]float64 {
+	s.previewMu.RLock()
+	defer s.previewMu.RUnlock()
+	if s.previewCache == nil {
+		return map[string]float64{}
+	}
+	scores := make(map[string]float64, len(s.previewCache.Items))
+	for _, eval := range s.previewCache.Items {
+		key := eval.Item.Title + "|" + string(eval.Item.Type)
+		scores[key] = eval.Score
+	}
+	return scores
+}
+
 // InvalidatePreviewCache clears both the in-memory and DB-persisted preview
 // cache and publishes an invalidation event so connected clients can show a
 // stale indicator. Clearing the persisted cache ensures that stale data

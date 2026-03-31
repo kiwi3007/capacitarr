@@ -162,7 +162,7 @@ func (s *VersionService) fetchLatestRelease() VersionCheckResult {
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Warn("GitHub releases API returned non-200 status", //nolint:gosec // G706: status code is a server-side integer, not user-tainted
+		slog.Warn("GitHub releases API returned non-200 status",
 			"component", "version",
 			"status", strconv.Itoa(resp.StatusCode))
 		return fallback

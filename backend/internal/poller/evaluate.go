@@ -523,6 +523,7 @@ func (p *Poller) evaluateSunsetMode(acc *RunAccumulator, group db.DiskGroup, all
 		Deletion:      p.reg.Deletion,
 		Engine:        p.reg.Engine,
 		Settings:      p.reg.Settings,
+		Preview:       p.reg.Preview,
 		PosterOverlay: p.reg.PosterOverlay,
 		Mapping:       p.reg.Mapping,
 	}
@@ -570,7 +571,12 @@ func (p *Poller) evaluateSunsetMode(acc *RunAccumulator, group db.DiskGroup, all
 					continue // Already in sunset queue
 				}
 
-				factorsJSON, _ := json.Marshal(candidate.Factors)
+				factorsJSON, marshalErr := json.Marshal(candidate.Factors)
+				if marshalErr != nil {
+					slog.Error("Failed to marshal sunset candidate factors", "component", "poller",
+						"mediaName", candidate.Item.Title, "error", marshalErr)
+					continue
+				}
 				sunsetItems = append(sunsetItems, db.SunsetQueueItem{
 					MediaName:       candidate.Item.Title,
 					MediaType:       string(candidate.Item.Type),
