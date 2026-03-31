@@ -17,7 +17,9 @@ export interface PreviewGroup {
  * Two-pass approach:
  *   Pass 1: collect show entries and create groups for them.
  *   Pass 2: attach seasons to their parent show, or create synthetic groups for orphan seasons.
- *   Filter: remove show-level entries with no seasons (nothing actionable).
+ *   Filter: remove show-level entries with no seasons when season items exist
+ *     (nothing actionable). When no seasons are present (ShowLevelOnly mode),
+ *     show entries are kept as standalone actionable items.
  */
 export function groupEvaluatedItems(items: EvaluatedItem[]): PreviewGroup[] {
   const groups: PreviewGroup[] = [];
@@ -66,10 +68,14 @@ export function groupEvaluatedItems(items: EvaluatedItem[]): PreviewGroup[] {
     // Shows already handled in pass 1
   }
 
-  // Filter out show-level entries with no seasons — they're only useful as grouping parents
-  // A show with 0 seasons in the preview has nothing actionable to display
+  // Filter out show-level entries with no seasons — they're only useful as
+  // grouping parents. However, when ShowLevelOnly is enabled the backend drops
+  // all season items and show-level entries ARE the actionable items, so we
+  // must keep them. Detecting this is simple: if no season items exist in the
+  // input, every show group is a standalone actionable entry.
+  const hasSeasons = items.some((i) => i.item?.type === 'season');
   return groups
-    .filter((g) => !(g.entry.item?.type === 'show' && g.seasons.length === 0))
+    .filter((g) => !(hasSeasons && g.entry.item?.type === 'show' && g.seasons.length === 0))
     .map((g) => {
       if (g.seasons.length <= 1) return g;
       // Sort seasons by title with numeric awareness so

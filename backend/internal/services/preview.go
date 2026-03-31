@@ -21,6 +21,7 @@ import (
 type IntegrationLister interface {
 	ListEnabled() ([]db.IntegrationConfig, error)
 	BuildIntegrationRegistry() (*integrations.IntegrationRegistry, error)
+	IsShowLevelOnlyEffective(id uint) (bool, error)
 }
 
 // RulesProvider provides read access to custom rules.
@@ -295,16 +296,10 @@ func (s *PreviewService) buildPreviewFromScratch() (*PreviewResult, error) {
 		return nil, err
 	}
 
-	// Pre-fetch enabled integration configs to check ShowLevelOnly per source.
+	// Pre-fetch enabled integration configs for EvaluationContext construction.
 	enabledCfgs, cfgErr := s.integrations.ListEnabled()
 	if cfgErr != nil {
 		return nil, cfgErr
-	}
-	showLevelOnlyIDs := make(map[uint]bool)
-	for _, cfg := range enabledCfgs {
-		if cfg.ShowLevelOnly {
-			showLevelOnlyIDs[cfg.ID] = true
-		}
 	}
 
 	// Fetch media items from all MediaSources via the registry
@@ -318,9 +313,13 @@ func (s *PreviewService) buildPreviewFromScratch() (*PreviewResult, error) {
 			items[i].IntegrationID = id
 		}
 
-		// When ShowLevelOnly is enabled, drop season-level items so only
-		// show-level entries appear in the preview.
-		if showLevelOnlyIDs[id] {
+		// When ShowLevelOnly is effectively enabled for this integration,
+		// drop season-level items so only show-level entries appear in the
+		// preview. Uses the same effective check as the poller so that
+		// virtual overrides (e.g., sunset-mode disk groups) are honoured
+		// during cold starts too.
+		effective, effErr := s.integrations.IsShowLevelOnlyEffective(id)
+		if effErr == nil && effective {
 			filtered := items[:0]
 			for _, item := range items {
 				if item.Type != integrations.MediaTypeSeason {
