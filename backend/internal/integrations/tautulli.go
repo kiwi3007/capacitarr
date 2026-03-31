@@ -86,7 +86,7 @@ type tautulliHistoryEntry struct {
 	Duration             int64      `json:"duration"`       // Duration of item (seconds)
 	PlayDuration         int64      `json:"play_duration"`  // Actual time played (seconds)
 	PausedCounter        int64      `json:"paused_counter"` // Time spent paused (seconds)
-	WatchedStatus        int        `json:"watched_status"` // 0=unwatched, 0.5=partial, 1=watched
+	WatchedStatus        float64    `json:"watched_status"` // 0=unwatched, 0.5=partial, 1=watched
 	User                 string     `json:"user"`           // Username
 	RatingKey            flexString `json:"rating_key"`     // Plex rating key
 	ParentRatingKey      flexString `json:"parent_rating_key"`
