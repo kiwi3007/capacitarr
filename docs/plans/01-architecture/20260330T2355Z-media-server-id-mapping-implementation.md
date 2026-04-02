@@ -4,7 +4,7 @@
 **Priority:** Architecture / Reliability  
 **Estimated Effort:** L (2–3 days)  
 **Branch:** `feature/media-server-id-mapping` (from `feature/3.0`)  
-**Design Doc:** `docs/plans/00-active/20260330T2335Z-media-server-id-mapping-refactor.md`
+**Design Doc:** `docs/plans/01-architecture/20260330T2335Z-media-server-id-mapping-refactor.md`
 
 ## Overview
 

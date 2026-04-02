@@ -4,7 +4,7 @@
 **Priority:** Design Implementation  
 **Estimated Effort:** M (1 day)  
 **Branch:** `feature/sunset-virtual-show-level-override` (from `feature/3.0`)  
-**Supersedes:** `docs/plans/00-active/20260330T2335Z-sunset-show-level-requirement.md`
+**Supersedes:** `docs/plans/02-features/20260330T2335Z-sunset-show-level-requirement.md`
 
 ## Summary
 
