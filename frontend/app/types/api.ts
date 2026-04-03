@@ -72,6 +72,7 @@ export interface PreferenceSet {
   sunsetDays: number;
   sunsetLabel: string;
   posterOverlayEnabled: boolean;
+  posterOverlayStyle: string;
   sunsetRescoreEnabled: boolean;
   savedDurationDays: number;
   savedLabel: string;

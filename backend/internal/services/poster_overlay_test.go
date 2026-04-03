@@ -81,7 +81,7 @@ func TestPosterOverlayService_UpdateOverlay_NilTmdbID(t *testing.T) {
 	}
 
 	// Should return nil without error when TmdbID is nil
-	err := svc.UpdateOverlay(item, 30, PosterDeps{})
+	err := svc.UpdateOverlay(item, 30, "countdown", PosterDeps{})
 	if err != nil {
 		t.Errorf("Expected nil error for nil TmdbID, got: %v", err)
 	}

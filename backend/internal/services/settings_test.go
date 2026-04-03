@@ -209,6 +209,39 @@ func TestSettingsService_UpdatePreferences_NilClearer_NoPanic(t *testing.T) {
 	// No panic = success
 }
 
+func TestSettingsService_PatchSunsetPreferences_OverlayStyle(t *testing.T) {
+	database := setupTestDB(t)
+	bus := newTestBus(t)
+	svc := NewSettingsService(database, bus)
+
+	// Patch to "simple" — should succeed
+	simple := "simple"
+	prefs, err := svc.PatchSunsetPreferences(SunsetPreferencePatch{PosterOverlayStyle: &simple})
+	if err != nil {
+		t.Fatalf("PatchSunsetPreferences returned error: %v", err)
+	}
+	if prefs.PosterOverlayStyle != "simple" {
+		t.Errorf("expected posterOverlayStyle 'simple', got %q", prefs.PosterOverlayStyle)
+	}
+
+	// Patch to "countdown" — should succeed
+	countdown := "countdown"
+	prefs, err = svc.PatchSunsetPreferences(SunsetPreferencePatch{PosterOverlayStyle: &countdown})
+	if err != nil {
+		t.Fatalf("PatchSunsetPreferences returned error: %v", err)
+	}
+	if prefs.PosterOverlayStyle != "countdown" {
+		t.Errorf("expected posterOverlayStyle 'countdown', got %q", prefs.PosterOverlayStyle)
+	}
+
+	// Patch with invalid value — should fail
+	invalid := "bogus"
+	_, err = svc.PatchSunsetPreferences(SunsetPreferencePatch{PosterOverlayStyle: &invalid})
+	if err == nil {
+		t.Fatal("expected error for invalid overlay style, got nil")
+	}
+}
+
 func TestSettingsService_ListRecentActivities(t *testing.T) {
 	database := setupTestDB(t)
 	bus := newTestBus(t)

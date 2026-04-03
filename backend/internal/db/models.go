@@ -111,6 +111,7 @@ type PreferenceSet struct {
 	SunsetDays                int       `gorm:"default:30;not null" json:"sunsetDays"`                                                 // Default countdown period in days for sunset mode
 	SunsetLabel               string    `gorm:"default:'capacitarr-sunset';not null" json:"sunsetLabel"`                               // Label/tag applied to media server items in sunset queue
 	PosterOverlayEnabled      bool      `gorm:"default:true;not null" json:"posterOverlayEnabled"`                                     // Whether to apply countdown overlays to posters
+	PosterOverlayStyle        string    `gorm:"default:'countdown';not null" json:"posterOverlayStyle"`                                // "countdown" (exact days) or "simple" ("Leaving soon")
 	SunsetRescoreEnabled      bool      `gorm:"default:true;not null" json:"sunsetRescoreEnabled"`                                     // Enable daily re-scoring of sunset queue items; if score drops, item is saved instead of deleted
 	SavedDurationDays         int       `gorm:"default:7;not null" json:"savedDurationDays"`                                           // How long the "Saved" marker/overlay persists before auto-cleanup (days)
 	SavedLabel                string    `gorm:"default:'capacitarr-saved';not null" json:"savedLabel"`                                 // Label/tag applied to media server items that were saved by activity

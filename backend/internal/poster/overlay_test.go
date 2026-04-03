@@ -24,7 +24,7 @@ func createTestPoster(w, h int) []byte {
 
 func TestComposeOverlay_30Days(t *testing.T) {
 	poster := createTestPoster(300, 450)
-	result, err := ComposeOverlay(poster, 30)
+	result, err := ComposeOverlay(poster, 30, "countdown")
 	if err != nil {
 		t.Fatalf("ComposeOverlay failed: %v", err)
 	}
@@ -40,7 +40,7 @@ func TestComposeOverlay_30Days(t *testing.T) {
 
 func TestComposeOverlay_1Day(t *testing.T) {
 	poster := createTestPoster(300, 450)
-	result, err := ComposeOverlay(poster, 1)
+	result, err := ComposeOverlay(poster, 1, "countdown")
 	if err != nil {
 		t.Fatalf("ComposeOverlay failed: %v", err)
 	}
@@ -51,7 +51,7 @@ func TestComposeOverlay_1Day(t *testing.T) {
 
 func TestComposeOverlay_LastDay(t *testing.T) {
 	poster := createTestPoster(300, 450)
-	result, err := ComposeOverlay(poster, 0)
+	result, err := ComposeOverlay(poster, 0, "countdown")
 	if err != nil {
 		t.Fatalf("ComposeOverlay failed: %v", err)
 	}
@@ -60,8 +60,24 @@ func TestComposeOverlay_LastDay(t *testing.T) {
 	}
 }
 
+func TestComposeOverlay_SimpleStyle(t *testing.T) {
+	poster := createTestPoster(300, 450)
+	result, err := ComposeOverlay(poster, 30, "simple")
+	if err != nil {
+		t.Fatalf("ComposeOverlay with simple style failed: %v", err)
+	}
+	if len(result) == 0 {
+		t.Fatal("Expected non-empty result")
+	}
+	// Verify it's valid JPEG
+	_, err = jpeg.Decode(bytes.NewReader(result))
+	if err != nil {
+		t.Fatalf("Result is not valid JPEG: %v", err)
+	}
+}
+
 func TestComposeOverlay_CorruptInput(t *testing.T) {
-	_, err := ComposeOverlay([]byte("not an image"), 30)
+	_, err := ComposeOverlay([]byte("not an image"), 30, "countdown")
 	if err == nil {
 		t.Fatal("Expected error for corrupt input")
 	}
@@ -69,7 +85,7 @@ func TestComposeOverlay_CorruptInput(t *testing.T) {
 
 func TestComposeOverlay_TinyImage(t *testing.T) {
 	poster := createTestPoster(5, 5)
-	_, err := ComposeOverlay(poster, 30)
+	_, err := ComposeOverlay(poster, 30, "countdown")
 	if err == nil {
 		t.Fatal("Expected error for tiny image")
 	}
@@ -95,18 +111,24 @@ func TestContentHash(t *testing.T) {
 func TestCountdownText(t *testing.T) {
 	tests := []struct {
 		days     int
+		style    string
 		expected string
 	}{
-		{0, "Last day"},
-		{-1, "Last day"},
-		{1, "Leaving tomorrow"},
-		{7, "Leaving in 7 days"},
-		{30, "Leaving in 30 days"},
+		{0, "countdown", "Last day"},
+		{-1, "countdown", "Last day"},
+		{1, "countdown", "Leaving tomorrow"},
+		{7, "countdown", "Leaving in 7 days"},
+		{30, "countdown", "Leaving in 30 days"},
+		{0, "simple", "Leaving soon"},
+		{1, "simple", "Leaving soon"},
+		{7, "simple", "Leaving soon"},
+		{30, "simple", "Leaving soon"},
+		{-1, "simple", "Leaving soon"},
 	}
 	for _, tt := range tests {
-		got := countdownText(tt.days)
+		got := countdownText(tt.days, tt.style)
 		if got != tt.expected {
-			t.Errorf("countdownText(%d) = %q, want %q", tt.days, got, tt.expected)
+			t.Errorf("countdownText(%d, %q) = %q, want %q", tt.days, tt.style, got, tt.expected)
 		}
 	}
 }

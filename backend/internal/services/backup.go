@@ -101,6 +101,7 @@ type PreferencesExport struct {
 	SunsetDays            int            `json:"sunsetDays,omitempty"`
 	SunsetLabel           string         `json:"sunsetLabel,omitempty"`
 	PosterOverlayEnabled  bool           `json:"posterOverlayEnabled,omitempty"`
+	PosterOverlayStyle    string         `json:"posterOverlayStyle,omitempty"`
 	FactorWeights         map[string]int `json:"factorWeights,omitempty"` // factor_key → weight (0-10)
 }
 
@@ -236,6 +237,7 @@ func (s *BackupService) Export(sections ExportSections, appVersion string) (*Set
 			SunsetDays:            pref.SunsetDays,
 			SunsetLabel:           pref.SunsetLabel,
 			PosterOverlayEnabled:  pref.PosterOverlayEnabled,
+			PosterOverlayStyle:    pref.PosterOverlayStyle,
 			FactorWeights:         weightsMap,
 		}
 	}
@@ -495,6 +497,9 @@ func (s *BackupService) importPreferences(tx *gorm.DB, p *PreferencesExport) err
 	pref.DeletionsEnabled = p.DeletionsEnabled
 	pref.SnoozeDurationHours = p.SnoozeDurationHours
 	pref.CheckForUpdates = p.CheckForUpdates
+	if p.PosterOverlayStyle != "" {
+		pref.PosterOverlayStyle = p.PosterOverlayStyle
+	}
 
 	if err := tx.Save(&pref).Error; err != nil {
 		return err
@@ -1101,6 +1106,9 @@ func (s *BackupService) previewPreferences(p *PreferencesExport) *PreferencesRes
 	addChange("snoozeDurationHours", fmt.Sprintf("%d", pref.SnoozeDurationHours), fmt.Sprintf("%d", p.SnoozeDurationHours))
 	addChange("deletionsEnabled", fmt.Sprintf("%v", pref.DeletionsEnabled), fmt.Sprintf("%v", p.DeletionsEnabled))
 	addChange("checkForUpdates", fmt.Sprintf("%v", pref.CheckForUpdates), fmt.Sprintf("%v", p.CheckForUpdates))
+	if p.PosterOverlayStyle != "" {
+		addChange("posterOverlayStyle", pref.PosterOverlayStyle, p.PosterOverlayStyle)
+	}
 
 	action := previewActionUnchanged
 	if len(changes) > 0 {

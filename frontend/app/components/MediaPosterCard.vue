@@ -34,6 +34,8 @@ const props = defineProps<{
   collectionName?: string;
   /** Sunset countdown — when set, an amber "Leaving in X days" banner is shown */
   sunsetDaysRemaining?: number;
+  /** Poster overlay display style: "countdown" (default) or "simple" ("Leaving soon") */
+  overlayStyle?: string;
   /** Animation stagger delay in ms (e.g., index * 30). Defaults to 0. */
   animationDelay?: number;
 }>();
@@ -150,6 +152,7 @@ const { t } = useI18n();
 /** Human-readable sunset countdown for the poster banner */
 const sunsetLabel = computed(() => {
   if (props.sunsetDaysRemaining == null) return '';
+  if (props.overlayStyle === 'simple') return t('sunset.leavingSoon');
   if (props.sunsetDaysRemaining <= 0) return t('sunset.lastDay');
   if (props.sunsetDaysRemaining === 1) return t('sunset.leavingTomorrow');
   return t('sunset.leavingInDays', { days: props.sunsetDaysRemaining });

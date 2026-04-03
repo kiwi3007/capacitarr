@@ -67,10 +67,12 @@ var (
 // ─── Public API ─────────────────────────────────────────────────────────────
 
 // ComposeOverlay renders a warm amber top banner with a Lucide hourglass icon and
-// "Leaving in X days" countdown text. Returns the composited image as JPEG bytes.
-func ComposeOverlay(original []byte, daysRemaining int) ([]byte, error) {
+// countdown text. The style parameter controls the text: "countdown" shows exact
+// days remaining ("Leaving in 7 days"), "simple" shows only "Leaving soon".
+// Returns the composited image as JPEG bytes.
+func ComposeOverlay(original []byte, daysRemaining int, style string) ([]byte, error) {
 	iconPNG := selectIconSize(icons.Hourglass24, icons.Hourglass48, icons.Hourglass96, original)
-	return composeBanner(original, countdownText(daysRemaining), sunsetTop, sunsetBottom, iconPNG)
+	return composeBanner(original, countdownText(daysRemaining, style), sunsetTop, sunsetBottom, iconPNG)
 }
 
 // ComposeSavedOverlay renders an emerald green top banner with a Lucide shield-check
@@ -251,7 +253,11 @@ func composeBanner(original []byte, text string, topColor, bottomColor color.NRG
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 // countdownText returns the human-readable countdown string.
-func countdownText(daysRemaining int) string {
+// When style is "simple", all values collapse to "Leaving soon".
+func countdownText(daysRemaining int, style string) string {
+	if style == "simple" {
+		return "Leaving soon"
+	}
 	switch {
 	case daysRemaining <= 0:
 		return "Last day"

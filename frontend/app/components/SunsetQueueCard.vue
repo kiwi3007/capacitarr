@@ -17,10 +17,22 @@ const { t } = useI18n();
 const { listItem } = useMotionPresets();
 const { viewMode } = useDisplayPrefs();
 const { sunsetItems, fetchSunsetItems, cancelItem, rescheduleItem, clearAll } = useSunsetQueue();
+const api = useApi();
+
+// Overlay display style preference: "countdown" (default) or "simple"
+const overlayStyle = useState<string>('sunsetOverlayStyle', () => 'countdown');
 
 // Fetch on mount
-onMounted(() => {
+onMounted(async () => {
   fetchSunsetItems();
+  try {
+    const prefs = (await api('/api/v1/preferences')) as { posterOverlayStyle?: string };
+    if (prefs?.posterOverlayStyle) {
+      overlayStyle.value = prefs.posterOverlayStyle;
+    }
+  } catch {
+    // Fall back to default "countdown" style
+  }
 });
 
 /** Selected item for the score detail modal */
@@ -35,6 +47,7 @@ function showDetail(item: SunsetQueueItem) {
  * e.g. "30 days", "1 day", "Last day"
  */
 function formatDaysRemaining(days: number): string {
+  if (overlayStyle.value === 'simple') return t('sunset.leavingSoon');
   if (days <= 0) return t('sunset.lastDay');
   if (days === 1) return t('sunset.leavingTomorrow');
   return t('sunset.leavingInDays', { days });
@@ -124,6 +137,7 @@ function rescheduleByDays(itemId: number, currentDate: string, addDays: number) 
           :score="item.score"
           :size-bytes="item.sizeBytes"
           :sunset-days-remaining="item.status !== 'saved' ? item.daysRemaining : undefined"
+          :overlay-style="overlayStyle"
           :animation-delay="idx * 30"
           :queue-status="item.status === 'saved' ? 'approved' : undefined"
           @click="showDetail(item)"

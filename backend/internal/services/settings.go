@@ -103,9 +103,16 @@ type SunsetPreferencePatch struct {
 	SunsetDays           *int    `json:"sunsetDays"`
 	SunsetLabel          *string `json:"sunsetLabel"`
 	PosterOverlayEnabled *bool   `json:"posterOverlayEnabled"`
+	PosterOverlayStyle   *string `json:"posterOverlayStyle"`
 	SunsetRescoreEnabled *bool   `json:"sunsetRescoreEnabled"`
 	SavedDurationDays    *int    `json:"savedDurationDays"`
 	SavedLabel           *string `json:"savedLabel"`
+}
+
+// validOverlayStyles is the set of accepted values for PosterOverlayStyle.
+var validOverlayStyles = map[string]bool{
+	"countdown": true,
+	"simple":    true,
 }
 
 // ContentPreferencePatch contains fields for the content analytics settings group.
@@ -258,6 +265,12 @@ func (s *SettingsService) PatchSunsetPreferences(patch SunsetPreferencePatch) (d
 	}
 	if patch.PosterOverlayEnabled != nil {
 		updates["poster_overlay_enabled"] = *patch.PosterOverlayEnabled
+	}
+	if patch.PosterOverlayStyle != nil {
+		if !validOverlayStyles[*patch.PosterOverlayStyle] {
+			return db.PreferenceSet{}, fmt.Errorf("invalid poster overlay style: %q", *patch.PosterOverlayStyle)
+		}
+		updates["poster_overlay_style"] = *patch.PosterOverlayStyle
 	}
 	if patch.SunsetRescoreEnabled != nil {
 		updates["sunset_rescore_enabled"] = *patch.SunsetRescoreEnabled

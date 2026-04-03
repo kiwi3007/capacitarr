@@ -311,6 +311,36 @@
               "
             />
           </div>
+          <div v-if="posterOverlayEnabled" class="space-y-1.5">
+            <div class="flex items-center gap-2">
+              <UiLabel>{{ $t('settings.posterOverlayStyle') }}</UiLabel>
+              <SaveIndicator :status="saveStatus.posterOverlayStyle ?? 'idle'" />
+            </div>
+            <p class="text-xs text-muted-foreground mb-1">
+              {{ $t('settings.posterOverlayStyleDesc') }}
+            </p>
+            <UiSelect
+              :model-value="posterOverlayStyle"
+              @update:model-value="
+                (v: AcceptableValue) => {
+                  posterOverlayStyle = String(v);
+                  patchPreference('posterOverlayStyle', 'sunset', 'posterOverlayStyle', String(v));
+                }
+              "
+            >
+              <UiSelectTrigger class="w-full">
+                <UiSelectValue :placeholder="$t('settings.posterOverlayStyleCountdown')" />
+              </UiSelectTrigger>
+              <UiSelectContent>
+                <UiSelectItem value="countdown">
+                  {{ $t('settings.posterOverlayStyleCountdown') }}
+                </UiSelectItem>
+                <UiSelectItem value="simple">
+                  {{ $t('settings.posterOverlayStyleSimple') }}
+                </UiSelectItem>
+              </UiSelectContent>
+            </UiSelect>
+          </div>
           <div class="space-y-3">
             <div class="space-y-1.5">
               <UiLabel>{{ $t('settings.refreshPosters') }}</UiLabel>
@@ -543,6 +573,7 @@ initFields([
   'tiebreaker',
   'snoozeDuration',
   'posterOverlay',
+  'posterOverlayStyle',
   'sunsetLabel',
   'sunsetDays',
   'sunsetRescore',
@@ -557,6 +588,7 @@ const { addToast } = useToast();
 const engineTiebreakerMethod = ref<string>(TIEBREAKER_SIZE_DESC);
 const snoozeDurationHours = ref(24);
 const posterOverlayEnabled = ref(true);
+const posterOverlayStyle = ref('countdown');
 const sunsetLabel = ref('capacitarr-sunset');
 const sunsetDays = ref(30);
 const sunsetRescoreEnabled = ref(true);
@@ -591,6 +623,9 @@ async function fetchPreferences() {
     }
     if (prefs?.posterOverlayEnabled !== undefined) {
       posterOverlayEnabled.value = prefs.posterOverlayEnabled;
+    }
+    if (prefs?.posterOverlayStyle) {
+      posterOverlayStyle.value = prefs.posterOverlayStyle;
     }
     if (prefs?.sunsetLabel) {
       sunsetLabel.value = prefs.sunsetLabel;

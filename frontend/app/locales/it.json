@@ -477,6 +477,7 @@
   "sunset.subtitle": "Items scheduled for deletion after a countdown period",
   "sunset.leavingInDays": "Leaving in {days} days",
   "sunset.leavingTomorrow": "Leaving tomorrow",
+  "sunset.leavingSoon": "Leaving soon",
   "sunset.lastDay": "Last day",
   "sunset.cancel": "Cancel",
   "sunset.count": "{count} item(s) in sunset",

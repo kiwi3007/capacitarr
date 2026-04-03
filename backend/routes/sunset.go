@@ -211,7 +211,13 @@ func RegisterSunsetRoutes(g *echo.Group, reg *services.Registry) {
 				"component", "routes", "error", registryErr)
 		}
 
-		updated, err := reg.PosterOverlay.UpdateAll(reg.Sunset, services.PosterDeps{
+		prefs, prefsErr := reg.Settings.GetPreferences()
+		if prefsErr != nil {
+			slog.Error("Failed to load preferences for poster refresh — using default style",
+				"component", "routes", "error", prefsErr)
+		}
+
+		updated, err := reg.PosterOverlay.UpdateAll(reg.Sunset, prefs.PosterOverlayStyle, services.PosterDeps{
 			Registry: registry,
 			Mapping:  reg.Mapping,
 		})

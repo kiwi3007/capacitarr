@@ -47,10 +47,13 @@ func NewPosterOverlayService(database *gorm.DB, bus *events.EventBus, cacheDir s
 // (the *arr PosterURL, typically TMDb CDN), caches it, composites the countdown
 // overlay, and uploads the result to all enabled media servers.
 //
+// The style parameter controls the overlay text: "countdown" shows exact days
+// remaining, "simple" shows only "Leaving soon".
+//
 // The media server is WRITE-ONLY for posters — we never download from it.
 // This prevents overlay stacking (downloading our own overlaid poster and
 // overlaying again) and ensures the cached original is always clean.
-func (s *PosterOverlayService) UpdateOverlay(item db.SunsetQueueItem, daysRemaining int, deps PosterDeps) error {
+func (s *PosterOverlayService) UpdateOverlay(item db.SunsetQueueItem, daysRemaining int, style string, deps PosterDeps) error {
 	if deps.Registry == nil || item.TmdbID == nil {
 		return nil
 	}
@@ -83,7 +86,7 @@ func (s *PosterOverlayService) UpdateOverlay(item db.SunsetQueueItem, daysRemain
 	}
 
 	// ── Compose overlay ──────────────────────────────────────────────────
-	overlayData, composeErr := poster.ComposeOverlay(originalData, daysRemaining)
+	overlayData, composeErr := poster.ComposeOverlay(originalData, daysRemaining, style)
 	if composeErr != nil {
 		slog.Error("Failed to compose poster overlay",
 			"component", "services", "mediaName", item.MediaName, "error", composeErr)
@@ -276,8 +279,9 @@ func (s *PosterOverlayService) UpdateSavedOverlay(item db.SunsetQueueItem, deps 
 
 // UpdateAll updates poster overlays for all sunset queue items.
 // Called by the daily cron job and the force-refresh route.
+// The style parameter controls the overlay text (see UpdateOverlay).
 // Returns the number of items successfully updated.
-func (s *PosterOverlayService) UpdateAll(sunset *SunsetService, deps PosterDeps) (int, error) {
+func (s *PosterOverlayService) UpdateAll(sunset *SunsetService, style string, deps PosterDeps) (int, error) {
 	items, err := sunset.ListAll()
 	if err != nil {
 		return 0, fmt.Errorf("list sunset items: %w", err)
@@ -293,7 +297,7 @@ func (s *PosterOverlayService) UpdateAll(sunset *SunsetService, deps PosterDeps)
 			}
 		} else {
 			daysRemaining := sunset.DaysRemaining(item)
-			if err := s.UpdateOverlay(item, daysRemaining, deps); err != nil {
+			if err := s.UpdateOverlay(item, daysRemaining, style, deps); err != nil {
 				slog.Error("Failed to update poster overlay",
 					"component", "services", "mediaName", item.MediaName, "error", err)
 				continue
