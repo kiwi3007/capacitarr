@@ -1,3 +1,8 @@
+## [3.0.5-beta] - 2026-04-04
+
+### 🐛 Bug Fixes
+
+- *(audit)* Restore score display for deleted and cancelled history entries ([5dc3103](https://github.com/Ghent/capacitarr/commit/5dc31034a38b6d37b4470f8656a8d76d9c292e05))
 ## [3.0.4-beta] - 2026-04-03
 
 ### 🚀 Features
