@@ -1,3 +1,8 @@
+## [3.0.6-beta] - 2026-04-04
+
+### 🐛 Bug Fixes
+
+- *(sunset)* Show 'Saved by popular demand' on poster cards ([b3f1576](https://github.com/Ghent/capacitarr/commit/b3f15762003663c76580ad7b4da2f1e76615643a))
 ## [3.0.5-beta] - 2026-04-04
 
 ### 🐛 Bug Fixes
