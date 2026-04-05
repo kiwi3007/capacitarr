@@ -330,55 +330,38 @@
             {{ $t('settings.posterOverlayGroupDesc') }}
           </p>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          <div class="space-y-1.5">
-            <div class="flex items-center gap-2">
-              <UiLabel>{{ $t('settings.posterOverlay') }}</UiLabel>
-              <SaveIndicator :status="saveStatus.posterOverlay ?? 'idle'" />
-            </div>
-            <p class="text-xs text-muted-foreground mb-1">
-              {{ $t('settings.posterOverlayDesc') }}
-            </p>
-            <UiSwitch
-              :model-value="posterOverlayEnabled"
-              @update:model-value="
-                (v: boolean) => {
-                  posterOverlayEnabled = v;
-                  patchPreference('posterOverlay', 'sunset', 'posterOverlayEnabled', v);
-                }
-              "
-            />
+        <div class="space-y-1.5">
+          <div class="flex items-center gap-2">
+            <UiLabel>{{ $t('settings.posterOverlayStyle') }}</UiLabel>
+            <SaveIndicator :status="saveStatus.posterOverlayStyle ?? 'idle'" />
           </div>
-          <div v-if="posterOverlayEnabled" class="space-y-1.5">
-            <div class="flex items-center gap-2">
-              <UiLabel>{{ $t('settings.posterOverlayStyle') }}</UiLabel>
-              <SaveIndicator :status="saveStatus.posterOverlayStyle ?? 'idle'" />
-            </div>
-            <p class="text-xs text-muted-foreground mb-1">
-              {{ $t('settings.posterOverlayStyleDesc') }}
-            </p>
-            <UiSelect
-              :model-value="posterOverlayStyle"
-              @update:model-value="
-                (v: AcceptableValue) => {
-                  posterOverlayStyle = String(v);
-                  patchPreference('posterOverlayStyle', 'sunset', 'posterOverlayStyle', String(v));
-                }
-              "
-            >
-              <UiSelectTrigger class="w-full">
-                <UiSelectValue :placeholder="$t('settings.posterOverlayStyleCountdown')" />
-              </UiSelectTrigger>
-              <UiSelectContent>
-                <UiSelectItem value="countdown">
-                  {{ $t('settings.posterOverlayStyleCountdown') }}
-                </UiSelectItem>
-                <UiSelectItem value="simple">
-                  {{ $t('settings.posterOverlayStyleSimple') }}
-                </UiSelectItem>
-              </UiSelectContent>
-            </UiSelect>
-          </div>
+          <p class="text-xs text-muted-foreground mb-1">
+            {{ $t('settings.posterOverlayStyleDesc') }}
+          </p>
+          <UiSelect
+            :model-value="posterOverlayStyle"
+            @update:model-value="
+              (v: AcceptableValue) => {
+                posterOverlayStyle = String(v);
+                patchPreference('posterOverlayStyle', 'sunset', 'posterOverlayStyle', String(v));
+              }
+            "
+          >
+            <UiSelectTrigger class="w-full max-w-xs">
+              <UiSelectValue :placeholder="$t('settings.posterOverlayStyleCountdown')" />
+            </UiSelectTrigger>
+            <UiSelectContent>
+              <UiSelectItem value="off">
+                {{ $t('settings.posterOverlayStyleOff') }}
+              </UiSelectItem>
+              <UiSelectItem value="countdown">
+                {{ $t('settings.posterOverlayStyleCountdown') }}
+              </UiSelectItem>
+              <UiSelectItem value="simple">
+                {{ $t('settings.posterOverlayStyleSimple') }}
+              </UiSelectItem>
+            </UiSelectContent>
+          </UiSelect>
         </div>
       </div>
 
@@ -571,7 +554,6 @@ const { saveStatus, initFields, patchPreference } = useAutoSave();
 initFields([
   'tiebreaker',
   'snoozeDuration',
-  'posterOverlay',
   'posterOverlayStyle',
   'sunsetLabel',
   'sunsetDays',
@@ -586,7 +568,6 @@ const { addToast } = useToast();
 // Engine behavior state
 const engineTiebreakerMethod = ref<string>(TIEBREAKER_SIZE_DESC);
 const snoozeDurationHours = ref(24);
-const posterOverlayEnabled = ref(true);
 const posterOverlayStyle = ref('countdown');
 const sunsetLabel = ref('capacitarr-sunset');
 const sunsetDays = ref(30);
@@ -619,9 +600,6 @@ async function fetchPreferences() {
     }
     if (prefs?.snoozeDurationHours !== undefined) {
       snoozeDurationHours.value = prefs.snoozeDurationHours;
-    }
-    if (prefs?.posterOverlayEnabled !== undefined) {
-      posterOverlayEnabled.value = prefs.posterOverlayEnabled;
     }
     if (prefs?.posterOverlayStyle) {
       posterOverlayStyle.value = prefs.posterOverlayStyle;

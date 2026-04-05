@@ -2331,8 +2331,9 @@ paths:
                   maximum: 365
                 sunsetLabel:
                   type: string
-                posterOverlayEnabled:
-                  type: boolean
+                posterOverlayStyle:
+                  type: string
+                  enum: [off, countdown, simple]
                 sunsetRescoreEnabled:
                   type: boolean
                 savedDurationDays:

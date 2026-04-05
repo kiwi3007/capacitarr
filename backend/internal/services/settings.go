@@ -102,7 +102,6 @@ type EnginePreferencePatch struct {
 type SunsetPreferencePatch struct {
 	SunsetDays           *int    `json:"sunsetDays"`
 	SunsetLabel          *string `json:"sunsetLabel"`
-	PosterOverlayEnabled *bool   `json:"posterOverlayEnabled"`
 	PosterOverlayStyle   *string `json:"posterOverlayStyle"`
 	SunsetRescoreEnabled *bool   `json:"sunsetRescoreEnabled"`
 	SavedDurationDays    *int    `json:"savedDurationDays"`
@@ -111,6 +110,7 @@ type SunsetPreferencePatch struct {
 
 // validOverlayStyles is the set of accepted values for PosterOverlayStyle.
 var validOverlayStyles = map[string]bool{
+	"off":       true,
 	"countdown": true,
 	"simple":    true,
 }
@@ -262,9 +262,6 @@ func (s *SettingsService) PatchSunsetPreferences(patch SunsetPreferencePatch) (d
 	}
 	if patch.SunsetLabel != nil {
 		updates["sunset_label"] = *patch.SunsetLabel
-	}
-	if patch.PosterOverlayEnabled != nil {
-		updates["poster_overlay_enabled"] = *patch.PosterOverlayEnabled
 	}
 	if patch.PosterOverlayStyle != nil {
 		if !validOverlayStyles[*patch.PosterOverlayStyle] {

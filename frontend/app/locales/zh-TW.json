@@ -486,8 +486,6 @@
   "deletion.emptyInSunset": "Items will appear here when sunset countdowns expire or escalation triggers.",
   "settings.sunsetSettings": "Sunset Settings",
   "settings.sunsetSettingsDesc": "Configure poster overlays and countdown behavior for sunset mode.",
-  "settings.posterOverlay": "Poster Overlays",
-  "settings.posterOverlayDesc": "Apply \"Leaving in X days\" countdown banners to media posters in your media server.",
   "settings.restoreAllPosters": "Restore All Posters",
   "settings.restoreAllPostersDesc": "Emergency button: restore all original posters for items currently in the sunset queue."
 }

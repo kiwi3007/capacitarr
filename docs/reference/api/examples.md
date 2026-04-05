@@ -666,7 +666,7 @@ curl -s -H "X-Api-Key: $CAPACITARR_API_KEY" \
   "checkForUpdates": true,
   "sunsetDays": 30,
   "sunsetLabel": "capacitarr-sunset",
-  "posterOverlayEnabled": false,
+  "posterOverlayStyle": "countdown",
   "deletionQueueDelaySeconds": 30,
   "deadContentMinDays": 90,
   "staleContentDays": 180,

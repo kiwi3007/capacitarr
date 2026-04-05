@@ -172,9 +172,9 @@ func composeBanner(original []byte, text string, topColor, bottomColor color.NRG
 		return nil, err
 	}
 
-	fontSize := float64(bannerH) * 0.42
-	if fontSize < 10 {
-		fontSize = 10
+	fontSize := float64(bannerH) * 0.55
+	if fontSize < 12 {
+		fontSize = 12
 	}
 
 	face, err := opentype.NewFace(ft, &opentype.FaceOptions{

@@ -186,7 +186,7 @@ func Start(reg *services.Registry) *cron.Cron {
 
 		// 4. Update poster overlays (if enabled and service is available)
 		if reg.PosterOverlay != nil {
-			if prefsErr == nil && prefs.PosterOverlayEnabled {
+			if prefsErr == nil && prefs.PosterOverlayStyle != "off" {
 				if _, overlayErr := reg.PosterOverlay.UpdateAll(reg.Sunset, prefs.PosterOverlayStyle, services.PosterDeps{
 					Registry: registry,
 					Mapping:  reg.Mapping,

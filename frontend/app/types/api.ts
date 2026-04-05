@@ -71,7 +71,6 @@ export interface PreferenceSet {
   staleContentDays: number;
   sunsetDays: number;
   sunsetLabel: string;
-  posterOverlayEnabled: boolean;
   posterOverlayStyle: string;
   sunsetRescoreEnabled: boolean;
   savedDurationDays: number;
@@ -337,7 +336,7 @@ export interface PreferencesExport {
   checkForUpdates: boolean;
   sunsetDays: number;
   sunsetLabel: string;
-  posterOverlayEnabled: boolean;
+  posterOverlayStyle: string;
   factorWeights: Record<string, number>;
 }
 

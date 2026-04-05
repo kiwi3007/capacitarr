@@ -100,7 +100,7 @@ type PreferencesExport struct {
 	CheckForUpdates       bool           `json:"checkForUpdates"`
 	SunsetDays            int            `json:"sunsetDays,omitempty"`
 	SunsetLabel           string         `json:"sunsetLabel,omitempty"`
-	PosterOverlayEnabled  bool           `json:"posterOverlayEnabled,omitempty"`
+	PosterOverlayEnabled  *bool          `json:"posterOverlayEnabled,omitempty"` // 3.x compat: read during import to derive style, not written in new exports
 	PosterOverlayStyle    string         `json:"posterOverlayStyle,omitempty"`
 	FactorWeights         map[string]int `json:"factorWeights,omitempty"` // factor_key → weight (0-10)
 }
@@ -236,7 +236,6 @@ func (s *BackupService) Export(sections ExportSections, appVersion string) (*Set
 			CheckForUpdates:       pref.CheckForUpdates,
 			SunsetDays:            pref.SunsetDays,
 			SunsetLabel:           pref.SunsetLabel,
-			PosterOverlayEnabled:  pref.PosterOverlayEnabled,
 			PosterOverlayStyle:    pref.PosterOverlayStyle,
 			FactorWeights:         weightsMap,
 		}
@@ -499,6 +498,11 @@ func (s *BackupService) importPreferences(tx *gorm.DB, p *PreferencesExport) err
 	pref.CheckForUpdates = p.CheckForUpdates
 	if p.PosterOverlayStyle != "" {
 		pref.PosterOverlayStyle = p.PosterOverlayStyle
+	}
+	// Backward compat: old backups have posterOverlayEnabled but no "off" style.
+	// If the old boolean was explicitly false, override style to "off".
+	if p.PosterOverlayEnabled != nil && !*p.PosterOverlayEnabled {
+		pref.PosterOverlayStyle = "off"
 	}
 
 	if err := tx.Save(&pref).Error; err != nil {
