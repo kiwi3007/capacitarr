@@ -151,7 +151,7 @@ curl -N -H "X-Api-Key: $CAPACITARR_API_KEY" \
   "$CAPACITARR_URL/events"
 ```
 
-The SSE endpoint supports reconnection replay via the `Last-Event-ID` header. See the [Architecture](../architecture.md) documentation for the complete list of 70 event types.
+The SSE endpoint supports reconnection replay via the `Last-Event-ID` header. See the [Architecture](../architecture.md) documentation for the complete list of event types.
 
 ## Endpoint Overview
 
@@ -161,15 +161,15 @@ The SSE endpoint supports reconnection replay via the `Last-Event-ID` header. Se
 | **Auth** | `GET /auth/status`, `POST /auth/login`, `PUT /auth/password`, `PUT /auth/username`, `POST /auth/apikey`, `GET /auth/apikey` |
 | **Disk Groups** | `GET /disk-groups`, `PUT /disk-groups/:id` |
 | **Engine** | `POST /engine/run`, `GET /engine/history` |
-| **Integrations** | `GET /integrations`, `GET /integrations/:id`, `POST /integrations`, `PUT /integrations/:id`, `DELETE /integrations/:id`, `POST /integrations/test`, `POST /integrations/sync` |
+| **Integrations** | `GET /integrations`, `GET /integrations/:id`, `POST /integrations`, `PUT /integrations/:id`, `DELETE /integrations/:id`, `POST /integrations/test`, `POST /integrations/sync`, `GET /integrations/health` |
 | **Rules** | `GET /custom-rules`, `POST /custom-rules`, `PUT /custom-rules/:id`, `DELETE /custom-rules/:id`, `PUT /custom-rules/reorder`, `GET /custom-rules/:id/impact`, `GET /custom-rules/:id/context`, `GET /rule-fields`, `GET /rule-values` |
 | **Factor Weights** | `GET /scoring-factor-weights`, `PUT /scoring-factor-weights` |
-| **Approval Queue** | `GET /approval-queue`, `POST /approval-queue/:id/approve`, `POST /approval-queue/:id/reject`, `POST /approval-queue/:id/unsnooze`, `DELETE /approval-queue/:id`, `POST /approval-queue/clear` |
+| **Approval Queue** | `GET /approval-queue`, `POST /approval-queue/:id/approve`, `POST /approval-queue/:id/reject`, `POST /approval-queue/:id/unsnooze`, `DELETE /approval-queue/:id`, `POST /approval-queue/group/approve`, `POST /approval-queue/group/reject`, `POST /approval-queue/clear` |
 | **Deletion Queue** | `GET /deletion-queue`, `DELETE /deletion-queue`, `POST /deletion-queue/snooze`, `POST /deletion-queue/clear`, `GET /deletion-queue/grace-period`, `POST /delete` |
 | **Audit Log** | `GET /audit-log`, `GET /audit-log/recent`, `GET /audit-log/grouped` |
 | **Activity** | `GET /activity/recent` |
 | **SSE** | `GET /events` |
-| **Preferences** | `GET /preferences`, `PUT /preferences` |
+| **Preferences** | `GET /preferences`, `PUT /preferences`, `PATCH /preferences/engine`, `PATCH /preferences/sunset`, `PATCH /preferences/content`, `PATCH /preferences/advanced` |
 | **Preview** | `GET /preview` |
 | **Metrics** | `GET /metrics/history`, `GET /worker/stats` |
 | **Dashboard** | `GET /dashboard-stats`, `GET /lifetime-stats` |

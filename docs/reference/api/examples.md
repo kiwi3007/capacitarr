@@ -365,6 +365,15 @@ curl -s -X POST -H "X-Api-Key: $CAPACITARR_API_KEY" \
   "$CAPACITARR_URL/integrations/sync" | jq
 ```
 
+### Get integration health
+
+Check the health and recovery status of all integrations.
+
+```bash
+curl -s -H "X-Api-Key: $CAPACITARR_API_KEY" \
+  "$CAPACITARR_URL/integrations/health" | jq
+```
+
 ---
 
 ## Rules (Protections)
@@ -664,12 +673,17 @@ curl -s -H "X-Api-Key: $CAPACITARR_API_KEY" \
   "deletionsEnabled": true,
   "snoozeDurationHours": 24,
   "checkForUpdates": true,
+  "deadContentMinDays": 90,
+  "staleContentDays": 180,
   "sunsetDays": 30,
   "sunsetLabel": "capacitarr-sunset",
   "posterOverlayStyle": "countdown",
+  "sunsetRescoreEnabled": true,
+  "savedDurationDays": 7,
+  "savedLabel": "capacitarr-saved",
+  "backupRetentionDays": 7,
+  "diskGroupGracePeriodDays": 7,
   "deletionQueueDelaySeconds": 30,
-  "deadContentMinDays": 90,
-  "staleContentDays": 180,
   "updatedAt": "2026-03-06T12:00:00Z"
 }
 ```
@@ -696,6 +710,36 @@ curl -s -X PUT -H "X-Api-Key: $CAPACITARR_API_KEY" \
 ```
 
 > **Note:** Scoring factor weights are managed separately via the `/scoring-factor-weights` endpoint.
+
+### Patch preferences by group
+
+Update a subset of preferences by group without sending the full object.
+
+```bash
+# Engine settings
+curl -s -X PATCH -H "X-Api-Key: $CAPACITARR_API_KEY" \
+  -H "Content-Type: application/json" \
+  "$CAPACITARR_URL/preferences/engine" \
+  -d '{"deletionsEnabled": true, "defaultDiskGroupMode": "approval"}' | jq
+
+# Sunset settings
+curl -s -X PATCH -H "X-Api-Key: $CAPACITARR_API_KEY" \
+  -H "Content-Type: application/json" \
+  "$CAPACITARR_URL/preferences/sunset" \
+  -d '{"sunsetDays": 14, "posterOverlayStyle": "simple"}' | jq
+
+# Content analytics settings
+curl -s -X PATCH -H "X-Api-Key: $CAPACITARR_API_KEY" \
+  -H "Content-Type: application/json" \
+  "$CAPACITARR_URL/preferences/content" \
+  -d '{"deadContentMinDays": 60, "staleContentDays": 120}' | jq
+
+# Advanced settings
+curl -s -X PATCH -H "X-Api-Key: $CAPACITARR_API_KEY" \
+  -H "Content-Type: application/json" \
+  "$CAPACITARR_URL/preferences/advanced" \
+  -d '{"pollIntervalSeconds": 600, "backupRetentionDays": 14}' | jq
+```
 
 ---
 
@@ -768,6 +812,24 @@ curl -s -X DELETE -H "X-Api-Key: $CAPACITARR_API_KEY" \
 ```bash
 curl -s -X POST -H "X-Api-Key: $CAPACITARR_API_KEY" \
   "$CAPACITARR_URL/approval-queue/clear" | jq
+```
+
+### Approve an entire collection group
+
+```bash
+curl -s -X POST -H "X-Api-Key: $CAPACITARR_API_KEY" \
+  -H "Content-Type: application/json" \
+  "$CAPACITARR_URL/approval-queue/group/approve" \
+  -d '{"collectionGroup":"My Collection"}' | jq
+```
+
+### Reject an entire collection group
+
+```bash
+curl -s -X POST -H "X-Api-Key: $CAPACITARR_API_KEY" \
+  -H "Content-Type: application/json" \
+  "$CAPACITARR_URL/approval-queue/group/reject" \
+  -d '{"collectionGroup":"My Collection"}' | jq
 ```
 
 ---
@@ -936,6 +998,40 @@ curl -s -X POST -H "X-Api-Key: $CAPACITARR_API_KEY" \
 }
 ```
 
+### Refresh labels
+
+Re-apply sunset labels to all active sunset queue items. Useful after changing
+the sunset label name in preferences.
+
+```bash
+curl -s -X POST -H "X-Api-Key: $CAPACITARR_API_KEY" \
+  "$CAPACITARR_URL/sunset-queue/refresh-labels" | jq
+```
+
+```json
+{
+  "status": "refreshed",
+  "refreshed": 4
+}
+```
+
+### Refresh posters
+
+Re-apply poster overlays to all active sunset queue items. Useful after changing
+the poster overlay style in preferences.
+
+```bash
+curl -s -X POST -H "X-Api-Key: $CAPACITARR_API_KEY" \
+  "$CAPACITARR_URL/sunset-queue/refresh-posters" | jq
+```
+
+```json
+{
+  "status": "refreshed",
+  "refreshed": 4
+}
+```
+
 ### Restore all posters
 
 Emergency action: restore all original poster images that have been overlaid
@@ -1065,7 +1161,7 @@ curl -N -H "X-Api-Key: $CAPACITARR_API_KEY" \
   "$CAPACITARR_URL/events"
 ```
 
-See the [Architecture](../architecture.md) documentation for the complete list of 70 event types.
+See the [Architecture](../architecture.md) documentation for the complete list of event types.
 
 ---
 

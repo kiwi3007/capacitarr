@@ -44,6 +44,7 @@ const NAV_META = {
   'guides/scoring.md': { order: 1 },
   'guides/notifications.md': { order: 2 },
   'guides/troubleshooting.md': { order: 3 },
+  'guides/sunset-mode.md': { order: 4 },
   // Reference group (dir order 3)
   'reference/architecture.md': { order: 1 },
   // Releasing (top-level, between Security and Project groups)

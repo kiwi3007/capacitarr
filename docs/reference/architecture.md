@@ -328,7 +328,7 @@ flowchart LR
 
 See [notifications.md](../guides/notifications.md) for the full user-facing guide.
 
-### Event Types (70 total)
+### Event Types
 
 | Category | Events |
 |----------|--------|
@@ -417,7 +417,7 @@ Transient dashboard feed with 7-day retention:
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | INTEGER | Primary key |
-| `event_type` | TEXT | One of 67 event types |
+| `event_type` | TEXT | Event type identifier |
 | `message` | TEXT | Human-readable message |
 | `metadata` | TEXT | Optional JSON payload |
 | `created_at` | DATETIME | Row creation |

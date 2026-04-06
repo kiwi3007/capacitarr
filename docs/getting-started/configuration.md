@@ -195,6 +195,58 @@ Capacitarr uses Server-Sent Events (SSE) to push real-time updates to all connec
 
 When running behind a reverse proxy, ensure the proxy does not buffer responses for the SSE endpoint. See the [Deployment Guide](deployment.md#sse-server-sent-events-proxy-configuration) for proxy-specific configuration.
 
+## Application Preferences
+
+Beyond environment variables, Capacitarr has application-level preferences managed through the Settings UI or the `GET/PUT /preferences` and `PATCH /preferences/*` API endpoints. These are stored in the database and can be changed at runtime.
+
+### Engine & Mode
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `defaultDiskGroupMode` | `dry-run` | Default execution mode for new disk groups: `dry-run`, `approval`, `auto`, `sunset` |
+| `tiebreakerMethod` | `size_desc` | Tiebreaker when deletion scores are equal: `size_desc`, `size_asc`, `name_asc`, `oldest_first`, `newest_first` |
+| `deletionsEnabled` | `true` | Safety guard — actual file deletions only occur when true. When false, all deletions are simulated. |
+| `snoozeDurationHours` | `24` | Hours to snooze rejected approval queue items (1-720) |
+| `deletionQueueDelaySeconds` | `30` | Grace period in seconds before processing queued deletions (10-300) |
+| `pollIntervalSeconds` | `300` | Engine poll interval in seconds (minimum 60) |
+
+### Sunset Mode
+
+See the [Sunset Mode Guide](../guides/sunset-mode.md) for full documentation.
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `sunsetDays` | `30` | Countdown duration in days before sunset items are deleted (7-90) |
+| `sunsetLabel` | `capacitarr-sunset` | Label/tag applied to media server items in the sunset queue |
+| `savedLabel` | `capacitarr-saved` | Label/tag applied to items saved by popular demand |
+| `posterOverlayStyle` | `countdown` | Poster overlay style: `off`, `countdown`, `simple` |
+| `sunsetRescoreEnabled` | `true` | Enable daily re-scoring of sunset queue items |
+| `savedDurationDays` | `7` | Days the "Saved by popular demand" marker persists (3-30) |
+
+### Content Analytics
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `deadContentMinDays` | `90` | Minimum days in library for media to appear in dead content analytics (30-365) |
+| `staleContentDays` | `180` | Days since last watch for media to appear in stale content analytics (60-365) |
+
+### Data Management
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `logLevel` | `info` | Log level: `debug`, `info`, `warn`, `error` |
+| `auditLogRetentionDays` | `30` | Days to keep audit log entries (0 = indefinite) |
+| `backupRetentionDays` | `7` | Days to keep automatic database backups (3, 7, 14, 30) |
+| `checkForUpdates` | `true` | Enable outbound update check to GitHub (cached 6 hours) |
+
+### Disk Group Grace Period
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `diskGroupGracePeriodDays` | `7` | Days before stale disk groups are permanently removed (0 = immediate) |
+
+Disk groups not reported by any integration are marked **stale** rather than deleted immediately. This protects against accidental data loss when integrations are temporarily disabled or unreachable. Stale groups retain all configuration (thresholds, mode, overrides) and are automatically restored when the mount path reappears. Set to `0` to restore the legacy immediate-deletion behavior.
+
 ### Data Retention
 
 | Data | Retention | Configuration |
