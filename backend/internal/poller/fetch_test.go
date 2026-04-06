@@ -35,6 +35,9 @@ func TestFetchAllIntegrations_EmptyConfigs(t *testing.T) {
 	if len(result.diskMap) != 0 {
 		t.Errorf("expected 0 disk entries, got %d", len(result.diskMap))
 	}
+	if result.anyDiskSuccess {
+		t.Error("expected anyDiskSuccess=false when no integrations are configured")
+	}
 }
 
 func TestFetchAllIntegrations_UnknownType(t *testing.T) {

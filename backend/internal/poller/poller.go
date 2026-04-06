@@ -368,10 +368,16 @@ func (p *Poller) poll() {
 	}
 
 	// Clean up orphaned disk groups that are no longer media mounts.
-	// This also handles the case where all integrations failed to return
-	// disk space — mediaMounts is empty, so all disk groups are removed.
-	// When integrations recover, the next successful poll recreates them.
-	if deleted, cleanErr := p.reg.DiskGroup.ReconcileActiveMounts(mediaMounts); cleanErr != nil {
+	// Skip reconciliation when mediaMounts is empty AND no disk reporter
+	// succeeded — this means integrations were unreachable, not that
+	// mounts were genuinely removed. Without this guard, a temporary
+	// outage (e.g., during an upgrade restart) deletes all disk groups;
+	// when integrations recover the next cycle, Upsert() recreates them
+	// with default thresholds (75%/85%), losing user customizations.
+	if len(mediaMounts) == 0 && !fetched.anyDiskSuccess {
+		slog.Warn("Skipping disk group reconciliation — no disk reporters returned data",
+			"component", "poller")
+	} else if deleted, cleanErr := p.reg.DiskGroup.ReconcileActiveMounts(mediaMounts); cleanErr != nil {
 		slog.Error("Failed to clean orphaned disk groups", "component", "poller", "error", cleanErr)
 	} else if deleted > 0 {
 		slog.Info("Removed orphaned disk groups", "component", "poller", "count", deleted)

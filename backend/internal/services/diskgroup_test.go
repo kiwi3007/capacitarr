@@ -231,6 +231,45 @@ func TestDiskGroupService_ReconcileActiveMounts(t *testing.T) {
 	}
 }
 
+func TestDiskGroupService_ReconcileActiveMounts_EmptyMapDeletesAll(t *testing.T) {
+	database := setupTestDB(t)
+	bus := newTestBus(t)
+	svc := NewDiskGroupService(database, bus)
+
+	// Create groups with custom thresholds (simulating user configuration)
+	database.Create(&db.DiskGroup{MountPath: "/mnt/a", TotalBytes: 100, UsedBytes: 50, ThresholdPct: 90, TargetPct: 80})
+	database.Create(&db.DiskGroup{MountPath: "/mnt/b", TotalBytes: 200, UsedBytes: 100, ThresholdPct: 92, TargetPct: 82})
+
+	// Empty active mounts — simulates all disk reporters being unreachable.
+	// Without the poller guard, this call deletes all groups; subsequent
+	// Upsert() calls recreate them with default 85/75 thresholds, silently
+	// losing the user's 90/80 and 92/82 customizations.
+	deleted, err := svc.ReconcileActiveMounts(map[string]bool{})
+	if err != nil {
+		t.Fatalf("ReconcileActiveMounts error: %v", err)
+	}
+	if deleted != 2 {
+		t.Errorf("expected 2 deleted, got %d", deleted)
+	}
+
+	groups, _ := svc.List()
+	if len(groups) != 0 {
+		t.Fatalf("expected 0 groups after reconcile with empty map, got %d", len(groups))
+	}
+
+	// Recreate via Upsert (simulating next successful poll) — thresholds revert to defaults
+	g, err := svc.Upsert(integrations.DiskSpace{Path: "/mnt/a", TotalBytes: 100, FreeBytes: 50})
+	if err != nil {
+		t.Fatalf("Upsert error: %v", err)
+	}
+	if g.ThresholdPct != 85 {
+		t.Errorf("expected default threshold 85 after delete+recreate, got %f", g.ThresholdPct)
+	}
+	if g.TargetPct != 75 {
+		t.Errorf("expected default target 75 after delete+recreate, got %f", g.TargetPct)
+	}
+}
+
 func TestDiskGroupService_ImportUpsert(t *testing.T) {
 	database := setupTestDB(t)
 	bus := newTestBus(t)

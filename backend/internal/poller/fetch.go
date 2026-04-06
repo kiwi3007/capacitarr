@@ -18,6 +18,7 @@ type fetchResult struct {
 	registry          *integrations.IntegrationRegistry
 	pipeline          *integrations.EnrichmentPipeline
 	brokenTypes       []string // integration types that failed connection testing
+	anyDiskSuccess    bool     // true if at least one disk reporter returned data without error
 }
 
 // connTestResult holds the outcome of a single connection test goroutine.
@@ -273,6 +274,7 @@ func fetchAllIntegrations(integrationSvc *services.IntegrationService) fetchResu
 			continue
 		}
 
+		result.anyDiskSuccess = true
 		for _, d := range dr.disks {
 			if d.Path == "" {
 				continue
