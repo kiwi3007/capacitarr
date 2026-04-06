@@ -189,6 +189,9 @@ func RegisterPreferenceRoutes(protected *echo.Group, reg *services.Registry) {
 		if patch.AuditLogRetentionDays != nil && *patch.AuditLogRetentionDays < 0 {
 			return apiError(c, http.StatusBadRequest, "Audit log retention days must be 0 or greater")
 		}
+		if patch.BackupRetentionDays != nil && !db.ValidBackupRetentionDays[*patch.BackupRetentionDays] {
+			return apiError(c, http.StatusBadRequest, "Backup retention days must be one of: 3, 7, 14, 30")
+		}
 
 		saved, err := reg.Settings.PatchAdvancedPreferences(patch)
 		if err != nil {

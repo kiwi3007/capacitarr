@@ -40,6 +40,9 @@ func setupEvaluateTestDB(t *testing.T) (*gorm.DB, *services.Registry) {
 	if err := db.RunMigrations(sqlDB); err != nil {
 		t.Fatalf("Failed to run migrations: %v", err)
 	}
+	if err := db.AutoMigrateAll(database); err != nil {
+		t.Fatalf("AutoMigrate failed: %v", err)
+	}
 
 	pref := db.PreferenceSet{
 		ID:                   1,

@@ -114,6 +114,7 @@ type PreferenceSet struct {
 	SunsetRescoreEnabled      bool      `gorm:"default:true;not null" json:"sunsetRescoreEnabled"`                                     // Enable daily re-scoring of sunset queue items; if score drops, item is saved instead of deleted
 	SavedDurationDays         int       `gorm:"default:7;not null" json:"savedDurationDays"`                                           // How long the "Saved" marker/overlay persists before auto-cleanup (days)
 	SavedLabel                string    `gorm:"default:'capacitarr-saved';not null" json:"savedLabel"`                                 // Label/tag applied to media server items that were saved by activity
+	BackupRetentionDays       int       `gorm:"default:7;not null" json:"backupRetentionDays"`                                         // How many days of automatic database backups to keep (3, 7, 14, 30)
 	UpdatedAt                 time.Time `json:"updatedAt"`
 }
 

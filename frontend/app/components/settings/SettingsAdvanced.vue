@@ -193,6 +193,27 @@
           {{ $t('settings.retentionWarning') }}
         </UiAlertDescription>
       </UiAlert>
+      <UiSeparator class="my-2" />
+      <div class="space-y-1.5">
+        <div class="flex items-center gap-2">
+          <UiLabel>{{ $t('settings.backupRetention') }}</UiLabel>
+          <SaveIndicator :status="saveStatus.backupRetention ?? 'idle'" />
+        </div>
+        <UiSelect v-model="backupRetentionStr">
+          <UiSelectTrigger class="w-full max-w-xs">
+            <UiSelectValue placeholder="Select retention" />
+          </UiSelectTrigger>
+          <UiSelectContent>
+            <UiSelectItem value="3"> 3 days </UiSelectItem>
+            <UiSelectItem value="7"> 7 days (default) </UiSelectItem>
+            <UiSelectItem value="14"> 14 days </UiSelectItem>
+            <UiSelectItem value="30"> 30 days </UiSelectItem>
+          </UiSelectContent>
+        </UiSelect>
+        <p class="text-xs text-muted-foreground">
+          {{ $t('settings.backupRetentionDesc') }}
+        </p>
+      </div>
     </UiCardContent>
   </UiCard>
 
@@ -455,6 +476,7 @@ initFields([
   'pollInterval',
   'deletionQueueDelay',
   'retention',
+  'backupRetention',
   'defaultThreshold',
   'defaultTarget',
   'deletionsEnabled',
@@ -464,6 +486,7 @@ initFields([
 
 // ─── Settings state ──────────────────────────────────────────────────────────
 const retentionDays = ref(30);
+const backupRetentionDays = ref(7);
 const pollIntervalSeconds = ref(300);
 const logLevel = ref('info');
 const logLevelOverridden = ref(false);
@@ -497,6 +520,13 @@ const retentionStr = computed({
   },
 });
 
+const backupRetentionStr = computed({
+  get: () => String(backupRetentionDays.value),
+  set: (val: string) => {
+    backupRetentionDays.value = Number(val);
+  },
+});
+
 // Watch poll interval
 watch(pollIntervalSeconds, (newVal, oldVal) => {
   if (oldVal !== undefined && newVal !== oldVal) {
@@ -515,6 +545,13 @@ watch(deletionQueueDelaySeconds, (newVal, oldVal) => {
 watch(retentionDays, (newVal, oldVal) => {
   if (oldVal !== undefined && newVal !== oldVal) {
     patchPreference('retention', 'advanced', 'auditLogRetentionDays', newVal);
+  }
+});
+
+// Watch backup retention days
+watch(backupRetentionDays, (newVal, oldVal) => {
+  if (oldVal !== undefined && newVal !== oldVal) {
+    patchPreference('backupRetention', 'advanced', 'backupRetentionDays', newVal);
   }
 });
 
@@ -591,6 +628,9 @@ async function fetchPreferences() {
     }
     if (prefs?.checkForUpdates !== undefined) {
       checkForUpdatesEnabled.value = prefs.checkForUpdates;
+    }
+    if (prefs?.backupRetentionDays !== undefined) {
+      backupRetentionDays.value = prefs.backupRetentionDays;
     }
   } catch (err) {
     console.warn('[SettingsAdvanced] fetchPreferences failed:', err);

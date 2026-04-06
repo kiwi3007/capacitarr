@@ -35,6 +35,9 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	if err := db.RunMigrations(sqlDB); err != nil {
 		t.Fatalf("Failed to run migrations: %v", err)
 	}
+	if err := db.AutoMigrateAll(database); err != nil {
+		t.Fatalf("AutoMigrate failed: %v", err)
+	}
 
 	// Seed default preferences
 	pref := db.PreferenceSet{ID: 1, DefaultDiskGroupMode: db.ModeDryRun, LogLevel: db.LogLevelInfo, AuditLogRetentionDays: 30}

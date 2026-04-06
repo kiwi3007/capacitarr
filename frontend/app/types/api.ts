@@ -75,6 +75,7 @@ export interface PreferenceSet {
   sunsetRescoreEnabled: boolean;
   savedDurationDays: number;
   savedLabel: string;
+  backupRetentionDays: number;
   logLevelOverridden: boolean; // true when DEBUG=true env var pins log level to debug
   updatedAt: string;
 }

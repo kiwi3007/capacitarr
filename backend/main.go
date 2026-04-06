@@ -235,6 +235,41 @@ func main() {
 		os.Exit(1)
 	}
 
+	// ─── Schema Validation ────────────────────────────────────────────────
+	// Run after Goose migrations, before service registry construction.
+	// Performs integrity check, idempotent DDL fixups, AutoMigrate repair,
+	// and full schema validation. Hard stops on failure.
+	schemaSvc := services.NewSchemaService(database)
+	schemaReport, err := schemaSvc.ValidateAndRepair()
+	if err != nil {
+		slog.Error("Database schema validation failed", "component", "main", "error", err)
+		slog.Error("To recover, restore from an automatic backup in /config/backups/"+
+			" or delete /config/capacitarr.db and restart to create a fresh database (all data will be lost).",
+			"component", "main")
+		os.Exit(1)
+	}
+	for _, fixup := range schemaReport.FixupsApplied {
+		slog.Info("Schema fixup applied", "component", "main", "fixup", fixup)
+	}
+	for _, repair := range schemaReport.RepairsApplied {
+		slog.Info("Schema repair applied", "component", "main", "repair", repair)
+	}
+	if len(schemaReport.Errors) > 0 {
+		for _, e := range schemaReport.Errors {
+			slog.Error("Schema validation error", "component", "main", "error", e.String())
+		}
+		slog.Error("Schema validation failed after repair attempt. "+
+			"To recover, restore from an automatic backup: "+
+			"1) Stop the container, "+
+			"2) Copy a file from /config/backups/ to /config/capacitarr.db, "+
+			"3) Restart the container. "+
+			"If no backups are available, delete /config/capacitarr.db and restart "+
+			"to create a fresh database (all data will be lost).",
+			"component", "main")
+		os.Exit(1)
+	}
+	slog.Info("Database schema validation passed", "component", "main")
+
 	// Seed scoring factor weights from the engine's default factors.
 	// Converts engine.ScoringFactor (which db can't import) to db.FactorDefault.
 	defaultFactors := engine.DefaultFactors()
@@ -288,6 +323,14 @@ func main() {
 	// ─── Service Registry ──────────────────────────────────────────────────
 	reg := services.NewRegistry(database, bus, cfg)
 	reg.InitVersion(version)
+
+	// ─── Initial database backup ─────────────────────────────────────────
+	// Run an immediate backup so one exists before the first daily cron fires.
+	// Failure is logged but does not block startup — the database is still usable.
+	if err := reg.DatabaseBackup.RunScheduledBackup(); err != nil {
+		slog.Warn("Initial database backup failed — backups will retry on the daily schedule",
+			"component", "main", "error", err)
+	}
 
 	// ─── Restore persisted caches ─────────────────────────────────────────
 	// Load the media cache from the database so the dashboard and analytics

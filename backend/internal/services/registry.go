@@ -47,6 +47,7 @@ type Registry struct {
 	PosterOverlay        *PosterOverlayService
 	Mapping              *MappingService
 	Recovery             *RecoveryService
+	DatabaseBackup       *DatabaseBackupService
 }
 
 // NewRegistry creates a fully wired Registry with all services.
@@ -70,6 +71,7 @@ func NewRegistry(database *gorm.DB, bus *events.EventBus, cfg *config.Config) *R
 	notifChannelSvc := NewNotificationChannelService(database, bus)
 	notifDispatch := NewNotificationDispatchService(bus, notifChannelSvc, nil, "")
 	backupSvc := NewBackupService(database, bus)
+	dbBackupSvc := NewDatabaseBackupService(database, bus, cfg.Database)
 	previewSvc := NewPreviewService(database, bus)
 
 	reg := &Registry{
@@ -95,6 +97,7 @@ func NewRegistry(database *gorm.DB, bus *events.EventBus, cfg *config.Config) *R
 		Migration:            NewMigrationService(database, bus, filepath.Dir(cfg.Database)),
 		Sunset:               sunsetSvc,
 		Mapping:              NewMappingService(database, bus),
+		DatabaseBackup:       dbBackupSvc,
 	}
 
 	// Initialize PosterOverlayService — cache dir is alongside the database file
@@ -130,6 +133,9 @@ func NewRegistry(database *gorm.DB, bus *events.EventBus, cfg *config.Config) *R
 
 	// Wire BackupService's cross-service dependency on DiskGroupService
 	backupSvc.SetDiskGroupService(diskGroupSvc)
+
+	// Wire DatabaseBackupService's cross-service dependency on SettingsService
+	dbBackupSvc.SetSettingsService(settingsSvc)
 
 	// Wire MetricsService's cross-service dependency on SettingsService
 	metricsSvc.SetSettingsService(settingsSvc)
@@ -199,6 +205,7 @@ func (r *Registry) Validate() {
 		{"WatchAnalytics", r.WatchAnalytics},
 		{"Data", r.Data},
 		{"Migration", r.Migration},
+		{"DatabaseBackup", r.DatabaseBackup},
 	}
 
 	var unwired []string

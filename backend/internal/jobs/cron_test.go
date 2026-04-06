@@ -36,6 +36,9 @@ func setupCronTestDB(t *testing.T) *services.Registry {
 	if err := db.RunMigrations(sqlDB); err != nil {
 		t.Fatalf("Failed to run migrations: %v", err)
 	}
+	if err := db.AutoMigrateAll(database); err != nil {
+		t.Fatalf("AutoMigrate failed: %v", err)
+	}
 
 	pref := db.PreferenceSet{
 		ID:                    1,
@@ -76,9 +79,9 @@ func TestStart_RegistersExpectedEntries(t *testing.T) {
 
 	entries := c.Entries()
 	// Expected: hourly rollup, daily rollup, weekly rollup, monthly prune,
-	// engine stats prune, activity prune, audit log prune, sunset expiry
-	if len(entries) != 8 {
-		t.Errorf("Expected 8 cron entries, got %d", len(entries))
+	// engine stats prune, activity prune, audit log prune, database backup, sunset expiry
+	if len(entries) != 9 {
+		t.Errorf("Expected 9 cron entries, got %d", len(entries))
 	}
 }
 

@@ -2,6 +2,8 @@
 package db
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -106,6 +108,7 @@ func Init(cfg *config.Config) (*gorm.DB, error) {
 		StaleContentDays:      180,
 		SunsetDays:            30,
 		SunsetLabel:           "capacitarr-sunset",
+		BackupRetentionDays:   7,
 	}).Error; err != nil {
 		slog.Error("Failed to seed default preferences", "component", "db", "operation", "seed_preferences", "error", err)
 	}
@@ -123,6 +126,78 @@ func Init(cfg *config.Config) (*gorm.DB, error) {
 	slog.Info("Database initialized successfully", "component", "db",
 		"path", cfg.Database, "journalMode", journalMode, "maxOpenConns", 1)
 	return database, nil
+}
+
+// AutoMigrateAll applies the idempotent post-migration schema fixups that
+// SchemaService.runFixups() would apply in production. This aligns the
+// Goose-created schema (which may have old column names like "execution_mode"
+// or "flagged") with the current GORM model definitions.
+//
+// Unlike production where SchemaService also runs GORM's AutoMigrate for
+// additive repair, test databases skip AutoMigrate because Goose-created
+// schemas have minor column definition differences (e.g., DEFAULT values,
+// CHECK constraints) that cause AutoMigrate's temp-table recreation to fail
+// on SQLite. The fixups alone are sufficient for tests — they handle the
+// column renames and additions that the test preference seeding requires.
+func AutoMigrateAll(database *gorm.DB) error {
+	sqlDB, err := database.DB()
+	if err != nil {
+		return fmt.Errorf("AutoMigrateAll: get sql.DB: %w", err)
+	}
+	return applyTestFixups(sqlDB)
+}
+
+// applyTestFixups runs the same idempotent DDL fixups as SchemaService.runFixups().
+// Duplicated here (rather than importing services) to avoid a circular dependency.
+func applyTestFixups(sqlDB *sql.DB) error {
+	ctx := context.Background()
+
+	// Fixup 1: engine_run_stats — rename flagged→candidates, add queued
+	if hasCol(sqlDB, "engine_run_stats", "flagged") && !hasCol(sqlDB, "engine_run_stats", "candidates") {
+		if _, err := sqlDB.ExecContext(ctx, "ALTER TABLE engine_run_stats RENAME COLUMN flagged TO candidates"); err != nil {
+			return err
+		}
+	}
+	if !hasCol(sqlDB, "engine_run_stats", "queued") {
+		if _, err := sqlDB.ExecContext(ctx, "ALTER TABLE engine_run_stats ADD COLUMN queued INTEGER NOT NULL DEFAULT 0"); err != nil {
+			return err
+		}
+	}
+
+	// Fixup 2: preference_sets — rename execution_mode→default_disk_group_mode
+	if hasCol(sqlDB, "preference_sets", "execution_mode") && !hasCol(sqlDB, "preference_sets", "default_disk_group_mode") {
+		if _, err := sqlDB.ExecContext(ctx, "ALTER TABLE preference_sets RENAME COLUMN execution_mode TO default_disk_group_mode"); err != nil {
+			return err
+		}
+		if _, err := sqlDB.ExecContext(ctx, "UPDATE preference_sets SET default_disk_group_mode = 'dry-run'"); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// hasCol checks if a table has a specific column. Used by applyTestFixups.
+func hasCol(sqlDB *sql.DB, table, column string) bool {
+	rows, err := sqlDB.QueryContext(context.Background(), fmt.Sprintf("PRAGMA table_info(%s)", table)) //nolint:gosec // nosemgrep
+	if err != nil {
+		return false
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var cid int
+		var name, colType string
+		var notNull int
+		var dfltValue sql.NullString
+		var pk int
+		if err := rows.Scan(&cid, &name, &colType, &notNull, &dfltValue, &pk); err != nil {
+			continue
+		}
+		if name == column {
+			return true
+		}
+	}
+	return false
 }
 
 // SeedFactorWeights ensures a scoring_factor_weights row exists for each

@@ -82,6 +82,9 @@ func TestConcurrentAccess(t *testing.T) {
 	if err := RunMigrations(sqlDB); err != nil {
 		t.Fatalf("Migration failed: %v", err)
 	}
+	if err := AutoMigrateAll(database); err != nil {
+		t.Fatalf("AutoMigrate failed: %v", err)
+	}
 
 	// Seed a preference row for reads
 	pref := PreferenceSet{ID: 1, DefaultDiskGroupMode: ModeDryRun, LogLevel: LogLevelInfo}

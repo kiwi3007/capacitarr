@@ -130,7 +130,17 @@ func Start(reg *services.Registry) *cron.Cron {
 		slog.Error("Failed to add audit log cleanup cron", "component", "jobs", "operation", "add_cron", "error", err)
 	}
 
-	// Job 8: Daily sunset processing — expire countdowns, rescore, cleanup saved, update poster overlays.
+	// Job 8: Daily database backup — VACUUM INTO with rotation
+	_, err = c.AddFunc("@daily", func() {
+		if backupErr := reg.DatabaseBackup.RunScheduledBackup(); backupErr != nil {
+			slog.Error("Scheduled database backup failed", "component", "jobs", "error", backupErr)
+		}
+	})
+	if err != nil {
+		slog.Error("Failed to add database backup cron", "component", "jobs", "operation", "add_cron", "error", err)
+	}
+
+	// Job 9: Daily sunset processing — expire countdowns, rescore, cleanup saved, update poster overlays.
 	_, err = c.AddFunc("@daily", func() {
 		// Build integration registry for label/poster operations
 		registry, registryErr := reg.Integration.BuildIntegrationRegistry()

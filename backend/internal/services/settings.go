@@ -128,6 +128,7 @@ type AdvancedPreferencePatch struct {
 	DeletionQueueDelaySeconds *int    `json:"deletionQueueDelaySeconds"`
 	AuditLogRetentionDays     *int    `json:"auditLogRetentionDays"`
 	CheckForUpdates           *bool   `json:"checkForUpdates"`
+	BackupRetentionDays       *int    `json:"backupRetentionDays"`
 }
 
 // UpdatePreferences saves preference changes and publishes relevant events.
@@ -347,6 +348,9 @@ func (s *SettingsService) PatchAdvancedPreferences(patch AdvancedPreferencePatch
 	}
 	if patch.CheckForUpdates != nil {
 		updates["check_for_updates"] = *patch.CheckForUpdates
+	}
+	if patch.BackupRetentionDays != nil {
+		updates["backup_retention_days"] = *patch.BackupRetentionDays
 	}
 
 	if len(updates) == 0 {

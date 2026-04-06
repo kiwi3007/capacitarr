@@ -54,6 +54,11 @@ var ValidNotificationChannelTypes = map[string]bool{
 	"discord": true, "apprise": true,
 }
 
+// ValidBackupRetentionDays defines the allowed backup retention day values.
+var ValidBackupRetentionDays = map[int]bool{
+	3: true, 7: true, 14: true, 30: true,
+}
+
 // ValidNotificationLevels defines the allowed notification level values.
 var ValidNotificationLevels = map[string]bool{
 	"off": true, "critical": true, "important": true,

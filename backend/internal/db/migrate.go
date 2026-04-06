@@ -1,7 +1,6 @@
 package db
 
 import (
-	"context"
 	"database/sql"
 	"embed"
 	"fmt"
@@ -13,12 +12,14 @@ import (
 //go:embed migrations/*.sql
 var embedMigrations embed.FS
 
-// RunMigrations applies all pending Goose migrations using the embedded SQL files,
-// then runs post-migration schema fixups for changes that can't be expressed as
-// conditional DDL in pure SQL (e.g., column renames that must be idempotent).
+// RunMigrations applies all pending Goose migrations using the embedded SQL files.
 // For existing databases the baseline migration (00001) is a no-op because every
-// statement uses IF NOT EXISTS / INSERT OR IGNORE.  For fresh installs it creates
+// statement uses IF NOT EXISTS / INSERT OR IGNORE. For fresh installs it creates
 // the full schema.
+//
+// Post-migration schema fixups (column renames, additions) are handled by
+// SchemaService.ValidateAndRepair() in the services package, which runs
+// immediately after this function returns. See services/schema.go.
 func RunMigrations(sqlDB *sql.DB) error {
 	goose.SetBaseFS(embedMigrations)
 
@@ -28,15 +29,6 @@ func RunMigrations(sqlDB *sql.DB) error {
 
 	if err := goose.Up(sqlDB, "migrations"); err != nil {
 		return fmt.Errorf("goose up: %w", err)
-	}
-
-	// Post-migration schema fixups — idempotent DDL that checks column existence.
-	if err := fixupEngineRunStats(sqlDB); err != nil {
-		return fmt.Errorf("post-migration fixup (engine_run_stats): %w", err)
-	}
-
-	if err := fixupDefaultDiskGroupModeRename(sqlDB); err != nil {
-		return fmt.Errorf("post-migration fixup (default_disk_group_mode): %w", err)
 	}
 
 	slog.Info("Database migrations applied successfully", "component", "db")
@@ -57,117 +49,4 @@ func RunMigrationsDown(sqlDB *sql.DB) error {
 	}
 
 	return nil
-}
-
-// fixupEngineRunStats applies idempotent schema changes to engine_run_stats:
-//   - Renames "flagged" column to "candidates" (if flagged still exists)
-//   - Adds "queued" column (if it doesn't exist yet)
-//
-// This handles the transition for databases created before the flagged→candidates
-// rename. Fresh installs already have the correct schema from the baseline migration.
-func fixupEngineRunStats(sqlDB *sql.DB) error {
-	// Check which columns exist
-	hasFlagged := hasColumnInTable(sqlDB, "engine_run_stats", "flagged")
-	hasCandidates := hasColumnInTable(sqlDB, "engine_run_stats", "candidates")
-	hasQueued := hasColumnInTable(sqlDB, "engine_run_stats", "queued")
-
-	ctx := context.Background()
-
-	// Rename flagged → candidates if the old column still exists
-	if hasFlagged && !hasCandidates {
-		slog.Info("Renaming engine_run_stats.flagged → candidates", "component", "db")
-		if _, err := sqlDB.ExecContext(ctx, "ALTER TABLE engine_run_stats RENAME COLUMN flagged TO candidates"); err != nil {
-			return fmt.Errorf("rename flagged→candidates: %w", err)
-		}
-	}
-
-	// Add queued column if it doesn't exist
-	if !hasQueued {
-		slog.Info("Adding engine_run_stats.queued column", "component", "db")
-		if _, err := sqlDB.ExecContext(ctx, "ALTER TABLE engine_run_stats ADD COLUMN queued INTEGER NOT NULL DEFAULT 0"); err != nil {
-			return fmt.Errorf("add queued column: %w", err)
-		}
-	}
-
-	return nil
-}
-
-// fixupDefaultDiskGroupModeRename renames execution_mode → default_disk_group_mode
-// on preference_sets and resets the value to "dry-run". This is part of the 3.0
-// migration: execution mode moves from a global preference to a per-disk-group
-// field. The global column becomes "default_disk_group_mode" — used only as the
-// default for newly auto-discovered disk groups.
-//
-// Fresh installs already have the correct column from the GORM model. This fixup
-// only affects databases upgrading from 2.x where "execution_mode" still exists.
-// Requires SQLite 3.25.0+ for ALTER TABLE RENAME COLUMN.
-func fixupDefaultDiskGroupModeRename(sqlDB *sql.DB) error {
-	hasOld := hasColumnInTable(sqlDB, "preference_sets", "execution_mode")
-	hasNew := hasColumnInTable(sqlDB, "preference_sets", "default_disk_group_mode")
-
-	if !hasOld || hasNew {
-		// Fresh install (has new column from GORM model) or already renamed — nothing to do
-		return nil
-	}
-
-	ctx := context.Background()
-
-	slog.Info("Renaming preference_sets.execution_mode → default_disk_group_mode", "component", "db")
-	if _, err := sqlDB.ExecContext(ctx, "ALTER TABLE preference_sets RENAME COLUMN execution_mode TO default_disk_group_mode"); err != nil {
-		return fmt.Errorf("rename execution_mode→default_disk_group_mode: %w", err)
-	}
-
-	// Safety reset: all disk groups start in dry-run after the 3.0 upgrade.
-	// The per-group mode is a fundamentally different execution model; carrying
-	// forward "auto" or "approval" risks unexpected behavior.
-	slog.Info("Resetting default_disk_group_mode to dry-run for 3.0 upgrade safety", "component", "db")
-	if _, err := sqlDB.ExecContext(ctx, "UPDATE preference_sets SET default_disk_group_mode = 'dry-run'"); err != nil {
-		return fmt.Errorf("reset default_disk_group_mode to dry-run: %w", err)
-	}
-
-	return nil
-}
-
-// tableColumnChecker returns a function that queries PRAGMA table_info for
-// a specific hardcoded table. Each entry uses a string-literal query so
-// no runtime string formatting touches the SQL.
-var tableColumnCheckers = map[string]func(*sql.DB) (*sql.Rows, error){
-	"engine_run_stats": func(db *sql.DB) (*sql.Rows, error) {
-		return db.QueryContext(context.Background(), "PRAGMA table_info(engine_run_stats)")
-	},
-	"preference_sets": func(db *sql.DB) (*sql.Rows, error) {
-		return db.QueryContext(context.Background(), "PRAGMA table_info(preference_sets)")
-	},
-}
-
-// hasColumnInTable checks if a table has a specific column using PRAGMA table_info.
-// The tableName must have a registered checker in tableColumnCheckers; unrecognized
-// tables return false. This avoids string-formatted SQL while supporting multiple
-// tables for future migrations.
-func hasColumnInTable(sqlDB *sql.DB, tableName, column string) bool {
-	queryFn, ok := tableColumnCheckers[tableName]
-	if !ok {
-		return false
-	}
-
-	rows, err := queryFn(sqlDB)
-	if err != nil {
-		return false
-	}
-	defer func() { _ = rows.Close() }()
-
-	for rows.Next() {
-		var cid int
-		var name, colType string
-		var notNull int
-		var dfltValue sql.NullString
-		var pk int
-		if err := rows.Scan(&cid, &name, &colType, &notNull, &dfltValue, &pk); err != nil {
-			continue
-		}
-		if name == column {
-			return true
-		}
-	}
-	return false
 }

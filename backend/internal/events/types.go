@@ -1138,3 +1138,35 @@ func (e PosterOverlayFailedEvent) EventType() string { return "poster_overlay_fa
 func (e PosterOverlayFailedEvent) EventMessage() string {
 	return fmt.Sprintf("Poster overlay failed for %s: %s", e.MediaName, e.Error)
 }
+
+// =============================================================================
+// Database Backup Events
+// =============================================================================
+
+// DatabaseBackupCompletedEvent is published when a scheduled database backup completes successfully.
+type DatabaseBackupCompletedEvent struct {
+	Path            string `json:"path"`
+	SizeBytes       int64  `json:"sizeBytes"`
+	BackupsRetained int    `json:"backupsRetained"`
+}
+
+// EventType implements Event.
+func (e DatabaseBackupCompletedEvent) EventType() string { return "database_backup_completed" }
+
+// EventMessage implements Event.
+func (e DatabaseBackupCompletedEvent) EventMessage() string {
+	return fmt.Sprintf("Database backup completed: %s (%d bytes, %d backups retained)", e.Path, e.SizeBytes, e.BackupsRetained)
+}
+
+// DatabaseBackupFailedEvent is published when a scheduled database backup fails.
+type DatabaseBackupFailedEvent struct {
+	Error string `json:"error"`
+}
+
+// EventType implements Event.
+func (e DatabaseBackupFailedEvent) EventType() string { return "database_backup_failed" }
+
+// EventMessage implements Event.
+func (e DatabaseBackupFailedEvent) EventMessage() string {
+	return fmt.Sprintf("Database backup failed: %s", e.Error)
+}

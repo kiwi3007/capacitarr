@@ -102,6 +102,7 @@ type PreferencesExport struct {
 	SunsetLabel           string         `json:"sunsetLabel,omitempty"`
 	PosterOverlayEnabled  *bool          `json:"posterOverlayEnabled,omitempty"` // 3.x compat: read during import to derive style, not written in new exports
 	PosterOverlayStyle    string         `json:"posterOverlayStyle,omitempty"`
+	BackupRetentionDays   int            `json:"backupRetentionDays,omitempty"`
 	FactorWeights         map[string]int `json:"factorWeights,omitempty"` // factor_key → weight (0-10)
 }
 
@@ -237,6 +238,7 @@ func (s *BackupService) Export(sections ExportSections, appVersion string) (*Set
 			SunsetDays:            pref.SunsetDays,
 			SunsetLabel:           pref.SunsetLabel,
 			PosterOverlayStyle:    pref.PosterOverlayStyle,
+			BackupRetentionDays:   pref.BackupRetentionDays,
 			FactorWeights:         weightsMap,
 		}
 	}
@@ -496,6 +498,9 @@ func (s *BackupService) importPreferences(tx *gorm.DB, p *PreferencesExport) err
 	pref.DeletionsEnabled = p.DeletionsEnabled
 	pref.SnoozeDurationHours = p.SnoozeDurationHours
 	pref.CheckForUpdates = p.CheckForUpdates
+	if p.BackupRetentionDays > 0 {
+		pref.BackupRetentionDays = p.BackupRetentionDays
+	}
 	if p.PosterOverlayStyle != "" {
 		pref.PosterOverlayStyle = p.PosterOverlayStyle
 	}
