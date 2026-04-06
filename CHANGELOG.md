@@ -1,3 +1,8 @@
+## [3.1.1] - 2026-04-06
+
+### 🐛 Bug Fixes
+
+- *(poller)* Preserve disk group thresholds when integrations are unreachable ([d1a1f37](https://github.com/Ghent/capacitarr/commit/d1a1f37b921a28c5b1454abdd4f6daf1b41a0bfb))
 ## [3.1.0] - 2026-04-06
 
 ### 🚀 Features
