@@ -291,32 +291,27 @@ func TestCancelAll(t *testing.T) {
 func TestEscalate_OrderAndTargetBytes(t *testing.T) {
 	database, bus, svc := setupSunsetTest(t)
 
-	// Seed 3 items:
-	// 1. Expired item (deletion_date in the past) — should be targeted first
-	// 2. Future item, created 2 days ago (oldest in queue) — targeted second
-	// 3. Future item, created today (newest) — should be preserved if target is met
+	// Seed 3 items with varying scores:
+	// 1. Expired item, low score — should be targeted after higher-scored items
+	// 2. Future item, high score — targeted first by escalation step 2
+	// 3. Future item, medium score — targeted second by escalation step 2
 
 	database.Create(&db.SunsetQueueItem{
 		MediaName: "Firefly", MediaType: "show", IntegrationID: 1,
-		SizeBytes: 2000000000, DiskGroupID: 1, Trigger: db.TriggerEngine,
+		SizeBytes: 2000000000, Score: 0.60, DiskGroupID: 1, Trigger: db.TriggerEngine,
 		DeletionDate: time.Now().UTC().AddDate(0, 0, -1), // Expired
 	})
-	// Manually set created_at for ordering via raw SQL
-	database.Exec("UPDATE sunset_queue SET created_at = ? WHERE media_name = 'Firefly'",
-		time.Now().UTC().AddDate(0, 0, -3))
 
 	database.Create(&db.SunsetQueueItem{
 		MediaName: "Serenity", MediaType: "movie", IntegrationID: 1,
-		SizeBytes: 3000000000, DiskGroupID: 1, Trigger: db.TriggerEngine,
-		DeletionDate: time.Now().UTC().AddDate(0, 0, 20), // Future
+		SizeBytes: 3000000000, Score: 0.95, DiskGroupID: 1, Trigger: db.TriggerEngine,
+		DeletionDate: time.Now().UTC().AddDate(0, 0, 20), // Future, highest score
 	})
-	database.Exec("UPDATE sunset_queue SET created_at = ? WHERE media_name = 'Serenity'",
-		time.Now().UTC().AddDate(0, 0, -2))
 
 	database.Create(&db.SunsetQueueItem{
-		MediaName: "Firefly", MediaType: "show", IntegrationID: 1,
-		SizeBytes: 1000000000, DiskGroupID: 1, Trigger: db.TriggerEngine,
-		DeletionDate: time.Now().UTC().AddDate(0, 0, 25), // Future, newest
+		MediaName: "Firefly Movie", MediaType: "movie", IntegrationID: 1,
+		SizeBytes: 1000000000, Score: 0.75, DiskGroupID: 1, Trigger: db.TriggerEngine,
+		DeletionDate: time.Now().UTC().AddDate(0, 0, 25), // Future, medium score
 	})
 
 	// Escalate without a registry/deletion service — items can't actually be
@@ -422,6 +417,50 @@ func TestValidation_NullSunsetPct(t *testing.T) {
 		if err != nil {
 			t.Errorf("Expected no error for %s mode with nil sunsetPct, got: %v", mode, err)
 		}
+	}
+}
+
+func TestGetExpired_OrdersByScoreDescending(t *testing.T) {
+	database, _, svc := setupSunsetTest(t)
+
+	// Seed 3 expired items with different scores, inserted in ascending score
+	// order. GetExpired() must return them highest-score-first.
+	database.Create(&db.SunsetQueueItem{
+		MediaName: "Firefly", MediaType: "show", IntegrationID: 1,
+		SizeBytes: 5000000000, Score: 0.45, DiskGroupID: 1, Trigger: db.TriggerEngine,
+		DeletionDate: time.Now().UTC().AddDate(0, 0, -1), // expired
+	})
+	database.Create(&db.SunsetQueueItem{
+		MediaName: "Serenity", MediaType: "movie", IntegrationID: 1,
+		SizeBytes: 3000000000, Score: 0.85, DiskGroupID: 1, Trigger: db.TriggerEngine,
+		DeletionDate: time.Now().UTC().AddDate(0, 0, -2), // expired earlier
+	})
+	database.Create(&db.SunsetQueueItem{
+		MediaName: "Firefly Movie", MediaType: "movie", IntegrationID: 1,
+		SizeBytes: 2000000000, Score: 1.20, DiskGroupID: 1, Trigger: db.TriggerEngine,
+		DeletionDate: time.Now().UTC().AddDate(0, 0, -3), // expired earliest
+	})
+
+	expired, err := svc.GetExpired()
+	if err != nil {
+		t.Fatalf("GetExpired returned error: %v", err)
+	}
+	if len(expired) != 3 {
+		t.Fatalf("Expected 3 expired items, got %d", len(expired))
+	}
+
+	// Verify score-descending order
+	if expired[0].MediaName != "Firefly Movie" || expired[0].Score != 1.20 {
+		t.Errorf("Expected first item 'Firefly Movie' (score 1.20), got %q (score %.2f)",
+			expired[0].MediaName, expired[0].Score)
+	}
+	if expired[1].MediaName != "Serenity" || expired[1].Score != 0.85 {
+		t.Errorf("Expected second item 'Serenity' (score 0.85), got %q (score %.2f)",
+			expired[1].MediaName, expired[1].Score)
+	}
+	if expired[2].MediaName != "Firefly" || expired[2].Score != 0.45 {
+		t.Errorf("Expected third item 'Firefly' (score 0.45), got %q (score %.2f)",
+			expired[2].MediaName, expired[2].Score)
 	}
 }
 

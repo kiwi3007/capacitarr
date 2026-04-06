@@ -2209,3 +2209,103 @@ func TestDeletionService_SnoozeDeletionItem_NotInQueue(t *testing.T) {
 		t.Errorf("expected snooze duration 24, got %d", snoozer.calledDuration)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Score-based processing order tests
+// ---------------------------------------------------------------------------
+
+// TestDeletionService_DrainAll_SortsByScoreDescending verifies that drainAll()
+// sorts queued items by score descending before processing, regardless of the
+// order they were enqueued. This is the centralised fix: DeletionService owns
+// deletion ordering, not the callers.
+func TestDeletionService_DrainAll_SortsByScoreDescending(t *testing.T) {
+	database := setupTestDB(t)
+	bus := newTestBus(t)
+	auditLog := NewAuditLogService(database)
+	svc := NewDeletionService(bus, auditLog)
+	svc.SetDependencies(
+		&mockSettingsReader{deletionsEnabled: true, deletionQueueDelaySeconds: 1},
+		&mockEngineStatsWriter{},
+		&mockDeletionStatsWriter{},
+		&mockApprovalReturner{},
+		&mockApprovalSnoozer{},
+		&mockDiskGroupModeReader{},
+		&mockSunsetQueueCleaner{},
+	)
+
+	ch := bus.Subscribe()
+	defer bus.Unsubscribe(ch)
+
+	svc.Start()
+	defer svc.Stop()
+
+	// Enqueue 4 items in WRONG order (ascending score — lowest first).
+	// drainAll() must re-sort them so highest score is processed first.
+	items := []struct {
+		title string
+		score float64
+	}{
+		{"Firefly", 0.45},       // lowest — should be deleted last
+		{"Serenity", 0.72},      // middle
+		{"Serenity 2", 0.91},    // high
+		{"Firefly Movie", 1.35}, // highest — should be deleted first
+	}
+
+	svc.SignalBatchSize(len(items))
+	for _, item := range items {
+		if err := svc.QueueDeletion(DeleteJob{
+			Client: &mockIntegration{deleteErr: nil},
+			Item: integrations.MediaItem{
+				Title:     item.title,
+				Type:      "movie",
+				SizeBytes: 1024 * 1024 * 100,
+			},
+			Score: item.score,
+		}); err != nil {
+			t.Fatalf("QueueDeletion returned error: %v", err)
+		}
+	}
+
+	// Wait for all items to be processed
+	drainBatchEvent(t, ch)
+
+	// Verify audit log entries were created in score-descending order
+	// (created_at ASC = processing order since each takes ~3s)
+	var entries []db.AuditLogEntry
+	if err := database.Order("created_at ASC").Find(&entries).Error; err != nil {
+		t.Fatalf("failed to query audit log: %v", err)
+	}
+
+	if len(entries) != 4 {
+		t.Fatalf("expected 4 audit entries, got %d", len(entries))
+	}
+
+	// First processed should be highest score (1.35)
+	if entries[0].MediaName != "Firefly Movie" {
+		t.Errorf("expected first deletion to be 'Firefly Movie' (score 1.35), got %q (score %.2f)",
+			entries[0].MediaName, entries[0].Score)
+	}
+	// Second should be 0.91
+	if entries[1].MediaName != "Serenity 2" {
+		t.Errorf("expected second deletion to be 'Serenity 2' (score 0.91), got %q (score %.2f)",
+			entries[1].MediaName, entries[1].Score)
+	}
+	// Third should be 0.72
+	if entries[2].MediaName != "Serenity" {
+		t.Errorf("expected third deletion to be 'Serenity' (score 0.72), got %q (score %.2f)",
+			entries[2].MediaName, entries[2].Score)
+	}
+	// Last should be lowest score (0.45)
+	if entries[3].MediaName != "Firefly" {
+		t.Errorf("expected last deletion to be 'Firefly' (score 0.45), got %q (score %.2f)",
+			entries[3].MediaName, entries[3].Score)
+	}
+
+	// Also verify scores are monotonically descending in processing order
+	for i := 1; i < len(entries); i++ {
+		if entries[i].Score > entries[i-1].Score {
+			t.Errorf("processing order violated: entry %d (score %.4f) > entry %d (score %.4f)",
+				i, entries[i].Score, i-1, entries[i-1].Score)
+		}
+	}
+}

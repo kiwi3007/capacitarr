@@ -206,10 +206,11 @@ func (s *SunsetService) ListAll() ([]db.SunsetQueueItem, error) {
 }
 
 // GetExpired returns items where deletion_date <= now that have not already
-// been handed to DeletionService (expired_at IS NULL).
+// been handed to DeletionService (expired_at IS NULL). Ordered by score DESC
+// so highest-priority items are processed first by ProcessExpired().
 func (s *SunsetService) GetExpired() ([]db.SunsetQueueItem, error) {
 	var items []db.SunsetQueueItem
-	err := s.db.Where("deletion_date <= ? AND expired_at IS NULL", time.Now().UTC()).Order("deletion_date ASC").Find(&items).Error
+	err := s.db.Where("deletion_date <= ? AND expired_at IS NULL", time.Now().UTC()).Order("score DESC").Find(&items).Error
 	return items, err
 }
 
@@ -420,10 +421,11 @@ func (s *SunsetService) Escalate(diskGroupID uint, targetBytes int64, deps Sunse
 		}
 	}
 
-	// Step 1: Delete already-expired items first (skip those already handed off)
+	// Step 1: Delete already-expired items first (skip those already handed off).
+	// Ordered by score DESC so highest-priority items are escalated first.
 	var expired []db.SunsetQueueItem
 	s.db.Where("disk_group_id = ? AND deletion_date <= ? AND expired_at IS NULL", diskGroupID, time.Now().UTC()).
-		Order("deletion_date ASC").Find(&expired)
+		Order("score DESC").Find(&expired)
 
 	for _, item := range expired {
 		if freedBytes >= targetBytes {
@@ -440,10 +442,13 @@ func (s *SunsetService) Escalate(diskGroupID uint, targetBytes int64, deps Sunse
 		return freedBytes, nil
 	}
 
-	// Step 2: Delete oldest items (longest in queue, most warning given)
+	// Step 2: Delete highest-score items that haven't expired yet.
+	// Previously ordered by created_at ASC ("most warning given"), but this
+	// caused low-score items to be deleted before high-score items when items
+	// were added across multiple engine cycles.
 	var oldest []db.SunsetQueueItem
 	s.db.Where("disk_group_id = ? AND deletion_date > ? AND expired_at IS NULL", diskGroupID, time.Now().UTC()).
-		Order("created_at ASC").Find(&oldest)
+		Order("score DESC").Find(&oldest)
 
 	for _, item := range oldest {
 		if freedBytes >= targetBytes {

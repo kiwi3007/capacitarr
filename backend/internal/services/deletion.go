@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -421,6 +422,17 @@ func (s *DeletionService) drainAll() {
 			s.batchFailed.Store(0)
 		}
 	}
+
+	// Sort queued items by score descending so the highest-priority items are
+	// processed first. This centralises deletion ordering in DeletionService
+	// rather than relying on callers to enqueue in the correct order. Without
+	// this, callers like Escalate() that order by time instead of score would
+	// cause low-score items to be deleted before high-score items.
+	s.queuedMu.Lock()
+	sort.SliceStable(s.queuedItems, func(i, j int) bool {
+		return s.queuedItems[i].Score > s.queuedItems[j].Score
+	})
+	s.queuedMu.Unlock()
 
 	// Collect dry-run audit entries for batch flush after drain completes.
 	var deferredAuditEntries []db.AuditLogEntry
