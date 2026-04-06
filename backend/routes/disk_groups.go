@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -43,6 +44,18 @@ func RegisterDiskGroupRoutes(g *echo.Group, reg *services.Registry) {
 			return apiError(c, http.StatusBadRequest, "Invalid request body")
 		}
 
+		// Log parsed request for diagnostics (DEBUG level, no-op in production).
+		slog.Debug("PUT /disk-groups parsed request",
+			"component", "disk_groups_route",
+			"groupID", id,
+			"thresholdPct", req.ThresholdPct,
+			"targetPct", req.TargetPct,
+			"mode", req.Mode,
+			"sunsetPct", req.SunsetPct,
+			"totalBytesOverride", req.TotalBytesOverride,
+			"existingMode", group.Mode,
+		)
+
 		// Validate thresholds
 		if req.ThresholdPct < 1 || req.ThresholdPct > 99 || req.TargetPct < 1 || req.TargetPct > 99 {
 			return apiError(c, http.StatusBadRequest, "Threshold and target must be between 1 and 99")
@@ -69,6 +82,11 @@ func RegisterDiskGroupRoutes(g *echo.Group, reg *services.Registry) {
 
 		updated, err := reg.DiskGroup.UpdateThresholds(group.ID, req.ThresholdPct, req.TargetPct, req.TotalBytesOverride, req.Mode, req.SunsetPct)
 		if err != nil {
+			slog.Warn("PUT /disk-groups update failed",
+				"component", "disk_groups_route",
+				"groupID", id,
+				"error", err.Error(),
+			)
 			// Surface validation errors (from ValidateSunsetConfig) as 400, not 500.
 			return apiError(c, http.StatusBadRequest, err.Error())
 		}

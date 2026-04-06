@@ -592,6 +592,14 @@ function editSunsetPct(dg: DiskGroup): number | undefined {
 function setDiskGroupMode(dg: DiskGroup, mode: string) {
   const edit = modeEdits[dg.id] ?? { mode: dg.mode, sunsetPct: dg.sunsetPct ?? null };
   edit.mode = mode;
+  // When switching to sunset mode, seed the sunset threshold with the same
+  // default the slider uses visually so the state matches what the user sees.
+  // Without this, sunsetPct stays null until the user drags the thumb, causing
+  // a 400 from ValidateSunsetConfig on save.
+  if (mode === MODE_SUNSET && edit.sunsetPct == null) {
+    const target = thresholdEdits[dg.id]?.target ?? dg.targetPct;
+    edit.sunsetPct = Math.max(1, target - 10);
+  }
   modeEdits[dg.id] = edit;
   ensureThresholdEdit(dg.id, dg); // Mark as changed so save button enables
 }
@@ -759,15 +767,26 @@ async function saveThresholds(dg: DiskGroup) {
 
   try {
     const modeEdit = modeEdits[dg.id];
+    const effectiveMode = modeEdit?.mode || dg.mode;
+    const effectiveSunsetPct =
+      effectiveMode === MODE_SUNSET ? (modeEdit?.sunsetPct ?? dg.sunsetPct ?? null) : null;
+    const payload = {
+      thresholdPct: edit.threshold,
+      targetPct: edit.target,
+      totalBytesOverride: edit.overrideBytes,
+      mode: effectiveMode,
+      sunsetPct: effectiveSunsetPct,
+    };
+    console.debug(
+      '[DiskGroup PUT] dgId=%d modeEdit=%o dg.mode=%s dg.sunsetPct=%o payload=%o',
+      modeEdit,
+      dg.mode,
+      dg.sunsetPct,
+      payload,
+    );
     const updated = (await api(`/api/v1/disk-groups/${dg.id}`, {
       method: 'PUT',
-      body: {
-        thresholdPct: edit.threshold,
-        targetPct: edit.target,
-        totalBytesOverride: edit.overrideBytes,
-        mode: modeEdit?.mode || dg.mode,
-        sunsetPct: modeEdit?.mode === MODE_SUNSET ? modeEdit.sunsetPct : null,
-      },
+      body: payload,
     })) as DiskGroup;
 
     // Emit updated disk group to parent for sync.
@@ -805,7 +824,9 @@ async function saveThresholds(dg: DiskGroup) {
 
     addToast(`Settings saved for ${dg.mountPath}`, 'success');
   } catch (err: unknown) {
-    const errMsg = (err as ApiError)?.message || 'Failed to save settings';
+    const apiErr = err as ApiError;
+    console.error('[DiskGroup PUT] error=%o data=%o', err, apiErr?.data);
+    const errMsg = apiErr?.data?.error || apiErr?.message || 'Failed to save settings';
     addToast('Failed to save: ' + errMsg, 'error');
   } finally {
     edit.saving = false;
