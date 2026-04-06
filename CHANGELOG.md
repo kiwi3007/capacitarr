@@ -1,3 +1,13 @@
+## [3.2.0] - 2026-04-06
+
+### 🚀 Features
+
+- *(diskgroup)* Add soft deletion with configurable grace period ([b3e1f19](https://github.com/Ghent/capacitarr/commit/b3e1f19250501838a72846d0888a7b99468ee247))
+
+### 🐛 Bug Fixes
+
+- *(deletion)* Centralise deletion ordering by score in DeletionService ([3a25d91](https://github.com/Ghent/capacitarr/commit/3a25d9194d875c21f2bcb481a2580f5743ac7478))
+- *(diskgroup)* Seed sunset threshold default when switching to sunset mode ([efa9bf2](https://github.com/Ghent/capacitarr/commit/efa9bf2fd6f6e2c37ef3100b4f6da09dc7ad793f))
 ## [3.1.1] - 2026-04-06
 
 ### 🐛 Bug Fixes
