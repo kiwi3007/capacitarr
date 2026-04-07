@@ -253,9 +253,9 @@ import {
 } from 'lucide-vue-next';
 import DiscordIcon from '~/components/icons/DiscordIcon.vue';
 import type { NotificationChannel, ApiError } from '~/types/api';
+import { toast } from 'vue-sonner';
 
 const api = useApi();
-const { addToast } = useToast();
 
 // ─── Notification Channels state ─────────────────────────────────────────────
 const channels = ref<NotificationChannel[]>([]);
@@ -379,7 +379,7 @@ async function fetchChannels() {
   try {
     channels.value = (await api('/api/v1/notifications/channels')) as NotificationChannel[];
   } catch {
-    addToast('Failed to load notification channels', 'error');
+    toast.error('Failed to load notification channels');
   } finally {
     channelsLoading.value = false;
   }
@@ -459,11 +459,11 @@ async function onChannelSubmit() {
       });
     }
     showChannelModal.value = false;
-    addToast('Notification channel saved', 'success');
+    toast.success('Notification channel saved');
     await fetchChannels();
   } catch (e: unknown) {
     channelFormError.value = (e as ApiError)?.data?.error || 'Failed to save channel';
-    addToast(channelFormError.value, 'error');
+    toast.error(channelFormError.value);
   } finally {
     savingChannel.value = false;
   }
@@ -473,10 +473,10 @@ async function deleteChannel(channel: NotificationChannel) {
   if (!confirm(`Delete "${channel.name}"? This cannot be undone.`)) return;
   try {
     await api(`/api/v1/notifications/channels/${channel.id}`, { method: 'DELETE' });
-    addToast('Channel deleted', 'success');
+    toast.success('Channel deleted');
     await fetchChannels();
   } catch {
-    addToast('Failed to delete channel', 'error');
+    toast.error('Failed to delete channel');
   }
 }
 
@@ -487,9 +487,9 @@ async function toggleChannelEnabled(channel: NotificationChannel, enabled: boole
       body: { ...channel, enabled },
     });
     channel.enabled = enabled;
-    addToast(`Channel ${enabled ? 'enabled' : 'disabled'}`, 'success');
+    toast.success(`Channel ${enabled ? 'enabled' : 'disabled'}`);
   } catch {
-    addToast('Failed to update channel', 'error');
+    toast.error('Failed to update channel');
   }
 }
 
@@ -497,9 +497,9 @@ async function testChannel(channel: NotificationChannel) {
   testingChannelId.value = channel.id;
   try {
     await api(`/api/v1/notifications/channels/${channel.id}/test`, { method: 'POST' });
-    addToast('Test notification sent!', 'success');
+    toast.success('Test notification sent!');
   } catch {
-    addToast('Failed to send test notification', 'error');
+    toast.error('Failed to send test notification');
   } finally {
     testingChannelId.value = null;
   }

@@ -15,11 +15,39 @@ import (
 	"capacitarr/internal/services"
 )
 
-// evaluateAndCleanDisk scores all media items on a disk group and, when the
+// processItem groups a media item with its evaluation metadata for dispatch.
+// Used by expandCollections and dispatchByMode to carry context through the pipeline.
+type processItem struct {
+	item            integrations.MediaItem
+	score           float64
+	factors         []engine.ScoreFactor
+	collectionGroup string // non-empty if part of a collection
+}
+
+// evaluationContext bundles all per-cycle state needed by the sub-functions
+// extracted from the original god function. Passed by pointer to avoid copying.
+type evaluationContext struct {
+	group      db.DiskGroup
+	groupAcc   *GroupAccumulator
+	allItems   []integrations.MediaItem
+	registry   *integrations.IntegrationRegistry
+	runStatsID uint
+	prefs      db.PreferenceSet
+	weights    map[string]int
+	rules      []db.CustomRule
+	evalCtx    *engine.EvaluationContext
+
+	// Lazy-initialized caches shared across sub-functions.
+	snoozedKeys            map[string]bool
+	expandedCollections    map[string]bool
+	integrationConfigCache map[uint]*db.IntegrationConfig
+}
+
+// evaluateDiskGroup scores all media items on a disk group and, when the
 // disk is above threshold, queues candidates for deletion or approval.
 // Returns the number of items queued for deletion. The acc accumulator
 // collects per-run metrics across multiple disk group evaluations.
-func (p *Poller) evaluateAndCleanDisk(acc *RunAccumulator, group db.DiskGroup, allItems []integrations.MediaItem, registry *integrations.IntegrationRegistry, runStatsID uint, prefs db.PreferenceSet, weights map[string]int, rules []db.CustomRule, evalCtx *engine.EvaluationContext) int {
+func (p *Poller) evaluateDiskGroup(acc *RunAccumulator, group db.DiskGroup, allItems []integrations.MediaItem, registry *integrations.IntegrationRegistry, runStatsID uint, prefs db.PreferenceSet, weights map[string]int, rules []db.CustomRule, evalCtx *engine.EvaluationContext) int {
 	effectiveTotal := group.EffectiveTotalBytes()
 	if effectiveTotal == 0 {
 		slog.Warn("Disk group effective total is 0, skipping evaluation",
@@ -36,9 +64,6 @@ func (p *Poller) evaluateAndCleanDisk(acc *RunAccumulator, group db.DiskGroup, a
 	groupAcc.DiskTargetPct = group.TargetPct
 
 	// ── Sunset mode: special threshold handling ─────────────────────────
-	// Sunset mode uses sunsetPct (lower) as the primary trigger and thresholdPct
-	// (higher) as the escalation safety net. The mode switch determines which
-	// threshold matters.
 	if group.Mode == db.ModeSunset {
 		return p.evaluateSunsetMode(acc, group, allItems, registry, runStatsID, prefs, weights, rules, evalCtx, effectiveTotal, currentPct)
 	}
@@ -50,8 +75,6 @@ func (p *Poller) evaluateAndCleanDisk(acc *RunAccumulator, group db.DiskGroup, a
 			"threshold", group.ThresholdPct, "mode", group.Mode)
 
 		// Clear stale approval queue items for this specific disk group.
-		// Without this, items queued when the group was above threshold would
-		// linger until ALL groups drop below threshold (the global ClearQueue).
 		if cleared, err := p.reg.Approval.ClearQueueForDiskGroup(group.ID); err != nil {
 			slog.Error("Failed to clear approval queue for disk group",
 				"component", "poller", "diskGroupID", group.ID, "error", err)
@@ -73,11 +96,51 @@ func (p *Poller) evaluateAndCleanDisk(acc *RunAccumulator, group db.DiskGroup, a
 		TargetPct:    group.TargetPct,
 	})
 
-	// Filter items on this mount — normalize paths for cross-platform
-	// compatibility (Windows *arr instances return backslash paths).
-	normalizedMount := normalizePath(group.MountPath)
+	// Build the shared evaluation context for sub-functions.
+	ectx := &evaluationContext{
+		group:                  group,
+		groupAcc:               groupAcc,
+		allItems:               allItems,
+		registry:               registry,
+		runStatsID:             runStatsID,
+		prefs:                  prefs,
+		weights:                weights,
+		rules:                  rules,
+		evalCtx:                evalCtx,
+		expandedCollections:    make(map[string]bool),
+		integrationConfigCache: make(map[uint]*db.IntegrationConfig),
+	}
+
+	// Pre-fetch snoozed keys for O(1) lookup.
+	snoozedKeys, snoozedErr := p.reg.Approval.ListSnoozedKeys(group.ID)
+	if snoozedErr != nil {
+		slog.Error("Failed to pre-fetch snoozed keys, falling back to empty set",
+			"component", "poller", "mount", group.MountPath, "error", snoozedErr)
+		snoozedKeys = make(map[string]bool)
+	}
+	ectx.snoozedKeys = snoozedKeys
+
+	// Score and select candidates within the byte budget.
+	candidates, targetBytesToFree := p.scoreCandidates(ectx, currentPct, effectiveTotal)
+	if targetBytesToFree <= 0 {
+		return 0
+	}
+
+	// Filter candidates: dedup shows vs seasons, skip snoozed, skip zero-score.
+	filtered, skipStats := filterCandidates(candidates, ectx.snoozedKeys)
+
+	// Expand collections, dispatch by mode, and reconcile the queue.
+	return p.dispatchFiltered(ectx, filtered, skipStats, targetBytesToFree)
+}
+
+// scoreCandidates filters items to the mount path, runs engine evaluation,
+// and selects candidates within the byte budget. Returns the selected
+// candidates and the target bytes to free.
+func (p *Poller) scoreCandidates(ectx *evaluationContext, currentPct float64, effectiveTotal int64) ([]engine.EvaluatedItem, int64) {
+	// Filter items on this mount
+	normalizedMount := normalizePath(ectx.group.MountPath)
 	var diskItems []integrations.MediaItem
-	for _, item := range allItems {
+	for _, item := range ectx.allItems {
 		if strings.HasPrefix(normalizePath(item.Path), normalizedMount) {
 			diskItems = append(diskItems, item)
 		}
@@ -85,58 +148,71 @@ func (p *Poller) evaluateAndCleanDisk(acc *RunAccumulator, group db.DiskGroup, a
 
 	if len(diskItems) == 0 {
 		slog.Warn("No items matched disk mount path — approval queue cannot be populated",
-			"component", "poller", "mount", group.MountPath,
-			"normalizedMount", normalizedMount, "totalItems", len(allItems))
-		if len(allItems) > 0 {
+			"component", "poller", "mount", ectx.group.MountPath,
+			"normalizedMount", normalizedMount, "totalItems", len(ectx.allItems))
+		if len(ectx.allItems) > 0 {
 			sampleCount := 3
-			if len(allItems) < sampleCount {
-				sampleCount = len(allItems)
+			if len(ectx.allItems) < sampleCount {
+				sampleCount = len(ectx.allItems)
 			}
 			for i := 0; i < sampleCount; i++ {
 				slog.Debug("Sample item path for mount mismatch diagnosis",
-					"component", "poller", "itemPath", normalizePath(allItems[i].Path),
+					"component", "poller", "itemPath", normalizePath(ectx.allItems[i].Path),
 					"mount", normalizedMount)
 			}
 		}
 	}
 	slog.Debug("Items on disk mount", "component", "poller",
-		"mount", group.MountPath, "itemCount", len(diskItems))
+		"mount", ectx.group.MountPath, "itemCount", len(diskItems))
 
 	// Use the extracted Evaluator for scoring + categorization
 	evaluator := engine.NewEvaluator()
-	evalResult := evaluator.Evaluate(diskItems, weights, rules, prefs.TiebreakerMethod, evalCtx)
-	groupAcc.Evaluated += int64(evalResult.TotalCount)
-	groupAcc.Protected += int64(len(evalResult.Protected))
+	evalResult := evaluator.Evaluate(diskItems, ectx.weights, ectx.rules, ectx.prefs.TiebreakerMethod, ectx.evalCtx)
+	ectx.groupAcc.Evaluated += int64(evalResult.TotalCount)
+	ectx.groupAcc.Protected += int64(len(evalResult.Protected))
 
 	slog.Debug("Evaluation summary", "component", "poller",
-		"mount", group.MountPath,
+		"mount", ectx.group.MountPath,
 		"evaluated", evalResult.TotalCount,
 		"protected", len(evalResult.Protected),
 		"candidates", len(evalResult.Candidates))
 
-	targetBytesToFree := int64((currentPct - group.TargetPct) / 100.0 * float64(effectiveTotal))
+	targetBytesToFree := int64((currentPct - ectx.group.TargetPct) / 100.0 * float64(effectiveTotal))
 	if targetBytesToFree <= 0 {
 		slog.Warn("Target bytes to free is zero or negative, skipping evaluation",
-			"component", "poller", "mount", group.MountPath,
+			"component", "poller", "mount", ectx.group.MountPath,
 			"currentPct", fmt.Sprintf("%.1f", currentPct),
-			"targetPct", group.TargetPct,
+			"targetPct", ectx.group.TargetPct,
 			"targetBytesToFree", targetBytesToFree)
-		return 0
+		return nil, 0
 	}
 
-	// Get deletion candidates from the evaluator result
 	candidates := evalResult.CandidatesForDeletion(targetBytesToFree)
 
 	slog.Info("Candidate selection for approval/deletion", "component", "poller",
-		"mount", group.MountPath,
-		"executionMode", prefs.DefaultDiskGroupMode,
+		"mount", ectx.group.MountPath,
+		"executionMode", ectx.prefs.DefaultDiskGroupMode,
 		"totalCandidates", len(evalResult.Candidates),
 		"selectedCandidates", len(candidates),
 		"targetBytesToFree", targetBytesToFree)
 
-	// Pre-build set of shows that have season-level entries in the candidates.
-	// When season entries exist, prefer them over show-level entries so each season
-	// can be individually approved/snoozed/deleted in the approval queue.
+	return candidates, targetBytesToFree
+}
+
+// skipStats tracks how many candidates were skipped for each reason.
+type skipStats struct {
+	zeroScore           int
+	dedup               int
+	snoozed             int
+	collectionProtected int
+}
+
+// filterCandidates applies show/season dedup, snooze-skip, and zero-score
+// removal. Returns the filtered list and skip statistics.
+func filterCandidates(candidates []engine.EvaluatedItem, snoozedKeys map[string]bool) ([]engine.EvaluatedItem, skipStats) {
+	var stats skipStats
+
+	// Pre-build set of shows that have season-level entries.
 	showsWithSeasons := make(map[string]bool)
 	for _, ev := range candidates {
 		if ev.Item.Type == integrations.MediaTypeSeason && ev.Item.ShowTitle != "" {
@@ -144,362 +220,345 @@ func (p *Poller) evaluateAndCleanDisk(acc *RunAccumulator, group db.DiskGroup, a
 		}
 	}
 
-	// Track which items are still needed this cycle (for queue reconciliation).
-	// Keys are "MediaName|MediaType" strings matching the approval queue schema.
-	neededKeys := make(map[string]bool)
-
-	// Pre-fetch all snoozed keys for this disk group in a single query.
-	// This replaces per-item IsSnoozed() calls (N queries → 1).
-	snoozedKeys, snoozedErr := p.reg.Approval.ListSnoozedKeys(group.ID)
-	if snoozedErr != nil {
-		slog.Error("Failed to pre-fetch snoozed keys, falling back to empty set",
-			"component", "poller", "mount", group.MountPath, "error", snoozedErr)
-		snoozedKeys = make(map[string]bool)
-	}
-
-	var bytesFreed int64
-	var deletionsQueued int
-	var skippedZeroScore int
-	var skippedDedup int
-	var skippedSnoozed int
-	var skippedCollectionProtected int
-
-	// Collect approval-mode items for batch upsert (Phase 2 optimization).
-	var pendingBatch []db.ApprovalQueueItem
-
-	// Track collections already expanded to avoid duplicate processing when
-	// multiple items from the same collection appear in the candidate list.
-	expandedCollections := make(map[string]bool)
-
-	// Pre-fetch integration configs for collection deletion checks.
-	// Uses a cache to avoid repeated DB lookups for the same integration.
-	integrationConfigCache := make(map[uint]*db.IntegrationConfig)
-	getIntegrationConfig := func(id uint) *db.IntegrationConfig {
-		if cfg, ok := integrationConfigCache[id]; ok {
-			return cfg
-		}
-		cfg, err := p.reg.Integration.GetByID(id)
-		if err != nil {
-			return nil
-		}
-		integrationConfigCache[id] = cfg
-		return cfg
-	}
-
+	filtered := make([]engine.EvaluatedItem, 0, len(candidates))
 	for _, ev := range candidates {
-		if bytesFreed >= targetBytesToFree {
-			break
-		}
 		if ev.IsProtected || ev.Score <= 0 {
-			skippedZeroScore++
+			stats.zeroScore++
 			continue
 		}
 
-		// Dedup: skip show-level entries when season entries exist for the same show.
-		// Season entries allow granular per-season approval and deletion.
-		if ev.Item.Type == integrations.MediaTypeShow {
-			if showsWithSeasons[ev.Item.Title] {
-				skippedDedup++
-				continue
+		// Dedup: skip show-level entries when season entries exist.
+		if ev.Item.Type == integrations.MediaTypeShow && showsWithSeasons[ev.Item.Title] {
+			stats.dedup++
+			continue
+		}
+
+		// Skip snoozed items.
+		snoozedKey := db.MediaKey(ev.Item.Title, string(ev.Item.Type))
+		if snoozedKeys[snoozedKey] {
+			stats.snoozed++
+			slog.Debug("Skipping snoozed item", "component", "poller", "media", ev.Item.Title)
+			continue
+		}
+
+		filtered = append(filtered, ev)
+	}
+
+	return filtered, stats
+}
+
+// expandCollections resolves collection membership for a single candidate.
+// When collection deletion is enabled, the trigger item is expanded into all
+// collection members. Returns the items to process and whether the candidate
+// was skipped (due to protection or snooze on a member).
+func (p *Poller) expandCollections(ectx *evaluationContext, ev engine.EvaluatedItem, stats *skipStats) ([]processItem, bool) {
+	items := []processItem{{item: ev.Item, score: ev.Score, factors: ev.Factors}}
+
+	// Find collections where the source integration has collectionDeletion ON.
+	var enabledCollections []string
+	for _, colName := range ev.Item.Collections {
+		sourceID, ok := ev.Item.CollectionSources[colName]
+		if !ok {
+			sourceID = ev.Item.IntegrationID
+		}
+		sourceCfg := p.getIntegrationConfig(ectx, sourceID)
+		if sourceCfg != nil && sourceCfg.CollectionDeletion {
+			enabledCollections = append(enabledCollections, colName)
+		}
+	}
+
+	if len(enabledCollections) == 0 {
+		return items, false
+	}
+
+	// Check if ALL enabled collections were already expanded
+	allExpanded := true
+	for _, colName := range enabledCollections {
+		if !ectx.expandedCollections[colName] {
+			allExpanded = false
+			break
+		}
+	}
+	if allExpanded {
+		slog.Debug("Skipping already-expanded collection member", "component", "poller",
+			"media", ev.Item.Title, "collections", strings.Join(enabledCollections, ", "))
+		return nil, true // skip this candidate entirely
+	}
+
+	// Resolve members for each enabled collection, merging results.
+	memberDedup := make(map[string]bool)
+	var allMembers []integrations.MediaItem
+	var resolvedCollections []string
+
+	for _, colName := range enabledCollections {
+		if ectx.expandedCollections[colName] {
+			continue
+		}
+
+		var members []integrations.MediaItem
+
+		// Strategy 1: Use CollectionResolver if available
+		if resolver, ok := ectx.registry.CollectionResolver(ev.Item.IntegrationID); ok {
+			resolved, resolveErr := resolver.ResolveCollectionMembers(ev.Item)
+			if resolveErr != nil {
+				slog.Error("Collection resolution failed, falling back to allItems scan", "component", "poller",
+					"media", ev.Item.Title, "collection", colName, "error", resolveErr)
+			} else if len(resolved) > 1 {
+				members = resolved
 			}
 		}
 
-		// Skip items that are currently snoozed (rejected with an active snooze window).
-		// This check runs in ALL execution modes so items snoozed from the deletion queue
-		// in auto/dry-run mode are also respected by the engine.
-		// Uses pre-fetched snoozedKeys map for O(1) lookup instead of per-item DB query.
-		snoozedKey := db.MediaKey(ev.Item.Title, string(ev.Item.Type))
-		if snoozedKeys[snoozedKey] {
-			skippedSnoozed++
-			slog.Debug("Skipping snoozed item", "component", "poller", "media", ev.Item.Title)
+		// Strategy 2: Scan allItems for siblings with the same collection name.
+		if len(members) == 0 {
+			for _, ai := range ectx.allItems {
+				for _, c := range ai.Collections {
+					if c == colName {
+						members = append(members, ai)
+						break
+					}
+				}
+			}
+		}
+
+		if len(members) <= 1 {
+			ectx.expandedCollections[colName] = true
 			continue
+		}
+
+		for _, member := range members {
+			key := member.ExternalID + "|" + fmt.Sprintf("%d", member.IntegrationID)
+			if !memberDedup[key] {
+				memberDedup[key] = true
+				allMembers = append(allMembers, member)
+			}
+		}
+		resolvedCollections = append(resolvedCollections, colName)
+		ectx.expandedCollections[colName] = true
+	}
+
+	if len(allMembers) <= 1 {
+		return items, false
+	}
+
+	collectionGroupName := strings.Join(resolvedCollections, ", ")
+
+	// Check if any member is protected by always_keep rules
+	for _, member := range allMembers {
+		isProtected, _, _, _ := engine.ApplyRulesExported(member, ectx.rules)
+		if isProtected {
+			slog.Info("Collection skipped — member has always_keep rule", "component", "poller",
+				"trigger", ev.Item.Title, "collection", collectionGroupName, "protectedMember", member.Title)
+			stats.collectionProtected++
+			return nil, true
+		}
+	}
+
+	// Check if any member is snoozed
+	for _, member := range allMembers {
+		memberSnoozedKey := db.MediaKey(member.Title, string(member.Type))
+		if ectx.snoozedKeys[memberSnoozedKey] {
+			slog.Info("Collection skipped — member is snoozed", "component", "poller",
+				"trigger", ev.Item.Title, "collection", collectionGroupName, "snoozedMember", member.Title)
+			stats.snoozed++
+			return nil, true
+		}
+	}
+
+	// Expand: replace the single trigger item with all collection members
+	expanded := make([]processItem, 0, len(allMembers))
+	for _, member := range allMembers {
+		expanded = append(expanded, processItem{
+			item:            member,
+			score:           ev.Score,
+			factors:         ev.Factors,
+			collectionGroup: collectionGroupName,
+		})
+	}
+
+	ectx.groupAcc.Collections++
+	slog.Info("Collection expanded for deletion", "component", "poller",
+		"trigger", ev.Item.Title, "collections", collectionGroupName, "memberCount", len(allMembers))
+
+	return expanded, false
+}
+
+// dispatchByMode routes a single processItem through the appropriate execution
+// mode (auto, approval, dry-run). Returns (deletionsQueued, bytesFreed).
+func (p *Poller) dispatchByMode(ectx *evaluationContext, pi processItem, pendingBatch *[]db.ApprovalQueueItem, neededKeys map[string]bool) (int, int64) {
+	switch ectx.group.Mode {
+	case db.ModeAuto:
+		deleter, err := ectx.registry.Deleter(pi.item.IntegrationID)
+		if err != nil {
+			slog.Error("Integration not registered as MediaDeleter", "component", "poller",
+				"integrationId", pi.item.IntegrationID, "error", err)
+			return 0, 0
+		}
+
+		diskGroupID := ectx.group.ID
+		if err := p.reg.Deletion.QueueDeletion(services.DeleteJob{
+			Client:          deleter,
+			Item:            pi.item,
+			Score:           pi.score,
+			Factors:         pi.factors,
+			Trigger:         db.TriggerEngine,
+			RunStatsID:      ectx.runStatsID,
+			DiskGroupID:     &diskGroupID,
+			CollectionGroup: pi.collectionGroup,
+			EnqueuedMode:    db.ModeAuto,
+		}); err != nil {
+			slog.Warn("Deletion queue full, skipping item", "component", "poller", "item", pi.item.Title)
+			return 0, 0
+		}
+		ectx.groupAcc.Candidates++
+		ectx.groupAcc.FreedBytes += pi.item.SizeBytes
+		return 1, pi.item.SizeBytes
+
+	case db.ModeApproval:
+		factorsJSON, marshalErr := json.Marshal(pi.factors)
+		if marshalErr != nil {
+			slog.Error("Failed to marshal score factors", "component", "poller", "error", marshalErr)
+			factorsJSON = []byte("[]")
+		}
+		diskGroupID := ectx.group.ID
+		*pendingBatch = append(*pendingBatch, db.ApprovalQueueItem{
+			MediaName:       pi.item.Title,
+			MediaType:       string(pi.item.Type),
+			ScoreDetails:    string(factorsJSON),
+			SizeBytes:       pi.item.SizeBytes,
+			Score:           pi.score,
+			PosterURL:       pi.item.PosterURL,
+			IntegrationID:   pi.item.IntegrationID,
+			ExternalID:      pi.item.ExternalID,
+			DiskGroupID:     &diskGroupID,
+			Trigger:         db.TriggerEngine,
+			CollectionGroup: pi.collectionGroup,
+		})
+
+		neededKeys[db.MediaKey(pi.item.Title, string(pi.item.Type))] = true
+		ectx.groupAcc.Candidates++
+		ectx.groupAcc.FreedBytes += pi.item.SizeBytes
+
+		slog.Info("Engine action taken", "component", "poller",
+			"media", pi.item.Title, "action", "queued_for_approval", "score", pi.score, "freed", pi.item.SizeBytes,
+			"collectionGroup", pi.collectionGroup)
+		return 0, pi.item.SizeBytes
+
+	default:
+		// Dry-run mode
+		diskGroupID := ectx.group.ID
+		if err := p.reg.Deletion.QueueDeletion(services.DeleteJob{
+			Client:          nil,
+			Item:            pi.item,
+			Score:           pi.score,
+			Factors:         pi.factors,
+			Trigger:         db.TriggerEngine,
+			RunStatsID:      ectx.runStatsID,
+			DiskGroupID:     &diskGroupID,
+			ForceDryRun:     true,
+			UpsertAudit:     true,
+			CollectionGroup: pi.collectionGroup,
+			EnqueuedMode:    db.ModeDryRun,
+		}); err != nil {
+			slog.Warn("Deletion queue full, skipping dry-run item", "component", "poller", "item", pi.item.Title)
+			return 0, 0
+		}
+		ectx.groupAcc.Candidates++
+		ectx.groupAcc.FreedBytes += pi.item.SizeBytes
+
+		slog.Info("Engine action taken", "component", "poller",
+			"media", pi.item.Title, "action", db.ActionDryDelete, "score", pi.score, "freed", pi.item.SizeBytes,
+			"collectionGroup", pi.collectionGroup)
+		return 1, pi.item.SizeBytes
+	}
+}
+
+// reconcileQueue flushes the pending approval batch and reconciles stale items.
+func (p *Poller) reconcileQueue(ectx *evaluationContext, pendingBatch []db.ApprovalQueueItem, neededKeys map[string]bool) {
+	if len(pendingBatch) > 0 {
+		created, updated, batchErr := p.reg.Approval.BulkUpsertPending(pendingBatch)
+		if batchErr != nil {
+			slog.Error("Failed to batch upsert approval queue items", "component", "poller",
+				"mount", ectx.group.MountPath, "batchSize", len(pendingBatch), "error", batchErr)
+		} else {
+			slog.Info("Batch upserted approval queue items", "component", "poller",
+				"mount", ectx.group.MountPath, "created", created, "updated", updated)
+		}
+	}
+
+	// Per-cycle queue reconciliation: dismiss stale pending items.
+	if ectx.group.Mode == db.ModeApproval {
+		if dismissed, reconcileErr := p.reg.Approval.ReconcileQueue(ectx.group.ID, neededKeys); reconcileErr != nil {
+			slog.Error("Failed to reconcile approval queue", "component", "poller",
+				"mount", ectx.group.MountPath, "error", reconcileErr)
+		} else if dismissed > 0 {
+			slog.Info("Approval queue reconciled", "component", "poller",
+				"mount", ectx.group.MountPath, "dismissed", dismissed)
+		}
+	}
+}
+
+// dispatchFiltered runs collection expansion, mode dispatch, and queue
+// reconciliation for all filtered candidates. Returns deletions queued.
+func (p *Poller) dispatchFiltered(ectx *evaluationContext, filtered []engine.EvaluatedItem, stats skipStats, targetBytesToFree int64) int {
+	var bytesFreed int64
+	var deletionsQueued int
+	var pendingBatch []db.ApprovalQueueItem
+	neededKeys := make(map[string]bool)
+
+	for _, ev := range filtered {
+		if bytesFreed >= targetBytesToFree {
+			break
 		}
 
 		slog.Debug("Deletion candidate", "component", "poller",
 			"media", ev.Item.Title, "score", fmt.Sprintf("%.4f", ev.Score),
 			"size", ev.Item.SizeBytes, "reason", ev.Reason)
 
-		// ── Collection expansion ─────────────────────────────────────────
-		// When collection deletion is enabled on ANY integration that sourced
-		// collection data for this item, expand the single candidate into all
-		// collection members. Multiple collections may trigger — the union of
-		// all resolved members is used.
-		type processItem struct {
-			item            integrations.MediaItem
-			score           float64
-			factors         []engine.ScoreFactor
-			collectionGroup string // non-empty if part of a collection
-		}
-		itemsToProcess := []processItem{{item: ev.Item, score: ev.Score, factors: ev.Factors}}
-
-		// Find all collections where the source integration has collectionDeletion ON.
-		var enabledCollections []string
-		for _, colName := range ev.Item.Collections {
-			sourceID, ok := ev.Item.CollectionSources[colName]
-			if !ok {
-				sourceID = ev.Item.IntegrationID // fallback: assume item's own integration
-			}
-			sourceCfg := getIntegrationConfig(sourceID)
-			if sourceCfg != nil && sourceCfg.CollectionDeletion {
-				enabledCollections = append(enabledCollections, colName)
-			}
+		// Expand collections if applicable
+		itemsToProcess, skipped := p.expandCollections(ectx, ev, &stats)
+		if skipped {
+			continue
 		}
 
-		if len(enabledCollections) > 0 {
-			// Check if ALL enabled collections were already expanded
-			allExpanded := true
-			for _, colName := range enabledCollections {
-				if !expandedCollections[colName] {
-					allExpanded = false
-					break
-				}
-			}
-			if allExpanded {
-				slog.Debug("Skipping already-expanded collection member", "component", "poller",
-					"media", ev.Item.Title, "collections", strings.Join(enabledCollections, ", "))
-				continue
-			}
-
-			// Resolve members for each enabled collection, merging results.
-			// Uses two strategies: (1) CollectionResolver for *arr items (TMDb-based),
-			// (2) allItems scan for media-server collections.
-			memberDedup := make(map[string]bool) // ExternalID+IntegrationID → seen
-			var allMembers []integrations.MediaItem
-			var resolvedCollections []string
-
-			for _, colName := range enabledCollections {
-				if expandedCollections[colName] {
-					continue
-				}
-
-				var members []integrations.MediaItem
-
-				// Strategy 1: Use CollectionResolver if the item's integration has one
-				if resolver, ok := registry.CollectionResolver(ev.Item.IntegrationID); ok {
-					resolved, resolveErr := resolver.ResolveCollectionMembers(ev.Item)
-					if resolveErr != nil {
-						slog.Error("Collection resolution failed, falling back to allItems scan", "component", "poller",
-							"media", ev.Item.Title, "collection", colName, "error", resolveErr)
-					} else if len(resolved) > 1 {
-						members = resolved
-					}
-				}
-
-				// Strategy 2: Scan allItems for siblings with the same collection name.
-				// This handles media-server collections that have no dedicated resolver.
-				if len(members) == 0 {
-					for _, ai := range allItems {
-						for _, c := range ai.Collections {
-							if c == colName {
-								members = append(members, ai)
-								break
-							}
-						}
-					}
-				}
-
-				if len(members) <= 1 {
-					expandedCollections[colName] = true
-					continue // No siblings — nothing to expand
-				}
-
-				// Deduplicate into allMembers
-				for _, member := range members {
-					key := member.ExternalID + "|" + fmt.Sprintf("%d", member.IntegrationID)
-					if !memberDedup[key] {
-						memberDedup[key] = true
-						allMembers = append(allMembers, member)
-					}
-				}
-				resolvedCollections = append(resolvedCollections, colName)
-				expandedCollections[colName] = true
-			}
-
-			if len(allMembers) > 1 {
-				collectionGroupName := strings.Join(resolvedCollections, ", ")
-
-				// Check if any collection member is protected by always_keep rules
-				memberProtected := false
-				for _, member := range allMembers {
-					isProtected, _, _, _ := engine.ApplyRulesExported(member, rules)
-					if isProtected {
-						slog.Info("Collection skipped — member has always_keep rule", "component", "poller",
-							"trigger", ev.Item.Title, "collection", collectionGroupName, "protectedMember", member.Title)
-						memberProtected = true
-						break
-					}
-				}
-				if memberProtected {
-					skippedCollectionProtected++
-					continue
-				}
-
-				// Check if any collection member is snoozed
-				memberSnoozed := false
-				for _, member := range allMembers {
-					memberSnoozedKey := db.MediaKey(member.Title, string(member.Type))
-					if snoozedKeys[memberSnoozedKey] {
-						slog.Info("Collection skipped — member is snoozed", "component", "poller",
-							"trigger", ev.Item.Title, "collection", collectionGroupName, "snoozedMember", member.Title)
-						memberSnoozed = true
-						break
-					}
-				}
-				if memberSnoozed {
-					skippedSnoozed++
-					continue
-				}
-
-				// Expand: replace the single trigger item with all collection members
-				itemsToProcess = make([]processItem, 0, len(allMembers))
-				for _, member := range allMembers {
-					itemsToProcess = append(itemsToProcess, processItem{
-						item:            member,
-						score:           ev.Score, // Use the trigger item's score for all members
-						factors:         ev.Factors,
-						collectionGroup: collectionGroupName,
-					})
-				}
-
-				groupAcc.Collections++
-				slog.Info("Collection expanded for deletion", "component", "poller",
-					"trigger", ev.Item.Title, "collections", collectionGroupName, "memberCount", len(allMembers))
-			}
-		}
-
-		// ── Process all items (single item or expanded collection) ────────
+		// Dispatch each item through the appropriate mode
 		for _, pi := range itemsToProcess {
-			switch group.Mode {
-			case db.ModeAuto:
-				deleter, err := registry.Deleter(pi.item.IntegrationID)
-				if err != nil {
-					slog.Error("Integration not registered as MediaDeleter", "component", "poller",
-						"integrationId", pi.item.IntegrationID, "error", err)
-					continue
-				}
-
-				// Queue for background deletion via DeletionService
-				diskGroupID := group.ID
-				if err := p.reg.Deletion.QueueDeletion(services.DeleteJob{
-					Client:          deleter,
-					Item:            pi.item,
-					Score:           pi.score,
-					Factors:         pi.factors,
-					Trigger:         db.TriggerEngine,
-					RunStatsID:      runStatsID,
-					DiskGroupID:     &diskGroupID,
-					CollectionGroup: pi.collectionGroup,
-					EnqueuedMode:    db.ModeAuto,
-				}); err != nil {
-					slog.Warn("Deletion queue full, skipping item", "component", "poller", "item", pi.item.Title)
-					continue
-				}
-				groupAcc.Candidates++
-				groupAcc.FreedBytes += pi.item.SizeBytes
-				bytesFreed += pi.item.SizeBytes
-				deletionsQueued++
-			case db.ModeApproval:
-				// Collect for batch upsert after the loop.
-				factorsJSON, marshalErr := json.Marshal(pi.factors)
-				if marshalErr != nil {
-					slog.Error("Failed to marshal score factors", "component", "poller", "error", marshalErr)
-					factorsJSON = []byte("[]")
-				}
-				diskGroupID := group.ID
-				pendingBatch = append(pendingBatch, db.ApprovalQueueItem{
-					MediaName:       pi.item.Title,
-					MediaType:       string(pi.item.Type),
-					ScoreDetails:    string(factorsJSON),
-					SizeBytes:       pi.item.SizeBytes,
-					Score:           pi.score,
-					PosterURL:       pi.item.PosterURL,
-					IntegrationID:   pi.item.IntegrationID,
-					ExternalID:      pi.item.ExternalID,
-					DiskGroupID:     &diskGroupID,
-					Trigger:         db.TriggerEngine,
-					CollectionGroup: pi.collectionGroup,
-				})
-
-				// Track this item as still-needed for post-loop reconciliation
-				neededKeys[db.MediaKey(pi.item.Title, string(pi.item.Type))] = true
-
-				bytesFreed += pi.item.SizeBytes
-				groupAcc.Candidates++
-				groupAcc.FreedBytes += pi.item.SizeBytes
-				slog.Info("Engine action taken", "component", "poller",
-					"media", pi.item.Title, "action", "queued_for_approval", "score", pi.score, "freed", pi.item.SizeBytes,
-					"collectionGroup", pi.collectionGroup)
-			default:
-				// Dry-run mode: queue through DeletionService with ForceDryRun + UpsertAudit
-				diskGroupID := group.ID
-				if err := p.reg.Deletion.QueueDeletion(services.DeleteJob{
-					Client:          nil, // Dry-run never calls DeleteMediaItem; nil-safe in processJob()
-					Item:            pi.item,
-					Score:           pi.score,
-					Factors:         pi.factors,
-					Trigger:         db.TriggerEngine,
-					RunStatsID:      runStatsID,
-					DiskGroupID:     &diskGroupID,
-					ForceDryRun:     true,
-					UpsertAudit:     true,
-					CollectionGroup: pi.collectionGroup,
-					EnqueuedMode:    db.ModeDryRun,
-				}); err != nil {
-					slog.Warn("Deletion queue full, skipping dry-run item", "component", "poller", "item", pi.item.Title)
-					continue
-				}
-				bytesFreed += pi.item.SizeBytes
-				deletionsQueued++
-				groupAcc.Candidates++
-				groupAcc.FreedBytes += pi.item.SizeBytes
-				slog.Info("Engine action taken", "component", "poller",
-					"media", pi.item.Title, "action", db.ActionDryDelete, "score", pi.score, "freed", pi.item.SizeBytes,
-					"collectionGroup", pi.collectionGroup)
-			}
+			queued, freed := p.dispatchByMode(ectx, pi, &pendingBatch, neededKeys)
+			deletionsQueued += queued
+			bytesFreed += freed
 		}
 	}
 
-	// Flush collected approval-mode items in a single batch transaction.
-	// This replaces N individual UpsertPending() calls with one BulkUpsertPending().
-	if len(pendingBatch) > 0 {
-		created, updated, batchErr := p.reg.Approval.BulkUpsertPending(pendingBatch)
-		if batchErr != nil {
-			slog.Error("Failed to batch upsert approval queue items", "component", "poller",
-				"mount", group.MountPath, "batchSize", len(pendingBatch), "error", batchErr)
-		} else {
-			slog.Info("Batch upserted approval queue items", "component", "poller",
-				"mount", group.MountPath, "created", created, "updated", updated)
-		}
-	}
+	// Flush approval batch and reconcile queue
+	p.reconcileQueue(ectx, pendingBatch, neededKeys)
 
-	// Per-cycle queue reconciliation: in approval mode, dismiss any pending items
-	// for this disk group that are no longer in the "still-needed" set. This trims
-	// stale entries that were added in previous cycles but are no longer candidates
-	// (e.g., threshold was raised, scores changed, media was removed).
-	if group.Mode == db.ModeApproval {
-		if dismissed, reconcileErr := p.reg.Approval.ReconcileQueue(group.ID, neededKeys); reconcileErr != nil {
-			slog.Error("Failed to reconcile approval queue", "component", "poller",
-				"mount", group.MountPath, "error", reconcileErr)
-		} else if dismissed > 0 {
-			slog.Info("Approval queue reconciled", "component", "poller",
-				"mount", group.MountPath, "dismissed", dismissed)
-		}
-	}
-
-	// Diagnostic summary: log when candidates were found but all were skipped
-	if len(candidates) > 0 && deletionsQueued == 0 && groupAcc.Candidates == 0 {
+	// Diagnostic summary
+	if len(filtered) > 0 && deletionsQueued == 0 && ectx.groupAcc.Candidates == 0 {
 		slog.Warn("All candidates were skipped — nothing queued for approval/deletion",
-			"component", "poller", "mount", group.MountPath,
-			"mode", group.Mode,
-			"candidates", len(candidates),
-			"skippedZeroScore", skippedZeroScore,
-			"skippedDedup", skippedDedup,
-			"skippedSnoozed", skippedSnoozed,
-			"skippedCollectionProtected", skippedCollectionProtected,
+			"component", "poller", "mount", ectx.group.MountPath,
+			"mode", ectx.group.Mode,
+			"candidates", len(filtered),
+			"skippedZeroScore", stats.zeroScore,
+			"skippedDedup", stats.dedup,
+			"skippedSnoozed", stats.snoozed,
+			"skippedCollectionProtected", stats.collectionProtected,
 			"bytesFreedSoFar", bytesFreed)
 	}
 
 	return deletionsQueued
+}
+
+// getIntegrationConfig returns the cached integration config, fetching from
+// the service if not yet cached.
+func (p *Poller) getIntegrationConfig(ectx *evaluationContext, id uint) *db.IntegrationConfig {
+	if cfg, ok := ectx.integrationConfigCache[id]; ok {
+		return cfg
+	}
+	cfg, err := p.reg.Integration.GetByID(id)
+	if err != nil {
+		return nil
+	}
+	ectx.integrationConfigCache[id] = cfg
+	return cfg
 }
 
 // evaluateSunsetMode handles the sunset-mode disk group evaluation.
@@ -511,7 +570,7 @@ func (p *Poller) evaluateAndCleanDisk(acc *RunAccumulator, group db.DiskGroup, a
 // even when the disk is simultaneously past critical. Escalation then processes
 // items that were just queued (or already existed) from the sunset queue.
 func (p *Poller) evaluateSunsetMode(acc *RunAccumulator, group db.DiskGroup, allItems []integrations.MediaItem, registry *integrations.IntegrationRegistry, _ uint, prefs db.PreferenceSet, weights map[string]int, rules []db.CustomRule, evalCtx *engine.EvaluationContext, effectiveTotal int64, currentPct float64) int {
-	// Get the per-group accumulator (already created by evaluateAndCleanDisk
+	// Get the per-group accumulator (already created by evaluateDiskGroup
 	// before dispatching to sunset mode).
 	groupAcc := acc.GetOrCreate(group.ID, group.MountPath, group.Mode)
 

@@ -1,8 +1,8 @@
 import type { PreferenceSet } from '~/types/api';
+import { toast } from 'vue-sonner';
 
 export function useAutoSave() {
   const api = useApi();
-  const { addToast } = useToast();
 
   const saveStatus = reactive<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({});
   const saveTimers: Record<string, ReturnType<typeof setTimeout>> = {};
@@ -56,7 +56,7 @@ export function useAutoSave() {
     } catch {
       showSaveStatus(field, 'error');
       for (const v of pendingOverrides.values()) showSaveStatus(v.field, 'error');
-      addToast(`Failed to save ${field} setting`, 'error');
+      toast.error(`Failed to save ${field} setting`);
     } finally {
       pendingOverrides = new Map();
       saving = false;
@@ -78,7 +78,7 @@ export function useAutoSave() {
       showSaveStatus(field, 'saved');
     } catch {
       showSaveStatus(field, 'error');
-      addToast(`Failed to save ${field} setting`, 'error');
+      toast.error(`Failed to save ${field} setting`);
     }
   }
 

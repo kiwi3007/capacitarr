@@ -166,6 +166,21 @@ func (p *Poller) safePoll() {
 	p.poll()
 }
 
+// pollContext bundles the per-cycle state loaded during prepareContext()
+// and shared across the poll sub-functions.
+type pollContext struct {
+	bus        *events.EventBus
+	pollStart  time.Time
+	acc        *RunAccumulator
+	configs    []db.IntegrationConfig
+	prefs      db.PreferenceSet
+	weights    map[string]int
+	rules      []db.CustomRule
+	runStatsID uint
+	fetched    fetchResult
+	evalCtx    *engine.EvaluationContext
+}
+
 func (p *Poller) poll() {
 	if p.reg.Engine.IsRunning() {
 		slog.Info("Skipping poll — previous run still in progress", "component", "poller")
@@ -174,11 +189,23 @@ func (p *Poller) poll() {
 	p.reg.Engine.SetRunning(true)
 	defer p.reg.Engine.SetRunning(false)
 
+	pctx, ok := p.prepareContext()
+	if !ok {
+		return
+	}
+
+	totalDeletionsQueued, mediaMounts := p.processMediaMounts(pctx)
+	p.finalizeCycle(pctx, totalDeletionsQueued, mediaMounts)
+}
+
+// prepareContext loads all configuration, fetches integration data, runs
+// enrichment, and builds the evaluation context. Returns false if the cycle
+// should be aborted (e.g., missing config).
+func (p *Poller) prepareContext() (*pollContext, bool) {
 	bus := p.reg.Bus
 	pollStart := time.Now()
 
-	// Clean expired snoozes at the start of each cycle — resets rejected items
-	// with expired snoozed_until back to pending so they're re-evaluated.
+	// Clean expired snoozes at the start of each cycle
 	if count, err := p.reg.Approval.CleanExpiredSnoozes(); err != nil {
 		slog.Error("Failed to clean expired snoozes", "component", "poller", "error", err)
 	} else if count > 0 {
@@ -190,26 +217,25 @@ func (p *Poller) poll() {
 		slog.Error("Failed to increment engine runs", "component", "poller", "error", err)
 	}
 
-	// RunAccumulator collects per-run metrics across disk group evaluations.
 	acc := NewRunAccumulator()
 
 	configs, err := p.reg.Integration.ListEnabled()
 	if err != nil {
 		slog.Error("Failed to load integrations", "component", "poller", "operation", "load_integrations", "error", err)
 		bus.Publish(events.EngineErrorEvent{Error: fmt.Sprintf("failed to load integrations: %v", err)})
-		return
+		return nil, false
 	}
 
 	prefs, err := p.reg.Settings.GetPreferences()
 	if err != nil {
 		slog.Error("Failed to load preferences", "component", "poller", "operation", "load_preferences", "error", err)
-		return
+		return nil, false
 	}
 
 	weights, err := p.reg.Settings.GetWeightMap()
 	if err != nil {
 		slog.Error("Failed to load scoring factor weights", "component", "poller", "operation", "load_weights", "error", err)
-		return
+		return nil, false
 	}
 
 	// Create engine run stats row via service
@@ -237,24 +263,21 @@ func (p *Poller) poll() {
 		} else if marked > 0 {
 			slog.Info("Marked all disk groups stale (no enabled integrations)", "component", "poller", "count", marked)
 		}
-		// Still run the reaper — stale groups from previous cycles may have expired
 		if reaped, reapErr := p.reg.DiskGroup.ReapStale(prefs.DiskGroupGracePeriodDays); reapErr != nil {
 			slog.Error("Failed to reap stale disk groups", "component", "poller", "error", reapErr)
 		} else if reaped > 0 {
 			slog.Info("Reaped expired stale disk groups", "component", "poller", "count", reaped)
 		}
-		return
+		return nil, false
 	}
 
 	rules, err := p.reg.Rules.List()
 	if err != nil {
 		slog.Error("Failed to load custom rules", "component", "poller", "operation", "load_rules", "error", err)
-		return
+		return nil, false
 	}
 
 	// Fetch media items, disk space, and build registry+pipeline from all integrations.
-	// Connection testing happens inside fetchAllIntegrations, which populates
-	// fetched.brokenTypes for integrations that failed connection tests.
 	fetched := fetchAllIntegrations(p.reg.Integration)
 
 	// Enrich items using the pluggable enrichment pipeline
@@ -262,7 +285,6 @@ func (p *Poller) poll() {
 	if fetched.pipeline != nil {
 		enrichStats = fetched.pipeline.Run(fetched.allItems)
 
-		// Publish enrichment summary event
 		bus.Publish(events.EnrichmentCompleteEvent{
 			EnrichersRun:   enrichStats.EnrichersRun,
 			ItemsProcessed: enrichStats.ItemsProcessed,
@@ -272,18 +294,12 @@ func (p *Poller) poll() {
 		})
 	}
 
-	// Populate persistent media server ID mapping table from this cycle's
-	// library scan results. This replaces per-request full-library-scan map
-	// building with a once-per-cycle bulk population. Route handlers and cron
-	// jobs now use MappingService.Resolve() instead of building ephemeral maps.
+	// Populate persistent media server ID mapping table
 	if fetched.registry != nil && p.reg.Mapping != nil {
 		p.populateMediaServerMappings(fetched.registry, fetched.allItems)
 	}
 
-	// Build EvaluationContext AFTER fetch + enrichment so it includes:
-	// - Active integration types (from enabled configs)
-	// - Broken integration types (from connection test failures in fetch)
-	// - Failed enrichment capabilities (from enrichment pipeline results)
+	// Build EvaluationContext AFTER fetch + enrichment
 	configTypes := make([]string, len(configs))
 	for i, cfg := range configs {
 		configTypes[i] = cfg.Type
@@ -297,17 +313,33 @@ func (p *Poller) poll() {
 		evalCtx.FailedEnrichmentCapabilities = failedCaps
 	}
 
-	// Find the most specific mount for each root folder
-	mediaMounts := findMediaMounts(fetched.diskMap, fetched.rootFolders)
+	return &pollContext{
+		bus:        bus,
+		pollStart:  pollStart,
+		acc:        acc,
+		configs:    configs,
+		prefs:      prefs,
+		weights:    weights,
+		rules:      rules,
+		runStatsID: runStatsID,
+		fetched:    fetched,
+		evalCtx:    evalCtx,
+	}, true
+}
 
-	// Update DiskGroups and record history only for media mounts
+// processMediaMounts iterates over discovered media mounts, upserts disk
+// groups, records history snapshots, and runs per-group evaluation.
+// Returns the total deletions queued and the set of active media mounts.
+func (p *Poller) processMediaMounts(pctx *pollContext) (int, map[string]bool) {
+	mediaMounts := findMediaMounts(pctx.fetched.diskMap, pctx.fetched.rootFolders)
+
 	slog.Info("Processing disk groups", "component", "poller",
-		"mediaMounts", len(mediaMounts), "executionMode", prefs.DefaultDiskGroupMode)
+		"mediaMounts", len(mediaMounts), "executionMode", pctx.prefs.DefaultDiskGroupMode)
 
 	var totalDeletionsQueued int
 	anyThresholdBreached := false
 	for mountPath := range mediaMounts {
-		disk := fetched.diskMap[mountPath]
+		disk := pctx.fetched.diskMap[mountPath]
 		usedBytes := disk.TotalBytes - disk.FreeBytes
 
 		effectiveTotal := disk.TotalBytes
@@ -329,7 +361,6 @@ func (p *Poller) poll() {
 			slog.Error("Failed to upsert disk group", "component", "poller", "mount", mountPath, "error", upsertErr)
 			continue
 		}
-		// Ensure local struct has latest values for threshold check
 		group.TotalBytes = disk.TotalBytes
 		group.UsedBytes = usedBytes
 
@@ -343,7 +374,7 @@ func (p *Poller) poll() {
 		}
 
 		// Sync integration links for this disk group
-		if intIDs, ok := fetched.mountIntegrations[mountPath]; ok {
+		if intIDs, ok := pctx.fetched.mountIntegrations[mountPath]; ok {
 			if linkErr := p.reg.DiskGroup.SyncIntegrationLinks(group.ID, intIDs); linkErr != nil {
 				slog.Error("Failed to sync integration links", "component", "poller",
 					"mount", mountPath, "error", linkErr)
@@ -357,13 +388,10 @@ func (p *Poller) poll() {
 		}
 
 		// Evaluate and trigger cleanup if threshold breached
-		totalDeletionsQueued += p.evaluateAndCleanDisk(acc, *group, fetched.allItems, fetched.registry, runStatsID, prefs, weights, rules, evalCtx)
+		totalDeletionsQueued += p.evaluateDiskGroup(pctx.acc, *group, pctx.fetched.allItems, pctx.fetched.registry, pctx.runStatsID, pctx.prefs, pctx.weights, pctx.rules, pctx.evalCtx)
 	}
 
-	// Final sweep: clear any remaining approval queue items when ALL disk groups
-	// are below threshold. Per-group clearing happens in evaluateAndCleanDisk via
-	// ClearQueueForDiskGroup, but this global pass catches edge cases (e.g., items
-	// whose disk group was removed between cycles).
+	// Clear approval queue when ALL disk groups are below threshold.
 	if !anyThresholdBreached && len(mediaMounts) > 0 {
 		if cleared, err := p.reg.Approval.ClearQueue(); err != nil {
 			slog.Error("Failed to clear approval queue", "component", "poller", "error", err)
@@ -374,13 +402,7 @@ func (p *Poller) poll() {
 	}
 
 	// Clean up orphaned disk groups that are no longer media mounts.
-	// Skip reconciliation when mediaMounts is empty AND no disk reporter
-	// succeeded — this means integrations were unreachable, not that
-	// mounts were genuinely removed. Without this guard, a temporary
-	// outage (e.g., during an upgrade restart) deletes all disk groups;
-	// when integrations recover the next cycle, Upsert() recreates them
-	// with default thresholds (75%/85%), losing user customizations.
-	if len(mediaMounts) == 0 && !fetched.anyDiskSuccess {
+	if len(mediaMounts) == 0 && !pctx.fetched.anyDiskSuccess {
 		slog.Warn("Skipping disk group reconciliation — no disk reporters returned data",
 			"component", "poller")
 	} else if stale, cleanErr := p.reg.DiskGroup.ReconcileActiveMounts(mediaMounts); cleanErr != nil {
@@ -390,35 +412,40 @@ func (p *Poller) poll() {
 	}
 
 	// Reap stale disk groups whose grace period has expired
-	if reaped, reapErr := p.reg.DiskGroup.ReapStale(prefs.DiskGroupGracePeriodDays); reapErr != nil {
+	if reaped, reapErr := p.reg.DiskGroup.ReapStale(pctx.prefs.DiskGroupGracePeriodDays); reapErr != nil {
 		slog.Error("Failed to reap stale disk groups", "component", "poller", "error", reapErr)
 	} else if reaped > 0 {
 		slog.Info("Reaped expired stale disk groups", "component", "poller", "count", reaped)
 	}
 
-	// Signal the deletion service with the batch size so it knows how many
-	// items to expect. For auto/dry-run modes, the DeletionService tracks
-	// completion of each item internally.
+	return totalDeletionsQueued, mediaMounts
+}
+
+// finalizeCycle persists run stats, flushes notifications, populates the
+// preview cache, and publishes the engine complete event.
+func (p *Poller) finalizeCycle(pctx *pollContext, totalDeletionsQueued int, mediaMounts map[string]bool) {
+	_ = mediaMounts // used for context in future extensions; silences unused warning
+
 	p.reg.Deletion.SignalBatchSize(totalDeletionsQueued)
 
-	// Read per-run stats from the accumulator (aggregated across all groups)
-	evaluated, candidates, protected, _, freedBytes := acc.Totals()
+	// Read per-run stats from the accumulator
+	evaluated, candidates, protected, _, freedBytes := pctx.acc.Totals()
 
 	// Store per-disk-group modes on the engine run stats row
-	if runStatsID > 0 {
-		dgModes := make(map[uint]string, len(acc.Groups))
-		for groupID, ga := range acc.Groups {
+	if pctx.runStatsID > 0 {
+		dgModes := make(map[uint]string, len(pctx.acc.Groups))
+		for groupID, ga := range pctx.acc.Groups {
 			dgModes[groupID] = ga.Mode
 		}
-		if modesErr := p.reg.Engine.SetDiskGroupModes(runStatsID, dgModes); modesErr != nil {
+		if modesErr := p.reg.Engine.SetDiskGroupModes(pctx.runStatsID, dgModes); modesErr != nil {
 			slog.Error("Failed to set disk group modes on run stats",
 				"component", "poller", "error", modesErr)
 		}
 	}
 
 	// Build per-group digest data from the accumulator.
-	var groups []notifications.GroupDigest
-	for _, ga := range acc.Groups {
+	groups := make([]notifications.GroupDigest, 0, len(pctx.acc.Groups))
+	for _, ga := range pctx.acc.Groups {
 		groups = append(groups, notifications.GroupDigest{
 			MountPath:          ga.MountPath,
 			Mode:               ga.Mode,
@@ -433,26 +460,21 @@ func (p *Poller) poll() {
 		})
 	}
 
-	// Flush the cycle digest notification directly from the poller's own
-	// counters, replacing the fragile two-gate event accumulation pattern.
-	// For auto mode, Deleted reflects items queued (actual results complete
-	// asynchronously); for dry-run/approval, Candidates is used in the
-	// notification description instead of Deleted.
+	// Flush cycle digest notification
 	p.reg.NotificationDispatch.FlushCycleDigest(notifications.CycleDigest{
 		Groups:     groups,
-		DurationMs: time.Since(pollStart).Milliseconds(),
+		DurationMs: time.Since(pctx.pollStart).Milliseconds(),
 	})
 
-	// In auto mode, IncrementDeletedStats() accumulates actual freed bytes
-	// per-item as deletions complete. Writing freedBytes here would double-count.
-	// For dry-run and approval modes, the poller's accumulated freedBytes is the
-	// only source of truth — persist it now.
+	// Persist run stats — avoid double-counting freed bytes in auto mode
 	writeFreedBytes := freedBytes
-	if prefs.DefaultDiskGroupMode == db.ModeAuto {
+	if pctx.prefs.DefaultDiskGroupMode == db.ModeAuto {
 		writeFreedBytes = 0
 	}
 
-	if err := p.reg.Engine.UpdateRunStats(runStatsID, int(evaluated), int(candidates), totalDeletionsQueued, writeFreedBytes, time.Since(pollStart).Milliseconds()); err != nil {
+	if pctx.runStatsID == 0 {
+		slog.Warn("Skipping engine run stats update — stats row was not created", "component", "poller")
+	} else if err := p.reg.Engine.UpdateRunStats(pctx.runStatsID, int(evaluated), int(candidates), totalDeletionsQueued, writeFreedBytes, time.Since(pctx.pollStart).Milliseconds()); err != nil {
 		slog.Error("Failed to update engine run stats", "component", "poller", "error", err)
 	}
 
@@ -460,21 +482,21 @@ func (p *Poller) poll() {
 	p.reg.Engine.SetLastRunStats(int(evaluated), int(candidates), int(protected))
 
 	// Populate preview cache with already-fetched and enriched items
-	p.reg.Preview.SetPreviewCache(fetched.allItems, prefs, weights, rules, evalCtx)
+	p.reg.Preview.SetPreviewCache(pctx.fetched.allItems, pctx.prefs, pctx.weights, pctx.rules, pctx.evalCtx)
 
 	// Publish engine complete event
-	bus.Publish(events.EngineCompleteEvent{
+	pctx.bus.Publish(events.EngineCompleteEvent{
 		Evaluated:        int(evaluated),
 		Candidates:       int(candidates),
-		DurationMs:       time.Since(pollStart).Milliseconds(),
-		ExecutionMode:    prefs.DefaultDiskGroupMode,
+		DurationMs:       time.Since(pctx.pollStart).Milliseconds(),
+		ExecutionMode:    pctx.prefs.DefaultDiskGroupMode,
 		FreedBytes:       freedBytes,
 		CompletedAtEpoch: time.Now().UTC().Unix(),
 	})
 
 	slog.Debug("Poll cycle complete", "component", "poller",
-		"duration", time.Since(pollStart).String(),
-		"totalItems", len(fetched.allItems),
+		"duration", time.Since(pctx.pollStart).String(),
+		"totalItems", len(pctx.fetched.allItems),
 		"evaluated", evaluated,
 		"candidates", candidates,
 		"protected", protected)

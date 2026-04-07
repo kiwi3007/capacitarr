@@ -113,10 +113,10 @@ import {
   XIcon,
 } from 'lucide-vue-next';
 import type { IntegrationConfig, EvaluatedItem } from '~/types/api';
+import { toast } from 'vue-sonner';
 import { MODE_DRY_RUN, EVENT_ANALYTICS_UPDATED } from '~/constants';
 
 const api = useApi();
-const { addToast } = useToast();
 const { t } = useI18n();
 const { items, loading, stale, refresh } = usePreview();
 const route = useRoute();
@@ -312,9 +312,8 @@ async function handleDelete(selectedItems: EvaluatedItem[]) {
       approval: t('library.deleteSuccessApproval', { count: result.queued }),
       [MODE_DRY_RUN]: t('library.deleteSuccessDryRun', { count: result.queued }),
     };
-    addToast(
+    toast.success(
       toastMessages[result.mode] || t('library.deleteSuccess', { count: result.queued }),
-      'success',
     );
     libraryTableRef.value?.onDeleteComplete();
 
@@ -322,7 +321,7 @@ async function handleDelete(selectedItems: EvaluatedItem[]) {
     await refresh(true);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    addToast(`${t('library.deleteError')}: ${message}`, 'error');
+    toast.error(`${t('library.deleteError')}: ${message}`);
     libraryTableRef.value?.onDeleteComplete();
   }
 }

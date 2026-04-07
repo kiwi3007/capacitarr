@@ -24,15 +24,22 @@ function mockUseApi() {
   return mockApiFetch;
 }
 
-// useToast mock
-const addToastSpy = vi.fn();
-function mockUseToast() {
-  return {
-    toasts: ref([]),
-    addToast: addToastSpy,
-    removeToast: vi.fn(),
-  };
-}
+// vue-sonner mock — intercept toast.success/error/info calls.
+// vi.hoisted ensures the spy variables are available inside the vi.mock factory,
+// which is hoisted to the top of the file before any other code runs.
+const { toastSuccessSpy, toastErrorSpy, toastInfoSpy } = vi.hoisted(() => ({
+  toastSuccessSpy: vi.fn(),
+  toastErrorSpy: vi.fn(),
+  toastInfoSpy: vi.fn(),
+}));
+vi.mock('vue-sonner', () => ({
+  toast: Object.assign(vi.fn(), {
+    success: toastSuccessSpy,
+    error: toastErrorSpy,
+    info: toastInfoSpy,
+    warning: vi.fn(),
+  }),
+}));
 
 // useEventStream mock — SSE composable
 // Store registered handlers so tests can invoke them directly.
@@ -64,7 +71,6 @@ function mockUseI18n() {
 // Stub global Nuxt auto-imports
 vi.stubGlobal('useState', mockUseState);
 vi.stubGlobal('useApi', mockUseApi);
-vi.stubGlobal('useToast', mockUseToast);
 vi.stubGlobal('useEventStream', mockUseEventStream);
 vi.stubGlobal('useI18n', mockUseI18n);
 
@@ -83,7 +89,9 @@ describe('useEngineControl', () => {
     stateStore.clear();
     sseHandlers.clear();
     mockApiFetch.mockReset();
-    addToastSpy.mockReset();
+    toastSuccessSpy.mockReset();
+    toastErrorSpy.mockReset();
+    toastInfoSpy.mockReset();
     _resetSSERegistration();
     vi.useFakeTimers();
     // Suppress expected console.error from error-handling code paths
@@ -211,9 +219,8 @@ describe('useEngineControl', () => {
       }
       handler({ evaluated: 200, flagged: 10 });
 
-      expect(addToastSpy).toHaveBeenCalledWith(
+      expect(toastSuccessSpy).toHaveBeenCalledWith(
         expect.stringContaining('engine.runCompleteToast'),
-        'success',
       );
     });
 
@@ -226,7 +233,7 @@ describe('useEngineControl', () => {
       mockApiFetch.mockResolvedValueOnce({ isRunning: false, defaultDiskGroupMode: 'dry-run' });
       await ctrl.fetchStats();
 
-      expect(addToastSpy).not.toHaveBeenCalled();
+      expect(toastSuccessSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -254,7 +261,7 @@ describe('useEngineControl', () => {
         method: 'PUT',
         body: { ...existingPrefs, defaultDiskGroupMode: 'auto' },
       });
-      expect(addToastSpy).toHaveBeenCalledWith('engine.modeChangedToast', 'success');
+      expect(toastSuccessSpy).toHaveBeenCalledWith('engine.modeChangedToast');
       expect(ctrl.changingMode.value).toBe(false);
     });
 
@@ -286,7 +293,7 @@ describe('useEngineControl', () => {
       const ctrl = useEngineControl();
       await ctrl.setMode('auto');
 
-      expect(addToastSpy).toHaveBeenCalledWith('engine.modeChangeFailedToast', 'error');
+      expect(toastErrorSpy).toHaveBeenCalledWith('engine.modeChangeFailedToast');
       expect(ctrl.changingMode.value).toBe(false);
     });
   });
@@ -346,7 +353,7 @@ describe('useEngineControl', () => {
       await ctrl.triggerRunNow();
 
       expect(mockApiFetch).toHaveBeenCalledWith('/api/v1/engine/run', { method: 'POST' });
-      expect(addToastSpy).toHaveBeenCalledWith('engine.runTriggeredToast', 'info');
+      expect(toastInfoSpy).toHaveBeenCalledWith('engine.runTriggeredToast');
       // runNowLoading stays true on success — the SSE engine_complete handler
       // resets it when the engine finishes. Only resets to false on error.
       expect(ctrl.runNowLoading.value).toBe(true);
@@ -358,7 +365,7 @@ describe('useEngineControl', () => {
       const ctrl = useEngineControl();
       await ctrl.triggerRunNow();
 
-      expect(addToastSpy).toHaveBeenCalledWith('engine.runFailedToast', 'error');
+      expect(toastErrorSpy).toHaveBeenCalledWith('engine.runFailedToast');
       expect(ctrl.runNowLoading.value).toBe(false);
     });
   });

@@ -23,8 +23,9 @@ func Start(reg *services.Registry) *cron.Cron {
 		if !start.IsZero() && end.After(start) {
 			if rollupErr := reg.Metrics.RollupHistory("raw", "hourly", start, end); rollupErr != nil {
 				slog.Error("Hourly rollup failed", "component", "jobs", "error", rollupErr)
-			} else {
-				_ = reg.Metrics.SetRollupCheckpoint("hourly", end)
+			} else if cpErr := reg.Metrics.SetRollupCheckpoint("hourly", end); cpErr != nil {
+				slog.Error("Failed to persist hourly rollup checkpoint — next tick may reprocess data",
+					"component", "jobs", "error", cpErr)
 			}
 		}
 		// Keep raw data for 2 hours (enough for real-time zooming)
@@ -44,8 +45,9 @@ func Start(reg *services.Registry) *cron.Cron {
 		if !start.IsZero() && end.After(start) {
 			if rollupErr := reg.Metrics.RollupHistory("hourly", "daily", start, end); rollupErr != nil {
 				slog.Error("Daily rollup failed", "component", "jobs", "error", rollupErr)
-			} else {
-				_ = reg.Metrics.SetRollupCheckpoint("daily", end)
+			} else if cpErr := reg.Metrics.SetRollupCheckpoint("daily", end); cpErr != nil {
+				slog.Error("Failed to persist daily rollup checkpoint — next tick may reprocess data",
+					"component", "jobs", "error", cpErr)
 			}
 		}
 		// Keep hourly snapshots for 7 days
@@ -65,8 +67,9 @@ func Start(reg *services.Registry) *cron.Cron {
 		if !start.IsZero() && end.After(start) {
 			if rollupErr := reg.Metrics.RollupHistory("daily", "weekly", start, end); rollupErr != nil {
 				slog.Error("Weekly rollup failed", "component", "jobs", "error", rollupErr)
-			} else {
-				_ = reg.Metrics.SetRollupCheckpoint("weekly", end)
+			} else if cpErr := reg.Metrics.SetRollupCheckpoint("weekly", end); cpErr != nil {
+				slog.Error("Failed to persist weekly rollup checkpoint — next tick may reprocess data",
+					"component", "jobs", "error", cpErr)
 			}
 		}
 		// Keep daily snapshots for 30 days

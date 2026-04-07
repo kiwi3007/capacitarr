@@ -432,6 +432,7 @@ import {
   diskStatusTextClass,
   diskStatusFillColor,
 } from '~/utils/format';
+import { toast } from 'vue-sonner';
 import { MODE_DRY_RUN, MODE_APPROVAL, MODE_AUTO, MODE_SUNSET } from '~/constants';
 import type { DiskGroup, ApiError } from '~/types/api';
 
@@ -449,7 +450,6 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const api = useApi();
-const { addToast } = useToast();
 // Per-disk-group threshold editing state
 const thresholdEdits = reactive<
   Record<
@@ -822,12 +822,12 @@ async function saveThresholds(dg: DiskGroup) {
       };
     }
 
-    addToast(`Settings saved for ${dg.mountPath}`, 'success');
+    toast.success(`Settings saved for ${dg.mountPath}`);
   } catch (err: unknown) {
     const apiErr = err as ApiError;
     console.error('[DiskGroup PUT] error=%o data=%o', err, apiErr?.data);
     const errMsg = apiErr?.data?.error || apiErr?.message || 'Failed to save settings';
-    addToast('Failed to save: ' + errMsg, 'error');
+    toast.error('Failed to save: ' + errMsg);
   } finally {
     edit.saving = false;
   }

@@ -538,6 +538,7 @@ import type { PreferenceSet } from '~/types/api';
 import { TIEBREAKER_SIZE_DESC } from '~/constants';
 import type { AcceptableValue } from 'reka-ui';
 import SaveIndicator from '~/components/settings/SaveIndicator.vue';
+import { toast } from 'vue-sonner';
 
 const { t } = useI18n();
 const api = useApi();
@@ -563,7 +564,6 @@ initFields([
   'deadContentMinDays',
   'staleContentDays',
 ]);
-const { addToast } = useToast();
 
 // Engine behavior state
 const engineTiebreakerMethod = ref<string>(TIEBREAKER_SIZE_DESC);
@@ -636,9 +636,9 @@ async function refreshAllPosters() {
     const result = (await api('/api/v1/sunset-queue/refresh-posters', {
       method: 'POST',
     })) as { updated: number };
-    addToast(t('settings.refreshPostersSuccess', { count: result.updated }), 'success');
+    toast.success(t('settings.refreshPostersSuccess', { count: result.updated }));
   } catch {
-    addToast(t('settings.refreshPostersError'), 'error');
+    toast.error(t('settings.refreshPostersError'));
   } finally {
     refreshingPosters.value = false;
   }
@@ -654,9 +654,9 @@ async function restoreAllPosters() {
     const result = (await api('/api/v1/sunset-queue/restore-posters', {
       method: 'POST',
     })) as { restored: number };
-    addToast(t('settings.restorePostersSuccess', { count: result.restored }), 'success');
+    toast.success(t('settings.restorePostersSuccess', { count: result.restored }));
   } catch {
-    addToast(t('settings.restorePostersError'), 'error');
+    toast.error(t('settings.restorePostersError'));
   } finally {
     restoringPosters.value = false;
     showRestorePostersDialog.value = false;

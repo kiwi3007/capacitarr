@@ -419,10 +419,10 @@ import type {
   ImportPreview,
   RuleOverride,
 } from '~/types/api';
+import { toast } from 'vue-sonner';
 
 const { cardEntrance } = useMotionPresets();
 const api = useApi();
-const { addToast } = useToast();
 const { t } = useI18n();
 const route = useRoute();
 
@@ -473,9 +473,9 @@ async function doExport() {
     a.click();
     URL.revokeObjectURL(url);
 
-    addToast(t('settings.exportSuccess'), 'success');
+    toast.success(t('settings.exportSuccess'));
   } catch {
-    addToast(t('settings.exportError'), 'error');
+    toast.error(t('settings.exportError'));
   } finally {
     exporting.value = false;
   }
@@ -538,11 +538,11 @@ function parseFile(file: File) {
       const data = JSON.parse(reader.result as string) as SettingsExportEnvelope;
 
       if (!data || typeof data.version !== 'number') {
-        addToast(t('settings.importInvalidFile'), 'error');
+        toast.error(t('settings.importInvalidFile'));
         return;
       }
       if (data.version !== 1) {
-        addToast(t('settings.importInvalidVersion'), 'error');
+        toast.error(t('settings.importInvalidVersion'));
         return;
       }
 
@@ -556,7 +556,7 @@ function parseFile(file: File) {
       importSections.diskGroups = (data.diskGroups?.length ?? 0) > 0;
       importSections.notificationChannels = (data.notificationChannels?.length ?? 0) > 0;
     } catch {
-      addToast(t('settings.importInvalidFile'), 'error');
+      toast.error(t('settings.importInvalidFile'));
     }
   };
   reader.readAsText(file);
@@ -601,7 +601,7 @@ async function loadPreview() {
     ruleOverrides.value = [];
     importStep.value = 3;
   } catch {
-    addToast(t('settings.importError'), 'error');
+    toast.error(t('settings.importError'));
   } finally {
     loadingPreview.value = false;
   }
@@ -634,12 +634,12 @@ async function doConfirmImport() {
     if (importMode.value === 'sync' && result.preImportSnapshot) {
       downloadSnapshot(result.preImportSnapshot);
       autoDownloadedSnapshot.value = true;
-      addToast(t('settings.importSnapshotDownloaded'), 'info');
+      toast.info(t('settings.importSnapshotDownloaded'));
     }
 
-    addToast(t('settings.importSuccess'), 'success');
+    toast.success(t('settings.importSuccess'));
   } catch {
-    addToast(t('settings.importError'), 'error');
+    toast.error(t('settings.importError'));
   } finally {
     importing.value = false;
   }

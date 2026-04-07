@@ -759,7 +759,7 @@ func (s *SunsetService) processExpiredItem(item db.SunsetQueueItem, prefs db.Pre
 		}
 	}
 
-	_ = deps.Deletion.QueueDeletion(DeleteJob{
+	if queueErr := deps.Deletion.QueueDeletion(DeleteJob{
 		Client: deleter,
 		Item: integrations.MediaItem{
 			Title:      item.MediaName,
@@ -774,7 +774,14 @@ func (s *SunsetService) processExpiredItem(item db.SunsetQueueItem, prefs db.Pre
 		EnqueuedMode:      db.ModeSunset,
 		SunsetQueueItemID: item.ID,
 		Score:             item.Score,
-	})
+	}); queueErr != nil {
+		slog.Error("Failed to queue sunset item for deletion (will retry next cycle)",
+			"component", "services", "mediaName", item.MediaName, "error", queueErr)
+		s.bus.Publish(events.EngineErrorEvent{
+			Error: fmt.Sprintf("sunset expiry queue failed for %q: %v", item.MediaName, queueErr),
+		})
+		return false
+	}
 
 	s.bus.Publish(events.SunsetExpiredEvent{
 		MediaName:   item.MediaName,

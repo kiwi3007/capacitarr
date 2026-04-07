@@ -492,10 +492,10 @@ import {
   ClockIcon,
 } from 'lucide-vue-next';
 import type { PreferenceSet, ApiError } from '~/types/api';
+import { toast } from 'vue-sonner';
 import SaveIndicator from '~/components/settings/SaveIndicator.vue';
 
 const api = useApi();
-const { addToast } = useToast();
 const { saveStatus, initFields, autoSavePreference, patchPreference } = useAutoSave();
 
 initFields([
@@ -617,7 +617,7 @@ function onDeletionToggle(checked: boolean) {
   } else {
     deletionsEnabled.value = false;
     patchPreference('deletionsEnabled', 'engine', 'deletionsEnabled', false);
-    addToast('File deletions disabled — all actions are now simulated', 'success');
+    toast.success('File deletions disabled — all actions are now simulated');
   }
 }
 
@@ -625,7 +625,7 @@ function confirmEnableDeletions() {
   deletionsEnabled.value = true;
   showDeletionConfirmDialog.value = false;
   patchPreference('deletionsEnabled', 'engine', 'deletionsEnabled', true);
-  addToast('File deletions enabled — flagged items will be permanently removed', 'error');
+  toast.error('File deletions enabled — flagged items will be permanently removed');
 }
 
 function cancelEnableDeletions() {
@@ -638,9 +638,9 @@ async function confirmResetData() {
   try {
     await api('/api/v1/data/reset', { method: 'DELETE' });
     showResetDialog.value = false;
-    addToast('All scraped data has been cleared', 'success');
+    toast.success('All scraped data has been cleared');
   } catch (e: unknown) {
-    addToast((e as ApiError)?.data?.error || 'Failed to clear data', 'error');
+    toast.error((e as ApiError)?.data?.error || 'Failed to clear data');
   } finally {
     resettingData.value = false;
   }

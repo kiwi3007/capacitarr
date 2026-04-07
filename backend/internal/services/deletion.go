@@ -635,65 +635,71 @@ func (s *DeletionService) processJob(job DeleteJob, deferredAuditEntries *[]db.A
 	}
 
 	// Re-read DeletionsEnabled at processing time (not enqueue time) as a safety net.
-	// If the user disabled deletions while items were in the grace period, this
-	// catches it and forces dry-run. This is intentional — see
-	// docs/plans/02-features/20260324T1740Z-deletion-queue-mode-change-safety.md.
 	deletionsEnabled := false
 	if prefs, err := s.settings.GetPreferences(); err == nil {
 		deletionsEnabled = prefs.DeletionsEnabled
 	}
 
 	if !deletionsEnabled || job.ForceDryRun {
-		// Dry-Delete: log but do not actually remove the file
-		s.processed.Add(1)
-		s.batchSucceeded.Add(1)
-
-		logEntry := db.AuditLogEntry{
-			MediaName:       job.Item.Title,
-			MediaType:       string(job.Item.Type),
-			ScoreDetails:    string(factorsJSON),
-			Action:          db.ActionDryDelete,
-			SizeBytes:       job.Item.SizeBytes,
-			Score:           job.Score,
-			Trigger:         job.Trigger,
-			DryRunReason:    determineDryRunReason(deletionsEnabled, job.ForceDryRun),
-			DiskGroupID:     job.DiskGroupID,
-			CollectionGroup: job.CollectionGroup,
-		}
-		if job.UpsertAudit && deferredAuditEntries != nil {
-			// Defer to batch flush at end of drainAll()
-			*deferredAuditEntries = append(*deferredAuditEntries, logEntry)
-		} else if job.UpsertAudit {
-			// No collector available (e.g., shutdown path), write immediately
-			if err := s.auditLog.UpsertDryRun(logEntry); err != nil {
-				slog.Error("Failed to upsert audit log entry", "component", "services", "error", err)
-			}
-		} else if err := s.auditLog.Create(logEntry); err != nil {
-			slog.Error("Failed to create audit log entry", "component", "services", "error", err)
-		}
-
-		s.bus.Publish(events.DeletionDryRunEvent{
-			MediaName: job.Item.Title,
-			MediaType: string(job.Item.Type),
-			SizeBytes: job.Item.SizeBytes,
-		})
-		s.publishProgress()
-
-		// Return approval queue items to pending after dry-delete so the user
-		// can approve again when deletions are actually enabled.
-		if job.ApprovalEntryID != 0 && s.approvalReturner != nil {
-			if err := s.approvalReturner.ReturnToPending(job.ApprovalEntryID); err != nil {
-				slog.Error("Failed to return dry-deleted item to approval queue",
-					"component", "services", "entryID", job.ApprovalEntryID, "error", err)
-			}
-		}
-
-		slog.Info("Dry-Delete completed", "component", "services",
-			"media", job.Item.Title, "action", "Dry-Delete", "freed", job.Item.SizeBytes)
+		s.executeDryRun(job, factorsJSON, deletionsEnabled, deferredAuditEntries)
 		return
 	}
 
-	// Actual deletion — nil-safety check for dry-run jobs that have no client
+	s.executeDeletion(job, factorsJSON)
+}
+
+// executeDryRun handles the dry-delete path: logs the action but does not
+// actually remove the file from the media server.
+func (s *DeletionService) executeDryRun(job DeleteJob, factorsJSON []byte, deletionsEnabled bool, deferredAuditEntries *[]db.AuditLogEntry) {
+	s.processed.Add(1)
+	s.batchSucceeded.Add(1)
+
+	logEntry := db.AuditLogEntry{
+		MediaName:       job.Item.Title,
+		MediaType:       string(job.Item.Type),
+		ScoreDetails:    string(factorsJSON),
+		Action:          db.ActionDryDelete,
+		SizeBytes:       job.Item.SizeBytes,
+		Score:           job.Score,
+		Trigger:         job.Trigger,
+		DryRunReason:    determineDryRunReason(deletionsEnabled, job.ForceDryRun),
+		DiskGroupID:     job.DiskGroupID,
+		CollectionGroup: job.CollectionGroup,
+	}
+	if job.UpsertAudit && deferredAuditEntries != nil {
+		*deferredAuditEntries = append(*deferredAuditEntries, logEntry)
+	} else if job.UpsertAudit {
+		if err := s.auditLog.UpsertDryRun(logEntry); err != nil {
+			slog.Error("Failed to upsert audit log entry", "component", "services", "error", err)
+		}
+	} else if err := s.auditLog.Create(logEntry); err != nil {
+		slog.Error("Failed to create audit log entry", "component", "services", "error", err)
+	}
+
+	s.bus.Publish(events.DeletionDryRunEvent{
+		MediaName: job.Item.Title,
+		MediaType: string(job.Item.Type),
+		SizeBytes: job.Item.SizeBytes,
+	})
+	s.publishProgress()
+
+	// Return approval queue items to pending after dry-delete so the user
+	// can approve again when deletions are actually enabled.
+	if job.ApprovalEntryID != 0 && s.approvalReturner != nil {
+		if err := s.approvalReturner.ReturnToPending(job.ApprovalEntryID); err != nil {
+			slog.Error("Failed to return dry-deleted item to approval queue",
+				"component", "services", "entryID", job.ApprovalEntryID, "error", err)
+		}
+	}
+
+	slog.Info("Dry-Delete completed", "component", "services",
+		"media", job.Item.Title, "action", "Dry-Delete", "freed", job.Item.SizeBytes)
+}
+
+// executeDeletion performs the actual media file deletion via the integration
+// client, updates stats, logs the audit entry, and cleans up related queues.
+func (s *DeletionService) executeDeletion(job DeleteJob, factorsJSON []byte) {
+	// Nil-safety check for dry-run jobs that have no client
 	if job.Client == nil {
 		slog.Error("Deletion job has nil client — cannot perform actual deletion",
 			"component", "services", "media", job.Item.Title,
@@ -721,12 +727,12 @@ func (s *DeletionService) processJob(job DeleteJob, deferredAuditEntries *[]db.A
 	s.processed.Add(1)
 	s.batchSucceeded.Add(1)
 
-	// Increment deleted counter and freed bytes on the engine run stats row via EngineService
+	// Increment deleted counter and freed bytes on the engine run stats row
 	if err := s.engine.IncrementDeletedStats(job.RunStatsID, job.Item.SizeBytes); err != nil {
 		slog.Error("Failed to increment engine deleted stats", "component", "services", "error", err)
 	}
 
-	// Increment lifetime stats via MetricsService
+	// Increment lifetime stats
 	if err := s.metrics.IncrementDeletionStats(job.Item.SizeBytes); err != nil {
 		slog.Error("Failed to increment lifetime deletion stats", "component", "services", "error", err)
 	}
@@ -755,10 +761,16 @@ func (s *DeletionService) processJob(job DeleteJob, deferredAuditEntries *[]db.A
 	})
 	s.publishProgress()
 
+	s.postDeletion(job)
+
+	slog.Info("Deletion completed", "component", "services",
+		"media", job.Item.Title, "action", "Deleted", "freed", job.Item.SizeBytes)
+}
+
+// postDeletion cleans up approval and sunset queue entries after a successful
+// actual deletion.
+func (s *DeletionService) postDeletion(job DeleteJob) {
 	// Clean up the approval queue entry after successful actual deletion.
-	// Without this, the "approved" entry remains orphaned and the next engine
-	// run creates a duplicate "pending" row (BulkUpsertPending only matches
-	// status='pending'), making the item appear re-added to the approval queue.
 	if job.ApprovalEntryID != 0 && s.approvalReturner != nil {
 		if err := s.approvalReturner.RemoveEntry(job.ApprovalEntryID); err != nil {
 			slog.Error("Failed to clean up approval entry after deletion",
@@ -767,18 +779,12 @@ func (s *DeletionService) processJob(job DeleteJob, deferredAuditEntries *[]db.A
 	}
 
 	// Clean up the sunset queue entry after successful actual deletion.
-	// The item was marked ExpiredAt when handed to DeletionService; now that
-	// the file is actually gone, remove the row so it disappears from the
-	// dashboard sunset queue.
 	if job.SunsetQueueItemID != 0 && s.sunsetCleaner != nil {
 		if err := s.sunsetCleaner.RemoveCompleted(job.SunsetQueueItemID); err != nil {
 			slog.Error("Failed to clean up sunset queue entry after deletion",
 				"component", "services", "sunsetItemID", job.SunsetQueueItemID, "error", err)
 		}
 	}
-
-	slog.Info("Deletion completed", "component", "services",
-		"media", job.Item.Title, "action", "Deleted", "freed", job.Item.SizeBytes)
 }
 
 // resolveCurrentMode returns the current execution mode for a deletion job.

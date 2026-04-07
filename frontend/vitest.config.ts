@@ -19,6 +19,14 @@ export default defineConfig({
     alias: {
       '~': fileURLToPath(new URL('./app', import.meta.url)),
       '@': fileURLToPath(new URL('./app', import.meta.url)),
+      // ofetch is a transitive dependency (via nuxt) and not hoisted by pnpm.
+      // Alias it so Vite's import-analysis can resolve it for vi.mock().
+      ofetch: fileURLToPath(
+        new URL(
+          './node_modules/.pnpm/ofetch@1.5.1/node_modules/ofetch/dist/index.mjs',
+          import.meta.url,
+        ),
+      ),
     },
   },
 });

@@ -180,7 +180,7 @@ func TestApprovalDedup_SingleEntry(t *testing.T) {
 // threshold, the orchestration-level ClearQueue removes pending and rejected
 // approval queue items but preserves approved items (mid-deletion).
 // ClearQueue is called at the orchestration level (poll loop), NOT inside
-// evaluateAndCleanDisk, to avoid cross-contamination when multiple disk groups
+// evaluateDiskGroup, to avoid cross-contamination when multiple disk groups
 // have different threshold states.
 func TestBelowThreshold_ClearsQueue(t *testing.T) {
 	database, reg := setupEvaluateTestDB(t)
@@ -218,7 +218,7 @@ func TestBelowThreshold_ClearsQueue(t *testing.T) {
 	}
 
 	// Simulate the orchestration-level ClearQueue that runs when all disks
-	// are below threshold (moved OUT of evaluateAndCleanDisk to prevent
+	// are below threshold (moved OUT of evaluateDiskGroup to prevent
 	// cross-contamination between disk groups)
 	cleared, err := reg.Approval.ClearQueue()
 	if err != nil {
@@ -243,7 +243,7 @@ func TestBelowThreshold_ClearsQueue(t *testing.T) {
 }
 
 // TestEvaluateAndCleanDisk_BelowThreshold_NoLongerClearsQueue verifies that
-// evaluateAndCleanDisk does NOT call ClearQueue when a disk group is below
+// evaluateDiskGroup does NOT call ClearQueue when a disk group is below
 // threshold. Queue clearing is now handled at the orchestration level to prevent
 // cross-contamination between disk groups.
 func TestEvaluateAndCleanDisk_BelowThreshold_NoLongerClearsQueue(t *testing.T) {
@@ -271,8 +271,8 @@ func TestEvaluateAndCleanDisk_BelowThreshold_NoLongerClearsQueue(t *testing.T) {
 		TargetPct:    70.0,
 	}
 
-	// Call evaluateAndCleanDisk — should NOT clear the queue
-	result := p.evaluateAndCleanDisk(NewRunAccumulator(), group, nil, nil, 0, db.PreferenceSet{}, map[string]int{}, nil, &engine.EvaluationContext{ActiveIntegrationTypes: map[integrations.IntegrationType]bool{}})
+	// Call evaluateDiskGroup — should NOT clear the queue
+	result := p.evaluateDiskGroup(NewRunAccumulator(), group, nil, nil, 0, db.PreferenceSet{}, map[string]int{}, nil, &engine.EvaluationContext{ActiveIntegrationTypes: map[integrations.IntegrationType]bool{}})
 	if result != 0 {
 		t.Errorf("expected 0 deletions queued, got %d", result)
 	}
@@ -310,7 +310,7 @@ func TestEvaluateAndCleanDisk_WithOverride(t *testing.T) {
 	// Run with no items — it should still detect threshold breach and not return 0 early
 	// Since there are no media items, it won't actually queue anything, but the
 	// breach detection code path should be entered (checking for currentPct > threshold).
-	result := p.evaluateAndCleanDisk(NewRunAccumulator(), group, nil, nil, 0, db.PreferenceSet{}, map[string]int{}, nil, &engine.EvaluationContext{ActiveIntegrationTypes: map[integrations.IntegrationType]bool{}})
+	result := p.evaluateDiskGroup(NewRunAccumulator(), group, nil, nil, 0, db.PreferenceSet{}, map[string]int{}, nil, &engine.EvaluationContext{ActiveIntegrationTypes: map[integrations.IntegrationType]bool{}})
 	// With no items, nothing to delete, but the important thing is it didn't
 	// short-circuit at the "below threshold" check.
 	if result != 0 {
@@ -335,7 +335,7 @@ func TestEvaluateAndCleanDisk_OverrideZeroUsesDetected(t *testing.T) {
 		TargetPct:          70.0,
 	}
 
-	result := p.evaluateAndCleanDisk(NewRunAccumulator(), group, nil, nil, 0, db.PreferenceSet{}, map[string]int{}, nil, &engine.EvaluationContext{ActiveIntegrationTypes: map[integrations.IntegrationType]bool{}})
+	result := p.evaluateDiskGroup(NewRunAccumulator(), group, nil, nil, 0, db.PreferenceSet{}, map[string]int{}, nil, &engine.EvaluationContext{ActiveIntegrationTypes: map[integrations.IntegrationType]bool{}})
 	if result != 0 {
 		t.Errorf("expected 0 (below threshold), got %d", result)
 	}
@@ -430,7 +430,7 @@ func TestApprovalDedup_DoesNotTouchApproved(t *testing.T) {
 }
 
 // TestEvaluateAndCleanDisk_ReconcilesDismissesStaleItems verifies that the
-// per-cycle reconciliation in evaluateAndCleanDisk removes pending approval
+// per-cycle reconciliation in evaluateDiskGroup removes pending approval
 // queue items that are no longer candidates after threshold changes.
 func TestEvaluateAndCleanDisk_ReconcilesDismissesStaleItems(t *testing.T) {
 	database, reg := setupEvaluateTestDB(t)
@@ -490,7 +490,7 @@ func TestEvaluateAndCleanDisk_ReconcilesDismissesStaleItems(t *testing.T) {
 
 	// Run with no media items — no candidates will be generated, so
 	// neededKeys will be empty, and all pending items should be reconciled away
-	result := p.evaluateAndCleanDisk(NewRunAccumulator(), group, nil, nil, 0, prefs, map[string]int{}, nil, &engine.EvaluationContext{ActiveIntegrationTypes: map[integrations.IntegrationType]bool{}})
+	result := p.evaluateDiskGroup(NewRunAccumulator(), group, nil, nil, 0, prefs, map[string]int{}, nil, &engine.EvaluationContext{ActiveIntegrationTypes: map[integrations.IntegrationType]bool{}})
 	if result != 0 {
 		t.Errorf("expected 0 deletions queued, got %d", result)
 	}
@@ -553,7 +553,7 @@ func TestEvaluateAndCleanDisk_ReconcileNoopInDryRun(t *testing.T) {
 
 	// Run in dry-run mode — reconciliation should NOT happen
 	prefs := db.PreferenceSet{DefaultDiskGroupMode: db.ModeDryRun}
-	p.evaluateAndCleanDisk(NewRunAccumulator(), group, nil, nil, 0, prefs, map[string]int{}, nil, &engine.EvaluationContext{ActiveIntegrationTypes: map[integrations.IntegrationType]bool{}})
+	p.evaluateDiskGroup(NewRunAccumulator(), group, nil, nil, 0, prefs, map[string]int{}, nil, &engine.EvaluationContext{ActiveIntegrationTypes: map[integrations.IntegrationType]bool{}})
 
 	// Verify: pending item is preserved (reconciliation didn't run)
 	var pendingCount int64
@@ -630,7 +630,7 @@ func TestEvaluateAndCleanDisk_IsSnoozed_AutoMode(t *testing.T) {
 		"series_status":   5,
 	}
 
-	result := p.evaluateAndCleanDisk(NewRunAccumulator(), group, items, nil, 0, prefs, weights, nil, &engine.EvaluationContext{ActiveIntegrationTypes: map[integrations.IntegrationType]bool{}})
+	result := p.evaluateDiskGroup(NewRunAccumulator(), group, items, nil, 0, prefs, weights, nil, &engine.EvaluationContext{ActiveIntegrationTypes: map[integrations.IntegrationType]bool{}})
 
 	// The item should be skipped because it's snoozed — 0 queued
 	if result != 0 {
@@ -701,7 +701,7 @@ func TestEvaluateAndCleanDisk_IsSnoozed_DryRunMode(t *testing.T) {
 		"series_status":   5,
 	}
 
-	result := p.evaluateAndCleanDisk(NewRunAccumulator(), group, items, nil, 0, prefs, weights, nil, &engine.EvaluationContext{ActiveIntegrationTypes: map[integrations.IntegrationType]bool{}})
+	result := p.evaluateDiskGroup(NewRunAccumulator(), group, items, nil, 0, prefs, weights, nil, &engine.EvaluationContext{ActiveIntegrationTypes: map[integrations.IntegrationType]bool{}})
 
 	// The item should be skipped because it's snoozed — 0 queued
 	if result != 0 {

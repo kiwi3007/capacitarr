@@ -95,6 +95,12 @@ func (r *RecoveryService) Start() {
 	r.seed()
 
 	go func() {
+		defer func() {
+			if rec := recover(); rec != nil {
+				slog.Error("Panic recovered in recovery service goroutine",
+					"component", "recovery", "panic", rec)
+			}
+		}()
 		ticker := time.NewTicker(recoveryTickPeriod)
 		defer ticker.Stop()
 
@@ -288,10 +294,19 @@ func (r *RecoveryService) probeIntegration(state *recoveryState) {
 			"type", state.IntegrationType,
 			"afterAttempts", attempt)
 
-		// Update DB: clear error, reset consecutive failures
+		// Update DB: clear error, reset consecutive failures.
+		// Only remove from the in-memory tracker if the DB update succeeds —
+		// otherwise the tracker would say "recovered" while the DB still
+		// shows "failed", causing the integration to appear failed on restart.
 		r.integrationSvc.PublishRecoveryIfNeeded(state.IntegrationID)
 		now := time.Now()
-		_ = r.integrationSvc.UpdateSyncStatusDirect(state.IntegrationID, &now, "", 0)
+		if dbErr := r.integrationSvc.UpdateSyncStatusDirect(state.IntegrationID, &now, "", 0); dbErr != nil {
+			slog.Error("Recovery probe: DB update failed after successful probe — keeping in tracker",
+				"component", "recovery",
+				"integrationID", state.IntegrationID,
+				"error", dbErr)
+			return
+		}
 
 		// Remove from tracker
 		r.TrackRecovery(state.IntegrationID)

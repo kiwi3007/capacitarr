@@ -1,6 +1,7 @@
 package poller
 
 import (
+	"fmt"
 	"log/slog"
 	"sync"
 	"time"
@@ -83,6 +84,18 @@ func fetchAllIntegrations(integrationSvc *services.IntegrationService) fetchResu
 		connWg.Add(1)
 		go func(id uint, conn integrations.Connectable) {
 			defer connWg.Done()
+			defer func() {
+				if r := recover(); r != nil {
+					slog.Error("Panic recovered in connection test goroutine",
+						"component", "poller", "integrationID", id, "panic", r)
+					connMu.Lock()
+					connResults = append(connResults, connTestResult{
+						id:  id,
+						err: fmt.Errorf("panic in connection test: %v", r),
+					})
+					connMu.Unlock()
+				}
+			}()
 			cr := connTestResult{id: id, testTime: time.Now()}
 			if connErr := conn.TestConnection(); connErr != nil {
 				cr.err = connErr
@@ -135,6 +148,18 @@ func fetchAllIntegrations(integrationSvc *services.IntegrationService) fetchResu
 		mediaWg.Add(1)
 		go func(id uint, source integrations.MediaSource) {
 			defer mediaWg.Done()
+			defer func() {
+				if r := recover(); r != nil {
+					slog.Error("Panic recovered in media fetch goroutine",
+						"component", "poller", "integrationID", id, "panic", r)
+					mediaMu.Lock()
+					mediaResults = append(mediaResults, mediaFetchResult{
+						id:  id,
+						err: fmt.Errorf("panic in media fetch: %v", r),
+					})
+					mediaMu.Unlock()
+				}
+			}()
 			fetchStart := time.Now()
 			items, fetchErr := source.GetMediaItems()
 			mr := mediaFetchResult{
@@ -239,6 +264,19 @@ func fetchAllIntegrations(integrationSvc *services.IntegrationService) fetchResu
 		diskWg.Add(1)
 		go func(id uint, reporter integrations.DiskReporter) {
 			defer diskWg.Done()
+			defer func() {
+				if r := recover(); r != nil {
+					slog.Error("Panic recovered in disk fetch goroutine",
+						"component", "poller", "integrationID", id, "panic", r)
+					diskMu.Lock()
+					diskResults = append(diskResults, diskFetchResult{
+						id:        id,
+						folderErr: fmt.Errorf("panic in disk fetch: %v", r),
+						diskErr:   fmt.Errorf("panic in disk fetch: %v", r),
+					})
+					diskMu.Unlock()
+				}
+			}()
 			folders, folderErr := reporter.GetRootFolders()
 			disks, diskErr := reporter.GetDiskSpace()
 			dr := diskFetchResult{

@@ -16,8 +16,8 @@
   <ClientOnly>
     <AnnouncementBanner v-if="isAuthenticated" />
     <ConnectionBanner />
-    <ToastContainer />
   </ClientOnly>
+  <UiSonner position="bottom-right" class="!bottom-14" />
 </template>
 
 <script setup lang="ts">

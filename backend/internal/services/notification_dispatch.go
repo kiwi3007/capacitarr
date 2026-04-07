@@ -18,6 +18,12 @@ var ErrUnknownChannelType = errors.New("unknown channel type")
 // matching the key in notifications.EventTier.
 const eventKindError = "error"
 
+// maxConcurrentNotifications limits the number of concurrent notification
+// deliveries. If a webhook endpoint is slow and events arrive rapidly,
+// this prevents unbounded goroutine accumulation. Each delivery goroutine
+// must acquire a slot from this semaphore before sending.
+const maxConcurrentNotifications = 5
+
 // ChannelProvider abstracts the notification channel service for the dispatch
 // service. Satisfied by NotificationChannelService.
 type ChannelProvider interface {
@@ -57,6 +63,7 @@ type NotificationDispatchService struct {
 	mu   sync.Mutex
 	ch   chan events.Event
 	done chan struct{}
+	sem  chan struct{} // bounded semaphore for concurrent notification deliveries
 }
 
 // NewNotificationDispatchService creates a new dispatch service. The
@@ -95,6 +102,7 @@ func NewNotificationDispatchService(
 		senders:        senders,
 		version:        version,
 		done:           make(chan struct{}),
+		sem:            make(chan struct{}, maxConcurrentNotifications),
 	}
 }
 
@@ -158,6 +166,12 @@ func (s *NotificationDispatchService) TestChannel(id uint) error {
 
 func (s *NotificationDispatchService) run() {
 	defer close(s.done)
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("Panic recovered in notification dispatch loop",
+				"component", "notifications", "panic", r)
+		}
+	}()
 	for event := range s.ch {
 		s.handle(event)
 	}
@@ -326,9 +340,18 @@ func (s *NotificationDispatchService) dispatchDigest(digest notifications.CycleD
 		c := cfg
 		d := digest
 		lvl := level
+		snd := sender
 		sc := notifications.SenderConfig{WebhookURL: c.WebhookURL, AppriseTags: c.AppriseTags}
 		go func() {
-			if sendErr := sender.SendDigest(sc, d, lvl); sendErr != nil {
+			s.sem <- struct{}{} // acquire semaphore slot
+			defer func() { <-s.sem }()
+			defer func() {
+				if r := recover(); r != nil {
+					slog.Error("Panic recovered in digest notification sender",
+						"component", "notifications", "channel", c.Name, "panic", r)
+				}
+			}()
+			if sendErr := snd.SendDigest(sc, d, lvl); sendErr != nil {
 				slog.Error("Failed to send digest notification",
 					"component", "notifications",
 					"channel", c.Name,
@@ -386,9 +409,18 @@ func (s *NotificationDispatchService) dispatchAlert(alert notifications.Alert, e
 
 		c := cfg
 		a := alert
+		snd := sender
 		sc := notifications.SenderConfig{WebhookURL: c.WebhookURL, AppriseTags: c.AppriseTags}
 		go func() {
-			if sendErr := sender.SendAlert(sc, a); sendErr != nil {
+			s.sem <- struct{}{} // acquire semaphore slot
+			defer func() { <-s.sem }()
+			defer func() {
+				if r := recover(); r != nil {
+					slog.Error("Panic recovered in alert notification sender",
+						"component", "notifications", "channel", c.Name, "panic", r)
+				}
+			}()
+			if sendErr := snd.SendAlert(sc, a); sendErr != nil {
 				slog.Error("Failed to send alert notification",
 					"component", "notifications",
 					"channel", c.Name,

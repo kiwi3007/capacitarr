@@ -184,9 +184,9 @@
 <script setup lang="ts">
 import { UserIcon, ShieldIcon, KeyIcon } from 'lucide-vue-next';
 import type { ApiKeyResponse, ApiError } from '~/types/api';
+import { toast } from 'vue-sonner';
 
 const api = useApi();
-const { addToast } = useToast();
 
 // ─── Password change state ───────────────────────────────────────────────────
 const passwordForm = reactive({
@@ -243,7 +243,7 @@ async function changePassword() {
         newPassword: passwordForm.newPassword,
       },
     });
-    addToast('Password changed — please log in again', 'success');
+    toast.success('Password changed — please log in again');
     passwordForm.currentPassword = '';
     passwordForm.newPassword = '';
     passwordForm.confirmPassword = '';
@@ -252,7 +252,7 @@ async function changePassword() {
     }, 1500);
   } catch (e: unknown) {
     passwordError.value = (e as ApiError)?.data?.error || 'Failed to change password';
-    addToast(passwordError.value, 'error');
+    toast.error(passwordError.value);
   } finally {
     savingPassword.value = false;
   }
@@ -284,7 +284,7 @@ async function changeUsername() {
         currentPassword: usernameForm.password,
       },
     });
-    addToast('Username changed — please log in again', 'success');
+    toast.success('Username changed — please log in again');
     usernameForm.newUsername = '';
     usernameForm.password = '';
     setTimeout(() => {
@@ -292,7 +292,7 @@ async function changeUsername() {
     }, 1500);
   } catch (e: unknown) {
     usernameError.value = (e as ApiError)?.data?.error || 'Failed to change username';
-    addToast(usernameError.value, 'error');
+    toast.error(usernameError.value);
   } finally {
     savingUsername.value = false;
   }
@@ -304,9 +304,9 @@ async function generateApiKey() {
   try {
     const result = (await api('/api/v1/auth/apikey', { method: 'POST' })) as ApiKeyResponse;
     apiKey.value = result.api_key;
-    addToast('API key generated', 'success');
+    toast.success('API key generated');
   } catch {
-    addToast('Failed to generate API key', 'error');
+    toast.error('Failed to generate API key');
   } finally {
     generatingApiKey.value = false;
   }
@@ -332,7 +332,7 @@ async function fetchApiKey() {
 
 function copyApiKey() {
   navigator.clipboard.writeText(apiKey.value);
-  addToast('API key copied to clipboard', 'success');
+  toast.success('API key copied to clipboard');
 }
 
 onMounted(() => {

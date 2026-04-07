@@ -959,7 +959,13 @@ func (s *IntegrationService) SyncAll() ([]SyncResult, error) {
 				result.DiskSpace = disks
 				if s.diskGroups != nil {
 					for _, d := range disks {
-						_, _ = s.diskGroups.Upsert(d)
+						if _, upsertErr := s.diskGroups.Upsert(d); upsertErr != nil {
+							slog.Error("Failed to upsert disk group during sync",
+								"component", "services", "path", d.Path, "error", upsertErr)
+							if result.DiskError == "" {
+								result.DiskError = upsertErr.Error()
+							}
+						}
 					}
 				}
 			}

@@ -377,6 +377,12 @@ func main() {
 
 	// Non-blocking startup self-test — check connectivity to all enabled integrations
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("Panic recovered in startup self-test goroutine",
+					"component", "main", "panic", r)
+			}
+		}()
 		configs, err := reg.Integration.ListEnabled()
 		if err != nil {
 			slog.Error("Startup self-test: failed to list integrations", "component", "main", "error", err)

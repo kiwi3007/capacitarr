@@ -8,6 +8,7 @@
  * and is shared between components on the same page.
  */
 import type { FetchError } from 'ofetch';
+import { toast } from 'vue-sonner';
 import {
   MODE_APPROVAL,
   EVENT_ENGINE_COMPLETE,
@@ -63,7 +64,6 @@ function extractShowTitle(mediaName: string): string | null {
 
 export function useApprovalQueue() {
   const api = useApi();
-  const { addToast } = useToast();
   const { executionMode } = useEngineControl();
   const { on: sseOn } = useEventStream();
 
@@ -239,7 +239,7 @@ export function useApprovalQueue() {
       await Promise.all(
         group.auditIds.map((id) => api(`/api/v1/approval-queue/${id}/approve`, { method: 'POST' })),
       );
-      addToast('Group approved for deletion', 'success');
+      toast.success('Group approved for deletion');
     } catch (e: unknown) {
       // Revert optimistic update on failure
       approvedItems.value = approvedItems.value.filter((g) => g.key !== group.key);
@@ -247,9 +247,9 @@ export function useApprovalQueue() {
 
       const fe = e as FetchError;
       if (fe?.statusCode === 409) {
-        addToast(fe.data?.error || 'Approval blocked — deletions are disabled', 'error');
+        toast.error(fe.data?.error || 'Approval blocked — deletions are disabled');
       } else {
-        addToast('Failed to approve group', 'error');
+        toast.error('Failed to approve group');
       }
     }
   }
@@ -270,14 +270,14 @@ export function useApprovalQueue() {
       await Promise.all(
         group.auditIds.map((id) => api(`/api/v1/approval-queue/${id}/reject`, { method: 'POST' })),
       );
-      addToast('Group snoozed', 'info');
+      toast.info('Group snoozed');
       // Background refresh to get accurate snooze duration from server
       fetchQueue();
     } catch {
       // Revert optimistic update on failure
       snoozedItems.value = snoozedItems.value.filter((g) => g.key !== group.key);
       pendingItems.value = [...pendingItems.value, group];
-      addToast('Failed to snooze group', 'error');
+      toast.error('Failed to snooze group');
     }
   }
 
@@ -295,14 +295,14 @@ export function useApprovalQueue() {
           api(`/api/v1/approval-queue/${id}/unsnooze`, { method: 'POST' }),
         ),
       );
-      addToast('Snooze removed — group re-queued for approval', 'success');
+      toast.success('Snooze removed — group re-queued for approval');
       // Background refresh to sync with server state
       fetchQueue();
     } catch {
       // Revert optimistic update on failure
       pendingItems.value = pendingItems.value.filter((g) => g.key !== group.key);
       snoozedItems.value = [...snoozedItems.value, group];
-      addToast('Failed to unsnooze group', 'error');
+      toast.error('Failed to unsnooze group');
     }
   }
 
@@ -310,14 +310,14 @@ export function useApprovalQueue() {
   async function approveSeason(auditId: number) {
     try {
       await api(`/api/v1/approval-queue/${auditId}/approve`, { method: 'POST' });
-      addToast('Season approved for deletion', 'success');
+      toast.success('Season approved for deletion');
       fetchQueue();
     } catch (e: unknown) {
       const fe = e as FetchError;
       if (fe?.statusCode === 409) {
-        addToast(fe.data?.error || 'Approval blocked — deletions are disabled', 'error');
+        toast.error(fe.data?.error || 'Approval blocked — deletions are disabled');
       } else {
-        addToast('Failed to approve season', 'error');
+        toast.error('Failed to approve season');
       }
     }
   }
@@ -326,10 +326,10 @@ export function useApprovalQueue() {
   async function snoozeSeason(auditId: number) {
     try {
       await api(`/api/v1/approval-queue/${auditId}/reject`, { method: 'POST' });
-      addToast('Season snoozed', 'info');
+      toast.info('Season snoozed');
       fetchQueue();
     } catch {
-      addToast('Failed to snooze season', 'error');
+      toast.error('Failed to snooze season');
     }
   }
 
@@ -345,7 +345,7 @@ export function useApprovalQueue() {
       await Promise.all(
         group.auditIds.map((id) => api(`/api/v1/approval-queue/${id}`, { method: 'DELETE' })),
       );
-      addToast('Dismissed from queue', 'info');
+      toast.info('Dismissed from queue');
     } catch {
       // Revert optimistic update on failure
       if (group.state === 'snoozed') {
@@ -353,7 +353,7 @@ export function useApprovalQueue() {
       } else {
         pendingItems.value = [...pendingItems.value, group];
       }
-      addToast('Failed to dismiss group', 'error');
+      toast.error('Failed to dismiss group');
     }
   }
 
@@ -361,10 +361,10 @@ export function useApprovalQueue() {
   async function dismissSeason(auditId: number) {
     try {
       await api(`/api/v1/approval-queue/${auditId}`, { method: 'DELETE' });
-      addToast('Season dismissed', 'info');
+      toast.info('Season dismissed');
       fetchQueue();
     } catch {
-      addToast('Failed to dismiss season', 'error');
+      toast.error('Failed to dismiss season');
     }
   }
 
@@ -378,12 +378,12 @@ export function useApprovalQueue() {
 
     try {
       await api('/api/v1/approval-queue/clear', { method: 'POST' });
-      addToast('Queue cleared', 'info');
+      toast.info('Queue cleared');
     } catch {
       // Revert optimistic update on failure
       pendingItems.value = prevPending;
       snoozedItems.value = prevSnoozed;
-      addToast('Failed to clear queue', 'error');
+      toast.error('Failed to clear queue');
     }
   }
 

@@ -7,6 +7,7 @@
  * on mount and after explicit user actions (mode change).
  */
 import type { WorkerStats, PreferenceSet, DeletionProgress } from '~/types/api';
+import { toast } from 'vue-sonner';
 import {
   MODE_DRY_RUN,
   MODE_AUTO,
@@ -34,7 +35,6 @@ export function _resetSSERegistration() {
 
 export function useEngineControl() {
   const api = useApi();
-  const { addToast } = useToast();
   const { on } = useEventStream();
 
   const workerStats = useState<WorkerStats | null>('engineWorkerStats', () => null);
@@ -138,12 +138,11 @@ export function useEngineControl() {
       if (wasRunning) {
         const evaluated = event.evaluated ?? 0;
         const candidates = event.candidates ?? 0;
-        addToast(
+        toast.success(
           t('engine.runCompleteToast', {
             evaluated: evaluated.toLocaleString(),
             candidates: candidates.toLocaleString(),
           }),
-          'success',
         );
       }
       // Always increment counter so dashboard refreshes data
@@ -160,7 +159,7 @@ export function useEngineControl() {
       }
       prevIsRunning.value = false;
       runNowLoading.value = false;
-      addToast(t('engine.errorToast', { error: event.error || 'Unknown error' }), 'error');
+      toast.error(t('engine.errorToast', { error: event.error || 'Unknown error' }));
     });
 
     on(EVENT_ENGINE_MODE_CHANGED, (data: unknown) => {
@@ -229,9 +228,9 @@ export function useEngineControl() {
       });
       // Refresh stats to pick up the new mode immediately
       await fetchStats();
-      addToast(t('engine.modeChangedToast', { mode: modeLabel(mode) }), 'success');
+      toast.success(t('engine.modeChangedToast', { mode: modeLabel(mode) }));
     } catch {
-      addToast(t('engine.modeChangeFailedToast'), 'error');
+      toast.error(t('engine.modeChangeFailedToast'));
     } finally {
       changingMode.value = false;
     }
@@ -241,7 +240,7 @@ export function useEngineControl() {
     runNowLoading.value = true;
     try {
       await api('/api/v1/engine/run', { method: 'POST' });
-      addToast(t('engine.runTriggeredToast'), 'info');
+      toast.info(t('engine.runTriggeredToast'));
       // No delay or fetchStats needed — SSE engine_start/engine_complete events
       // will update the UI reactively.
       //
@@ -261,7 +260,7 @@ export function useEngineControl() {
         );
       }
     } catch {
-      addToast(t('engine.runFailedToast'), 'error');
+      toast.error(t('engine.runFailedToast'));
       runNowLoading.value = false;
     }
   }

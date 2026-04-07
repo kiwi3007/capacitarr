@@ -49,9 +49,9 @@
 
 <script setup lang="ts">
 import type { DiskGroup, IntegrationConfig, CustomRule, ScoringFactorWeight } from '~/types/api';
+import { toast } from 'vue-sonner';
 
 const api = useApi();
-const { addToast } = useToast();
 const {
   items: previewItems,
   diskContext: previewDiskContext,
@@ -108,9 +108,9 @@ async function saveFactorWeights() {
       body: weightMap,
     })) as ScoringFactorWeight[];
     factorWeights.value = updated;
-    addToast('Weights saved', 'success');
+    toast.success('Weights saved');
   } catch {
-    addToast('Failed to save weights', 'error');
+    toast.error('Failed to save weights');
   }
 }
 
@@ -161,20 +161,20 @@ async function addRule(rule: {
 }) {
   try {
     await api('/api/v1/custom-rules', { method: 'POST', body: rule });
-    addToast('Rule added', 'success');
+    toast.success('Rule added');
     await fetchRules();
   } catch {
-    addToast('Failed to add rule', 'error');
+    toast.error('Failed to add rule');
   }
 }
 
 async function deleteRule(id: number) {
   try {
     await api(`/api/v1/custom-rules/${id}`, { method: 'DELETE' });
-    addToast('Rule removed', 'success');
+    toast.success('Rule removed');
     await fetchRules();
   } catch {
-    addToast('Failed to delete rule', 'error');
+    toast.error('Failed to delete rule');
   }
 }
 
@@ -187,10 +187,10 @@ async function editRule(
       method: 'PUT',
       body: { ...rule, id },
     });
-    addToast('Rule updated', 'success');
+    toast.success('Rule updated');
     await fetchRules();
   } catch {
-    addToast('Failed to update rule', 'error');
+    toast.error('Failed to update rule');
   }
 }
 
@@ -202,11 +202,11 @@ async function toggleRuleEnabled(rule: CustomRule, enabled: boolean) {
       method: 'PUT',
       body: { ...rule, enabled },
     });
-    addToast(enabled ? 'Rule enabled' : 'Rule disabled', 'success');
+    toast.success(enabled ? 'Rule enabled' : 'Rule disabled');
   } catch {
     // Revert on failure
     rule.enabled = !enabled;
-    addToast('Failed to update rule', 'error');
+    toast.error('Failed to update rule');
   }
 }
 
@@ -222,11 +222,11 @@ async function reorderRules(order: number[]) {
       method: 'PUT',
       body: { order },
     });
-    addToast('Rules reordered', 'success');
+    toast.success('Rules reordered');
   } catch {
     // Revert — re-fetch from server
     await fetchRules();
-    addToast('Failed to reorder rules', 'error');
+    toast.error('Failed to reorder rules');
   }
 }
 

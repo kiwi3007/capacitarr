@@ -2,7 +2,7 @@
 import type { SelectItemProps } from 'reka-ui';
 import type { HTMLAttributes } from 'vue';
 import { reactiveOmit } from '@vueuse/core';
-import { CheckIcon } from '@radix-icons/vue';
+import { CheckIcon } from 'lucide-vue-next';
 import { SelectItem, SelectItemIndicator, SelectItemText, useForwardProps } from 'reka-ui';
 import { cn } from '@/lib/utils';
 

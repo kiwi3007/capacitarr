@@ -441,9 +441,9 @@ import {
   urlPlaceholders,
   urlHelpTexts,
 } from '~/utils/integrationHelpers';
+import { toast } from 'vue-sonner';
 
 const api = useApi();
-const { addToast } = useToast();
 const { t } = useI18n();
 
 const loading = ref(true);
@@ -486,16 +486,15 @@ async function toggleEnabled(integration: IntegrationConfig, enabled: boolean) {
       method: 'PUT',
       body: { enabled },
     });
-    addToast(
+    toast.success(
       t('settings.integrationToggled', {
         action: enabled ? t('common.enabled') : t('common.disabled'),
       }),
-      'success',
     );
   } catch {
     // Revert on failure
     integration.enabled = previous;
-    addToast(t('settings.integrationToggleFailed'), 'error');
+    toast.error(t('settings.integrationToggleFailed'));
   }
 }
 
@@ -513,15 +512,14 @@ async function toggleCardSetting(
       method: 'PUT',
       body: { [key]: value },
     });
-    addToast(
+    toast.success(
       t('settings.integrationToggled', {
         action: value ? t('common.enabled') : t('common.disabled'),
       }),
-      'success',
     );
   } catch {
     integration[key] = previous;
-    addToast(t('settings.integrationToggleFailed'), 'error');
+    toast.error(t('settings.integrationToggleFailed'));
   }
 }
 
@@ -585,13 +583,13 @@ async function startPlexAuth() {
     plexOAuth = new PlexOAuth();
     const authToken = await plexOAuth.login();
     formState.apiKey = authToken;
-    addToast('Plex authorized successfully!', 'success');
+    toast.success('Plex authorized successfully!');
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Unknown error';
     if (msg.includes('closed')) {
-      addToast('Plex authorization cancelled', 'info');
+      toast.info('Plex authorization cancelled');
     } else {
-      addToast('Failed to start Plex authorization: ' + msg, 'error');
+      toast.error('Failed to start Plex authorization: ' + msg);
     }
   } finally {
     plexAuthLoading.value = false;
@@ -614,7 +612,7 @@ async function fetchIntegrations(showSpinner = true) {
   try {
     integrations.value = (await api('/api/v1/integrations')) as IntegrationConfig[];
   } catch {
-    addToast('Failed to load integrations', 'error');
+    toast.error('Failed to load integrations');
   } finally {
     loading.value = false;
   }
@@ -665,11 +663,11 @@ async function onSubmit() {
       await api('/api/v1/integrations', { method: 'POST', body: formState });
     }
     showModal.value = false;
-    addToast('Integration saved', 'success');
+    toast.success('Integration saved');
     await fetchIntegrations();
   } catch (e: unknown) {
     formError.value = (e as ApiError)?.data?.error || 'Failed to save integration';
-    addToast(formError.value, 'error');
+    toast.error(formError.value);
   } finally {
     saving.value = false;
   }
@@ -679,10 +677,10 @@ async function deleteIntegration(integration: IntegrationConfig) {
   if (!confirm(`Delete ${integration.name}? This cannot be undone.`)) return;
   try {
     await api(`/api/v1/integrations/${integration.id}`, { method: 'DELETE' });
-    addToast('Integration deleted', 'success');
+    toast.success('Integration deleted');
     await fetchIntegrations();
   } catch {
-    addToast('Failed to delete integration', 'error');
+    toast.error('Failed to delete integration');
   }
 }
 
@@ -697,14 +695,15 @@ async function testConnection(integration: IntegrationConfig) {
         integrationId: integration.id,
       },
     })) as ConnectionTestResult;
-    addToast(
-      result.success ? 'Connection successful!' : `Connection failed: ${result.error}`,
-      result.success ? 'success' : 'error',
-    );
+    if (result.success) {
+      toast.success('Connection successful!');
+    } else {
+      toast.error(`Connection failed: ${result.error}`);
+    }
     // Silently refetch to reflect updated lastError / lastSync status
     await fetchIntegrations(false);
   } catch {
-    addToast('Connection test failed', 'error');
+    toast.error('Connection test failed');
   }
 }
 
@@ -722,14 +721,14 @@ async function testFormConnection() {
     })) as ConnectionTestResult;
     if (result.success) {
       formError.value = '';
-      addToast('Connection successful!', 'success');
+      toast.success('Connection successful!');
     } else {
       formError.value = result.error || 'Connection failed';
-      addToast(formError.value, 'error');
+      toast.error(formError.value);
     }
   } catch {
     formError.value = 'Connection test failed';
-    addToast('Connection test failed', 'error');
+    toast.error('Connection test failed');
   }
 }
 
