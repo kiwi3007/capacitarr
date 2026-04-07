@@ -1,3 +1,8 @@
+## [3.2.1] - 2026-04-07
+
+### 🐛 Bug Fixes
+
+- *(schema)* Prevent AutoMigrate from resetting disk group thresholds ([81586b0](https://github.com/Ghent/capacitarr/commit/81586b02b1fdcce4a4403b5ed9bd3839a560f096))
 ## [3.2.0] - 2026-04-06
 
 ### 🚀 Features
