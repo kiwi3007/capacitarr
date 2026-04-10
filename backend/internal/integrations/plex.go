@@ -74,6 +74,22 @@ type plexMediaResponse struct {
 	} `json:"MediaContainer"`
 }
 
+// plexHistoryResponse maps /status/sessions/history/all response.
+// Each Metadata entry is one play event, so the same ratingKey appears
+// once per play across all accounts (owner, managed users, home users).
+type plexHistoryResponse struct {
+	MediaContainer struct {
+		Size      int                `json:"size"`
+		TotalSize int                `json:"totalSize"`
+		Metadata  []plexHistoryEntry `json:"Metadata"`
+	} `json:"MediaContainer"`
+}
+
+type plexHistoryEntry struct {
+	RatingKey  string `json:"ratingKey"`
+	ViewedAt   int64  `json:"viewedAt"`
+}
+
 type plexMetadata struct {
 	RatingKey        string     `json:"ratingKey"`
 	Title            string     `json:"title"`
@@ -310,15 +326,55 @@ type PlexLibrarySection struct {
 	Type  string `json:"type"`
 }
 
-// GetBulkWatchData returns a map of TMDb ID to watch data from the cached Plex
-// library. Uses getMediaItems() to avoid redundant library fetches — the same
-// cached data is shared with GetCollectionMemberships, GetLabelMemberships,
-// GetTMDbToRatingKeyMap, etc.
+// fetchAllUsersPlayCounts fetches play history from /status/sessions/history/all,
+// an admin-only endpoint that returns one entry per play event across all accounts
+// (owner, managed home users, shared users). Returns a map of ratingKey → total
+// play count. Paginates automatically to handle large history sets.
+func (p *PlexClient) fetchAllUsersPlayCounts() (map[string]int, error) {
+	const pageSize = 1000
+	counts := make(map[string]int)
+	start := 0
+
+	for {
+		endpoint := fmt.Sprintf("/status/sessions/history/all?X-Plex-Container-Start=%d&X-Plex-Container-Size=%d", start, pageSize)
+		body, err := p.doRequest(endpoint)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch Plex play history: %w", err)
+		}
+
+		var resp plexHistoryResponse
+		if err := json.Unmarshal(body, &resp); err != nil {
+			return nil, fmt.Errorf("failed to parse Plex play history: %w", err)
+		}
+
+		for _, entry := range resp.MediaContainer.Metadata {
+			if entry.RatingKey != "" {
+				counts[entry.RatingKey]++
+			}
+		}
+
+		start += resp.MediaContainer.Size
+		if resp.MediaContainer.Size == 0 || start >= resp.MediaContainer.TotalSize {
+			break
+		}
+	}
+
+	return counts, nil
+}
+
+// GetBulkWatchData returns a map of TMDb ID to watch data from Plex.
+// Play counts are sourced from /status/sessions/history/all, which aggregates
+// plays across all accounts including managed home users. Falls back to the
+// per-item ViewCount (admin account only) if the history endpoint is unavailable.
 func (p *PlexClient) GetBulkWatchData() (map[int]*WatchData, error) {
 	items, err := p.getMediaItems()
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch Plex items for watch data: %w", err)
 	}
+
+	// Fetch all-user play counts from session history. On error, fall back to
+	// ViewCount (which only reflects the admin account's plays).
+	historyCounts, _ := p.fetchAllUsersPlayCounts()
 
 	result := make(map[int]*WatchData)
 	for _, item := range items {
@@ -326,8 +382,15 @@ func (p *PlexClient) GetBulkWatchData() (map[int]*WatchData, error) {
 			continue
 		}
 
+		playCount := item.PlayCount // ViewCount fallback (admin account only)
+		if historyCounts != nil {
+			if hc, ok := historyCounts[item.ExternalID]; ok {
+				playCount = hc
+			}
+		}
+
 		data := &WatchData{
-			PlayCount:  item.PlayCount,
+			PlayCount:  playCount,
 			LastPlayed: item.LastPlayed,
 		}
 		// Keep the entry with the highest play count if duplicates
