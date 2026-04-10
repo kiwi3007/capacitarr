@@ -106,32 +106,3 @@ jobs:
         env:
           CI_COMMIT_TAG: ${{ github.ref_name }}
 
-  # ── Docker Mirror to Docker Hub ─────────────────────────────────────────────
-
-  docker-mirror-dockerhub:
-    name: "Docker: Mirror to Docker Hub"
-    runs-on: ubuntu-latest
-    needs: [docker-build]
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install crane
-        env:
-          CRANE_VERSION: v0.21.3
-        run: |
-          TARBALL="$(mktemp)"
-          curl -sSfL "https://github.com/google/go-containerregistry/releases/download/${CRANE_VERSION}/go-containerregistry_Linux_x86_64.tar.gz" \
-            -o "$TARBALL"
-          sudo tar xzf "$TARBALL" -C /usr/local/bin/ crane
-          rm -f "$TARBALL"
-          crane version
-      - name: Login to GHCR (source)
-        run: crane auth login ghcr.io -u "${{ github.actor }}" -p "${{ secrets.GITHUB_TOKEN }}"
-      - name: Login to Docker Hub (target)
-        run: crane auth login docker.io -u "${{ secrets.DOCKERHUB_USERNAME }}" -p "${{ secrets.DOCKERHUB_TOKEN }}"
-      - name: Mirror to Docker Hub
-        run: |
-          export CI_REGISTRY_IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
-          scripts/docker-mirror.sh "docker.io/${{ secrets.DOCKERHUB_USERNAME }}/capacitarr"
-        env:
-          CI_COMMIT_TAG: ${{ github.ref_name }}

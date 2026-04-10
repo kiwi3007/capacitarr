@@ -60,7 +60,7 @@ changelog:
 
 release:
   github:
-    owner: Ghent
+    owner: kiwi3007
     name: capacitarr
   # Release notes are provided by git-cliff via --release-notes in CI.
   # Do NOT set header/footer here — they override the --release-notes content.
