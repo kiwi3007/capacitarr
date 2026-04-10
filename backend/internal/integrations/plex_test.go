@@ -568,6 +568,75 @@ func TestPlexClient_GetBulkWatchData_Shows(t *testing.T) {
 	}
 }
 
+// TestPlexClient_GetBulkWatchData_IncludesManagedUserPlays verifies that play counts
+// from managed home users are included via /status/sessions/history/all, not just
+// the admin account's ViewCount from /library/sections/{key}/all.
+func TestPlexClient_GetBulkWatchData_IncludesManagedUserPlays(t *testing.T) {
+	const testPlexPathHistory = "/status/sessions/history/all"
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case testPlexPathSections:
+			resp := plexLibraryResponse{}
+			resp.MediaContainer.Directory = []struct {
+				Key   string `json:"key"`
+				Title string `json:"title"`
+				Type  string `json:"type"`
+			}{{Key: "1", Title: "Movies", Type: "movie"}}
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				t.Fatalf("Failed to encode: %v", err)
+			}
+		case testPlexPathMoviesAll:
+			resp := plexMediaResponse{}
+			resp.MediaContainer.Metadata = []plexMetadata{
+				{
+					RatingKey: "101",
+					Title:     "Serenity",
+					Year:      2005,
+					Type:      "movie",
+					ViewCount: 1, // admin account only
+					GUIDs:     []plexGUID{{ID: "tmdb://16320"}},
+				},
+			}
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				t.Fatalf("Failed to encode: %v", err)
+			}
+		case testPlexPathHistory:
+			// 3 total plays: admin (accountID=1) once, managed "Older Kid" (accountID=2) twice
+			resp := plexHistoryResponse{}
+			resp.MediaContainer.Size = 3
+			resp.MediaContainer.TotalSize = 3
+			resp.MediaContainer.Metadata = []plexHistoryEntry{
+				{RatingKey: "101", ViewedAt: 1700000000},
+				{RatingKey: "101", ViewedAt: 1700100000},
+				{RatingKey: "101", ViewedAt: 1700200000},
+			}
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				t.Fatalf("Failed to encode: %v", err)
+			}
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	client := NewPlexClient(srv.URL, "test-token")
+	watchMap, err := client.GetBulkWatchData()
+	if err != nil {
+		t.Fatalf("GetBulkWatchData should succeed: %v", err)
+	}
+
+	movie, ok := watchMap[16320]
+	if !ok {
+		t.Fatal("Expected TMDb ID 16320 in watch map")
+	}
+	// Must reflect all-user history count (3), not just admin ViewCount (1)
+	if movie.PlayCount != 3 {
+		t.Errorf("Expected PlayCount 3 (all users), got %d (likely admin-only ViewCount)", movie.PlayCount)
+	}
+}
+
 func TestPlexClient_GetBulkWatchData_DuplicateTMDbID(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
